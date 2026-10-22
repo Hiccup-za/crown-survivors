@@ -1,0 +1,40 @@
+# Read-only production smoke check (health + one leaderboard board).
+# Runs on a schedule and on demand; failures fail the job so they show in Actions.
+name: Uptime check
+
+on:
+  schedule:
+    # Every 30 minutes (GitHub schedule may drift slightly on free tier).
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check /api/health and leaderboard
+        env:
+          BASE_URL: https://crown-survivors.vercel.app
+        run: |
+          set -euo pipefail
+
+          echo "GET ${BASE_URL}/api/health"
+          health_body="$(curl -fsS "${BASE_URL}/api/health")"
+          echo "${health_body}" | grep -q '"ok"[[:space:]]*:[[:space:]]*true' || {
+            echo "::error::Health check failed: expected ok:true in ${health_body}"
+            exit 1
+          }
+
+          echo "GET ${BASE_URL}/api/leaderboard?board=fastest&limit=1"
+          lb_body="$(curl -fsS "${BASE_URL}/api/leaderboard?board=fastest&limit=1")"
+          echo "${lb_body}" | grep -q '"board"[[:space:]]*:[[:space:]]*"fastest"' || {
+            echo "::error::Leaderboard check failed: expected board fastest in ${lb_body}"
+            exit 1
+          }
+          echo "${lb_body}" | grep -q '"rows"' || {
+            echo "::error::Leaderboard check failed: missing rows in ${lb_body}"
+            exit 1
+          }
+
+          echo "Uptime checks passed."
