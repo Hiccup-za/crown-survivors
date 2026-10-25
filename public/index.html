@@ -98,7 +98,7 @@ const evLive=()=>EVL.find(e=>evState(e)==='live')||null,evPast=()=>EVL.filter(e=
 Object.assign(ETYPE,{pip:{hp:8,spd:56,r:8,dmg:5,xp:1,c:'#e07820'},shade:{hp:6,spd:64,r:7,dmg:4,xp:1,c:'#2a2038'},cskel:{hp:34,spd:30,r:10,dmg:9,xp:3,c:'#e8e0cc'},jwisp:{hp:30,spd:70,r:8,dmg:9,xp:4,c:'#ffb13d',el:1},vgourd:{hp:60,spd:26,r:11,dmg:11,xp:5,c:'#3f8a3a',el:1}});
 Object.assign(GMAT,{pip:'pulp',shade:'red',cskel:'bone',jwisp:'pulp',vgourd:'pulp'});GORE.pulp={c:['#7a3208','#b0500e','#e07820','#ffb84a'],a:.9};
 // cost = base × (1 + rankCost × (rank-1)); combo[rank-1][ritual] (rank 3+ reuses the last row); escorts get HW.escort of their HP
-const HW={drop:.3,embers:{elite:6,mini:15,gourd:30},cost:[40,70,110,160],rankCost:.5,bossHp:1,bossDmg:.2,escort:.6,crownGold:100,
+const HW={drop:.3,embers:{elite:6,mini:15,gourd:30},cost:[40,70,110,160],rankCost:.5,countdown:2,bossHp:1,bossDmg:.2,escort:.6,crownGold:100,
  combo:[[['patch'],['twin'],['wheel'],['gourd']],[['patch','patch'],['twin','patch'],['wheel','twin'],['gourd','patch']],[['patch','twin'],['twin','wheel'],['wheel','twin','patch'],['gourd','wheel','twin']]],
  pool:[['pip','pip','pip','shade'],['pip','pip','shade','shade','cskel'],['pip','pip','shade','shade','cskel','jwisp'],['pip','shade','shade','cskel','cskel','jwisp','vgourd']]};
 const HB={patch:{n:'PATCH LORD',hp:900,r:30,spd:36,dmg:18,c:'#d0661a'},twin:{n:'HOLLOW TWIN',hp:2400,r:30,spd:58,dmg:22,c:'#e07820'},wheel:{n:'HARVEST WHEEL',hp:4800,r:34,spd:44,dmg:26,c:'#8b6a42'},gourd:{n:'THE NIGHT GOURD',hp:10000,r:46,spd:30,dmg:30,c:'#c05812'}};
@@ -165,7 +165,7 @@ addEventListener('pointermove',e=>{if(joy.on&&e.pointerId===joy.id){joy.x=e.clie
 const up=e=>{if(e.pointerId===joy.id)joy.on=false;if(e.pointerId===mt.id)mt.on=false};const mtOff=()=>{mt.on=false};addEventListener('blur',mtOff);document.documentElement.addEventListener('mouseleave',mtOff);addEventListener('pointerup',up);addEventListener('pointercancel',up);
 // mouse/trackpad device (not touch-only): show keyboard hints on the choice screen
 const FINE=matchMedia('(hover:hover) and (pointer:fine)');
-const keysOff=()=>{for(const k in keys)keys[k]=0};addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey){keysOff();return}keys[e.key.toLowerCase()]=1;if(e.key==='p'&&G&&scene==='play')G.paused=!G.paused;if((e.key==='e'||e.key==='E'||e.key===' ')&&!e.repeat&&G&&G.hw&&scene==='play')hwSummon();if(e.key==='Escape'&&!trans){if(scene==='codex')go(codex.back);else if(scene==='settings')go('title');else if(scene==='shop'||scene==='chars')go('title');else if(scene==='lb'){lb.rank=null;go(lb.back)}}
+const keysOff=()=>{for(const k in keys)keys[k]=0};addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey){keysOff();return}keys[e.key.toLowerCase()]=1;if(e.key==='p'&&G&&scene==='play')G.paused=!G.paused;if(e.key==='Escape'&&!trans){if(scene==='codex')go(codex.back);else if(scene==='settings')go('title');else if(scene==='shop'||scene==='chars')go('title');else if(scene==='lb'){lb.rank=null;go(lb.back)}}
  // choice screen: 1-4 picks a card, R rerolls; same .35s guard as clicks so a held/mashed key can't insta-pick
  if(G&&scene==='play'&&G.choice&&!e.repeat){const c=G.choice,i=+e.key-1;if(c.t>.35){if(i>=0&&i<c.cards.length)choose(c.cards[i]);else if(e.key.toLowerCase()==='r'&&G.rerolls>0){sfx.click();vib(6);reroll()}}}});addEventListener('keyup',e=>{const k=e.key.toLowerCase();keys[k]=0;if(k==='meta'||k==='os'||k==='control'||k==='alt')keysOff()});addEventListener('blur',keysOff);document.addEventListener('visibilitychange',()=>{if(document.hidden)keysOff()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&scene==='play'&&G&&!G.over){G.paused=true;save()}});
@@ -293,7 +293,7 @@ function update(dt){clock+=dt;if(trans){trans.t+=dt;if(trans.t>=.22&&!trans.done
  if(g.auto){const v=autopilot();mx=v[0];my=v[1]}
  const sn=p.snare>0?.5:1;p.snare=Math.max(0,(p.snare||0)-dt);p.x+=mx*SC.spd*sn*dt;p.y+=my*SC.spd*sn*dt;if(mx)p.face=mx>0?1:-1;p.walk+=Math.hypot(mx,my)*dt*12;p.inv=Math.max(0,p.inv-dt);p.moving=Math.hypot(mx,my)>.1;
  // spawn
- if(g.hw)hwSpawn(dt);else if(!g.won){const bt=BOSS[g.bossI];if(bt&&g.t>=bt.t&&!g.boss){spawnBoss(g.bossI);g.bossI++}
+ if(g.hw){hwSpawn(dt);hwRitual(dt)}else if(!g.won){const bt=BOSS[g.bossI];if(bt&&g.t>=bt.t&&!g.boss){spawnBoss(g.bossI);g.bossI++}
   const rate=Math.min(12,.9+g.t/28+Math.pow(g.t/150,2))*(g.boss?.55:1)*(1+.2*g.curse);g.spawnAcc+=rate*dt;
   const pool=g.phase===3?[...EPOOL_JUNGLE]:g.phase>=4?[...EPOOL_SKIES]:EPOOL.flatMap(([t,...ks])=>g.t>t?ks:[]);
   while(g.spawnAcc>=1&&g.en.length<320){g.spawnAcc--;if(pool.includes('bat')&&Math.random()<.04){const t=pool[Math.random()*pool.length|0];for(let i=0;i<6;i++)spawnEnemy(t)}else spawnEnemy(pool[Math.random()*pool.length|0])}
@@ -425,7 +425,10 @@ function hwSpawn(dt){const g=G,h=g.hw,t=hwTier(),k=hwK(t),pool=HW.pool[Math.min(
  g.eliteT-=dt;if(g.eliteT<=0){g.eliteT=42;spawnEnemy(t>=2?(Math.random()<.5?'jwisp':'vgourd'):pool[Math.random()*pool.length|0],true);banner('ELITE INCOMING!','#ff8a3d')}}
 function hwDrop(e){const n=e.hb?HW.embers[e.hb==='gourd'?'gourd':'mini']:e.elite?HW.embers.elite:(ETYPE[e.type]||{}).el?1:Math.random()<HW.drop?1:0,sp=n>1?(e.boss?40:14):0;
  for(let i=0;i<n;i++)G.gems.push({x:e.x+rnd(-sp,sp),y:e.y+rnd(-sp,sp),v:1,k:'ember'})}
-function hwSummon(){const g=G,h=g&&g.hw;if(!h||g.over||g.choice||g.paused||h.live.length)return;const c=hwCost();if(h.embers<c){if(lim('nope',300))tone(150,.12,'square',.05,-40);return}
+// rituals summon themselves: once embers cover the cost, a short countdown (the tell), then the bosses rise
+function hwRitual(dt){const h=G.hw;if(h.live.length||h.embers<hwCost()){h.cd=0;return}if(!h.cd){h.cd=HW.countdown;tone(110,.5,'sawtooth',.05,80)}
+ const s=Math.ceil(h.cd);h.cd-=dt;if(h.cd<=0){h.cd=0;hwSummon()}else if(Math.ceil(h.cd)<s)tone(330,.1,'square',.05,-60)}
+function hwSummon(){const g=G,h=g&&g.hw;if(!h||g.over||h.live.length)return;const c=hwCost();if(h.embers<c)return;
  h.embers-=c;const combo=hwCombo(),N=h.rank,a0=Math.random()*6.28;
  combo.forEach((k,i)=>{const B=HB[k],a=a0+i*6.283/combo.length,hp=B.hp*(1+HW.bossHp*(N-1))*(i?HW.escort:1);
   const e={type:'boss',hb:k,boss:1,x:g.p.x+Math.cos(a)*220,y:g.p.y+Math.sin(a)*220,hp,mhp:hp,r:B.r,spd:B.spd,dmg:B.dmg*(1+HW.bossDmg*(N-1)),xp:60,flash:0,kx:0,ky:0,ph:Math.random()*6,atk:2.2+i*.9,seq:0,hitT:{}};g.en.push(e);h.live.push(e)});
@@ -661,7 +664,7 @@ function drawChoice(){const g=G,c=g.choice;x.fillStyle='rgba(30,20,10,'+Math.min
   if(inf.lv&&inf.lv<6)for(let s=0;s<5;s++)rr(x0+cw-58*U+s*10*U,y+10*U,7*U,7*U,2*U,s<inf.lv?'#e0a526':'#d6c49a');
   if(FINE.matches){rr(x0+7*U,y+7*U,17*U,17*U,4*U,'rgba(139,106,58,.18)');txt(''+(i+1),x0+15.5*U,y+15.5*U,11,'#8b6a3a','center',false)}x.globalAlpha=1});
  if(g.rerolls>0)button('↻ REROLL ('+g.rerolls+')'+(FINE.matches?' · R':''),W/2-80*U,H*.9,160*U,40*U,reroll,'#6a5acd',14)}
-// Halloween HUD: ritual boss bars up top; Night Rank ladder + Soul Embers + summon control at the bottom (E / Space on keyboard)
+// Halloween HUD: ritual boss bars up top; Night Rank ladder + Soul Embers meter (and the ritual countdown) at the bottom
 function hwHud(g,t){const h=g.hw,cost=hwCost(),combo=hwCombo(),live=h.live.length,ok=!live&&h.embers>=cost,idle=!g.choice&&!g.paused&&!g.over;
  let by=t+(g.inf&&Object.keys(g.inf).length?126:108)*U;for(const e of h.live){const bw=W-120*U;rr(60*U,by,bw,14*U,6*U,pal.ink);rr(62*U,by+2*U,(bw-4*U)*Math.max(0,e.hp/e.mhp),10*U,5*U,e.hb==='gourd'?'#ff8a1a':'#c8452f');txt(HB[e.hb].n,W/2,by+7*U,10,pal.paper);by+=18*U}
  const pw=Math.min(W-20*U,300*U),px=(W-pw)/2,bh=40*U,bY=H-64*U,ly=bY-22*U;
@@ -671,12 +674,12 @@ function hwHud(g,t){const h=g.hw,cost=hwCost(),combo=hwCombo(),live=h.live.lengt
   if(cur&&!live){x.globalAlpha=.6+.4*Math.sin(clock*5);x.strokeStyle=ok?'#ffd23f':'#c9a0ff';x.lineWidth=2*U;x.beginPath();x.arc(cx,ly,10*U,0,7);x.stroke();x.globalAlpha=1}
   txt(i<3?''+(i+1):'♛',cx,ly+.5*U,i<3?9:10,done?pal.paper:cur?'#ffd23f':'#a89a8a')}
  const nm=HB[combo[0]].n+(combo.length>1?' +'+(combo.length-1):'');
- if(ok&&idle){const pl=1+Math.sin(clock*6)*.03;x.save();x.translate(W/2,bY+bh/2);x.scale(pl,pl);x.translate(-W/2,-(bY+bh/2));button('SUMMON '+nm,px,bY,pw,bh,hwSummon,'#d0661a',nm.length>13?12:14);x.restore();
-  x.save();x.translate(px+16*U,bY+bh/2);x.scale(.62*U,.62*U);soulEmber();x.restore();txt(''+cost,px+28*U,bY+bh/2+1*U,10,'#ffe8b0','left');if(FINE.matches)txt('[E]',px+pw-10*U,bY+bh/2+1*U,10,'#ffe8b0','right')}
- else{rr(px,bY+4*U,pw,bh,12*U,'rgba(0,0,0,.35)');rr(px,bY,pw,bh,12*U,'rgba(40,28,18,.88)',pal.ink);if(!live)rr(px+3*U,bY+3*U,(pw-6*U)*Math.min(1,h.embers/cost),bh-6*U,9*U,'rgba(208,102,26,.55)');
-  x.save();x.translate(px+16*U,bY+bh/2);x.scale(.62*U,.62*U);soulEmber();x.restore();
-  txt(live?'RITUAL IN PROGRESS':(h.step===3?'':'NEXT: ')+nm,W/2+8*U,bY+bh*.34,11,live?'#ff8a3d':pal.paper);txt(h.embers+(live?'':' / '+cost)+' SOUL EMBERS',W/2+8*U,bY+bh*.7,10,'#ffb13d')}
- if(!h.cleared&&!live&&idle&&!g.tut){const m=ok?(FINE.matches?'Ready! Press E or click SUMMON':'Ready! Tap SUMMON to start the ritual'):'Defeat foes to collect SOUL EMBERS',w=Math.min(W-30*U,300*U);rr(W/2-w/2,ly-48*U,w,28*U,10*U,'rgba(255,243,196,.92)',pal.ink);txt(m,W/2,ly-34*U,11,pal.ink,'center',false)}}
+ rr(px,bY+4*U,pw,bh,12*U,'rgba(0,0,0,.35)');rr(px,bY,pw,bh,12*U,'rgba(40,28,18,.88)',pal.ink);
+ if(ok){x.globalAlpha=.55+.35*Math.sin(clock*12);rr(px+3*U,bY+3*U,pw-6*U,bh-6*U,9*U,'#d0661a');x.globalAlpha=1}else if(!live)rr(px+3*U,bY+3*U,(pw-6*U)*Math.min(1,h.embers/cost),bh-6*U,9*U,'rgba(208,102,26,.55)');
+ x.save();x.translate(px+16*U,bY+bh/2);x.scale(.62*U,.62*U);soulEmber();x.restore();
+ if(ok)txt(nm+' RISES IN '+Math.max(1,Math.ceil(h.cd||HW.countdown)),W/2+8*U,bY+bh*.34,11,pal.paper),txt('THE RITUAL BEGINS...',W/2+8*U,bY+bh*.7,10,'#ffe8b0');
+ else{txt(live?'RITUAL IN PROGRESS':(h.step===3?'':'NEXT: ')+nm,W/2+8*U,bY+bh*.34,11,live?'#ff8a3d':pal.paper);txt(h.embers+(live?'':' / '+cost)+' SOUL EMBERS',W/2+8*U,bY+bh*.7,10,'#ffb13d')}
+ if(!h.cleared&&!live&&!ok&&idle&&!g.tut){const m='Collect SOUL EMBERS to start the ritual',w=Math.min(W-30*U,300*U);rr(W/2-w/2,ly-48*U,w,28*U,10*U,'rgba(255,243,196,.92)',pal.ink);txt(m,W/2,ly-34*U,11,pal.ink,'center',false)}}
 function hwOver(){const g=G,o=g.over,h=g.hw,{px,pw}=panel(.1,.8);let y=H*.17;const hd=h.crowns?'CROWNED!':h.quit?'NIGHT OVER':'DEFEATED';pix(hd,W/2,y,hd.length>8?22:28,h.crowns?'#ffb13d':h.quit?pal.paper:'#e8473a',2.5);y+=44*U;
  [['Survived',fmtT(g.t)],['Night rank',h.rank],['Pumpkin crowns',h.crowns],['Rituals cleared',h.cleared],['Kills',g.kills],['Soul embers',h.got]].forEach(([a,b])=>{txt(a,px+24*U,y,14,pal.ink,'left',false);txt(''+b,px+pw-24*U,y,14,pal.ink,'right',false);y+=22*U});
  if(h.crowns)pcrown(px+pw-38*U-String(h.crowns).length*8*U,y-4*22*U+2*U,1.1*U);
