@@ -32,9 +32,12 @@ Readability rules:
 - Orange on deep purple is the core contrast. Faces must survive at 1× game scale on a phone (about 20 device px radius for trash).
 - **One accent glow max** per enemy (artist brief). Props stay faceless so they never read as enemies.
 - No gore, no candy mascots, no licensed characters. Pumpkin-first.
-- **Menacing, not goofy** (revision 2). Lids and brows slant down toward the face centre (`eye` with `glare`). Carved eyes are angled
-  (`slit`), never upright triangles. Mouths scowl with the corners down and show fangs (`snarl`). No upturned smiles, no buck teeth.
+- **Menacing, not goofy** (revisions 2–3). Mouths scowl with the corners down and show fangs (`snarl`); no upturned smiles, no buck teeth.
   Stay in the house style: chunky, readable and mean, never horror-realistic.
+- **Dead eyes only** (revision 3). No white eyeballs or pupils on any Halloween character. Trash and elites have hollow carved eyes
+  (`slit`, the Candy Skel look) or dead sockets (`socket`, Skelly Knight). Bosses have carved glowing jack-o'-lantern eyes (`ceye`, the Night
+  Gourd's angular form, also Hollow Twin's carved half), each with its own personality: Patch Lord squints in contempt under a crooked
+  brow ridge, Harvest Wheel's eyes glow ember-hot at a manic tilt.
 
 ## 3. Palette ramps (`RAMP` in code)
 
@@ -54,14 +57,14 @@ Every brief lists the silhouette hook, the detail layers, the 4-frame cycle and 
 
 | Character | Concept | Silhouette hook | Detail layers | 4-frame cycle | Tell |
 | --- | --- | --- | --- | --- | --- |
-| **Pip** (trash, r8) | Mean little rolling pumpkin | squat ball + curly stem | ribs that scroll to fake the roll; glaring square eyes; fanged scowl | bounce squash/stretch, ribs scroll, leaf flips | — |
+| **Pip** (trash, r8) | Mean little rolling pumpkin | squat ball + curly stem | ribs that scroll to fake the roll; hollow carved eyes (Candy Skel's dead look); fanged scowl | bounce squash/stretch, ribs scroll, leaf flips | — |
 | **Shade Bat** (trash, r7) | Purple-black bat with pumpkin-orange wing membranes and a stem curl on its head | wide scalloped wings | finger bones over orange membrane; ears, long fangs; angled orange slit eyes (its accent) | up / mid / down / mid flap, body bobs opposite | — |
 | **Candy Skel** (trash, r10) | Bone skeleton with a carved pumpkin head, ragged candy-corn scarf, rusty sickle | tall: head on top + sickle hook | ribcage + pelvis; pumpkin head with angled carved eyes and a stitched frown; scarf; sickle | 2-step walk (legs alternate, head bobs, scarf swings) | — |
 | **Jack Wisp** (elite, r8) | Jack-o'-lantern whose lid is knocked open; a flame climbs out of the top and trails behind as it floats | teardrop: lantern + flame tail | cracked lid; three-tongue flame; glowing angled eyes and fanged scowl (its one glow); ghost-flame tail away from the player | flame flickers through 4 shapes, bob | flicker to half alpha (elusive) |
-| **Vine Gourd** (elite, r11) | Lumpy warty gourd strangled by thorn vines; one big eye peers out between them | lumpy blob + 3 lashing tendrils | smooth lobed body; green mottles; one strangling vine; V-glaring cyclops eye; fanged scowl | tendrils writhe through 4 poses | tendrils dig into the ground, eye flares green before a snare |
-| **Patch Lord** (M1, r30) | Fat pumpkin tyrant with a crown of curled stems and a sewn-on patch | wide squat body + stem crown | 6 ribs, stitched cheek patch, glaring lids, wide fanged scowl, root feet | feet shuffle, body sways | rears up tall, eyes wide, roars, glow ring → slam squash |
+| **Skelly Knight** (elite, r11) | A too-tall, too-thin skeleton knight (original design; nods to the lanky hollow-eyed skeleton look without copying any licensed character) | tall oval skull in a plumed helm, sword dragged behind | dead sockets + fanged scowl; dented iron helm with a pumpkin-orange plume; narrow breastplate with a carved pumpkin crest; tattered night cape; rusted sword | 2-step walk, cape and plume sway | Grave Pin: sword raised in front of the skull, sockets kindle |
+| **Patch Lord** (M1, r30) | Fat pumpkin tyrant with a crown of curled stems and a sewn-on patch | wide squat body + stem crown | 6 ribs, stitched cheek patch, carved glowing eyes under a crooked brow ridge (one squints in contempt), wide fanged scowl, root feet | feet shuffle, body sways | rears up tall, eyes blaze wide, roars, glow ring → slam squash |
 | **Hollow Twin** (M2, r30) | One pumpkin split down a jagged crack: a glowing glare and scowl on one half, a stitched frown and one red eye in a hollow socket on the other | jagged split, halves offset | pulp + seeds in the split; carved glowing half-face; stitched half-face | halves breathe apart/together | fan: halves part and seeds glow. Dash: halves clamp and lean in |
-| **Harvest Wheel** (M3, r34) | Angry pumpkin hub inside a spiked wooden cartwheel, straw sticking out | spiked ring | wood rim + iron band + 8 spokes + iron spikes; straw tufts; glaring lids + interlocking fangs | wheel rotates with travel | rev-up: spoke blur arcs + sparks, face strains |
+| **Harvest Wheel** (M3, r34) | Angry pumpkin hub inside a spiked wooden cartwheel, straw sticking out | spiked ring | wood rim + iron band + 8 spokes + iron spikes; straw tufts; ember-hot carved eyes at a manic tilt under sharp brows; gritted carved teeth | wheel rotates with travel | rev-up: spoke blur arcs + sparks, eyes narrow to white-hot slits |
 | **The Night Gourd** (final, r46) | A massive dark pumpkin with a fused gold crown, a jagged fanged maw glowing from inside, thorn vines draping like roots | huge body + crown + root skirt | 8 deep ribs, brow ridge, snarling fanged maw (its glow), crown on a twisted stem, vine roots | body breathes, roots curl | volley: maw opens. Vines: roots glow. Rain: eyes flare. Charge: leans in |
 
 Night Gourd phase art: **P1** intact. **P2** glowing crack seams and a chipped ridge. **P3** the top of the shell is broken open,
@@ -96,7 +99,7 @@ The same scene can later host `?sheet=classic` while Classic characters are upgr
 
 1. Kit helpers + cache + review-sheet scene (empty grid).
 2. Trash: Pip, Shade Bat, Candy Skel.
-3. Elite: Jack Wisp, Vine Gourd (+ Vine Gourd tell state).
+3. Elite: Jack Wisp, Skelly Knight (+ Grave Pin tell state; replaced the Vine Gourd in revision 3).
 4. Mini-bosses: Patch Lord, Hollow Twin, Harvest Wheel (tell poses).
 5. The Night Gourd (phases + tells).
 6. Wire into the game and menus, remove the v0 stubs, update `docs/halloween-event.md`.
