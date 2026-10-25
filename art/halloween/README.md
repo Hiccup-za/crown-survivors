@@ -1,20 +1,21 @@
-# Halloween Event — V0 Direction Sheet
+# Halloween Event — V0 Direction
 
-Review artifact for Christopher before any in-game Halloween implementation.
+Poster sheet for review before any Halloween gameplay. One field, the pumpkin roster, and the Soul Embers pickup.
 
 | File | Purpose |
 |------|---------|
-| `halloween-v0-direction.html` | Canvas source (forks live `enemyS` / UI chrome from `public/index.html`) |
-| `halloween-v0-direction-1920.png` | 1920×1080 contact sheet export |
+| `halloween-v0-direction.html` | Canvas source. Drawing follows live `enemyS` / `bossS` (ink `#3b2a1a`, flat fills, rect eyes, oval shadows). |
+| `halloween-v0-direction-1920.png` | 1920×1080 export |
 
-Pickup on the sheet: **Soul Embers** — 32×32 summon currency enemies drop (warm orange, ember gold, ink `#3b2a1a`). Shown as a large preview plus the native 32×32 cell.
+Roster, labelled on the sheet: Pip, Shade Bat, Candy Skel, Jack Wisp, Vine Gourd, Patch Lord, Hollow Twin, Harvest Wheel, The Night Gourd.
+
+Pickup: **Soul Embers** — 32×32 summon currency enemies drop.
 
 ## Regenerate PNG
 
 ```bash
-google-chrome --headless=new --disable-gpu --window-size=1920,1080 \
+google-chrome --headless=new --disable-gpu --no-sandbox --force-device-scale-factor=1 \
+  --user-data-dir=/tmp/chrome-halloween --window-size=1920,1080 \
   --screenshot=art/halloween/halloween-v0-direction-1920.png \
   "file://$PWD/art/halloween/halloween-v0-direction.html?export=1"
 ```
-
-Or open the HTML locally and use **Download PNG**.
