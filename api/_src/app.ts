@@ -7,6 +7,15 @@ import { ipHash, recordTelemetry, TELEMETRY_MAX_BYTES, validateTelemetry } from 
 import { getAdminStats, isAdmin, MAX_RANGE_DAYS, parseRange } from "./admin.js";
 import { getProfile, isInstallId, isUserId, listPlayers } from "./players.js";
 import { getSave, pushSave, SAVE_MAX_BYTES, validatePush } from "./save.js";
+import { acceptsScores, eventState, findEvent } from "./events.js";
+import {
+  EVENT_BOARDS,
+  type EventBoard,
+  getEventLeaderboard,
+  getMyEventRank,
+  insertEventScore,
+  validateEventScore,
+} from "./event-scores.js";
 
 type Vars = { user: Session["user"] | null; session: Session["session"] | null };
 
@@ -222,6 +231,59 @@ app.get("/api/admin/leaderboard", async (c) => {
   const board = parseBoard(c.req.query("board") ?? "fastest");
   if (!board) return c.json({ error: "board must be fastest|survival|kills" }, 400);
   return c.json({ board, rows: await getLeaderboard(board, 100, true) });
+});
+
+// ---- Seasonal event boards (Halloween Endless). Separate table; Classic routes above are unchanged. ----
+
+function parseEventBoard(v: string | undefined): EventBoard | null {
+  return EVENT_BOARDS.includes(v as EventBoard) ? (v as EventBoard) : null;
+}
+const EVENT_BOARD_ERR = `board must be ${EVENT_BOARDS.join("|")}`;
+
+app.post("/api/events/:id/scores", async (c) => {
+  const ev = findEvent(c.req.param("id"));
+  if (!ev) return c.json({ error: "unknown event" }, 404);
+  const user = c.get("user");
+  if (!user) return c.json({ error: "sign in required" }, 401);
+  if (!acceptsScores(ev)) return c.json({ error: "event is not open for scores" }, 403);
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid JSON" }, 400);
+  }
+  const v = validateEventScore(body);
+  if (!v.ok) return c.json({ error: v.error }, 400);
+  const id = await insertEventScore(ev.id, user.id, v.value);
+  if (id === null) {
+    c.header("Retry-After", String(RATE_LIMIT_SECONDS));
+    return c.json({ error: `one submission per ${RATE_LIMIT_SECONDS}s` }, 429);
+  }
+  return c.json({ ok: true, id }, 201);
+});
+
+app.get("/api/events/:id/leaderboard", async (c) => {
+  const ev = findEvent(c.req.param("id"));
+  if (!ev) return c.json({ error: "unknown event" }, 404);
+  const board = parseEventBoard(c.req.query("board") ?? "crowns");
+  if (!board) return c.json({ error: EVENT_BOARD_ERR }, 400);
+  const raw = Number(c.req.query("limit") ?? 50);
+  const limit = Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), 100) : 50;
+  const rows = await getEventLeaderboard(ev.id, board, limit);
+  c.header("Cache-Control", "public, s-maxage=15, stale-while-revalidate=60");
+  return c.json({ event: ev.id, state: eventState(ev), board, rows });
+});
+
+app.get("/api/events/:id/me/rank", async (c) => {
+  const ev = findEvent(c.req.param("id"));
+  if (!ev) return c.json({ error: "unknown event" }, 404);
+  const user = c.get("user");
+  if (!user) return c.json({ error: "sign in required" }, 401);
+  const board = parseEventBoard(c.req.query("board") ?? "crowns");
+  if (!board) return c.json({ error: EVENT_BOARD_ERR }, 400);
+  const { row, total } = await getMyEventRank(ev.id, board, user.id);
+  c.header("Cache-Control", "private, no-store");
+  return c.json({ event: ev.id, board, total, rank: row?.rank ?? null, row });
 });
 
 app.onError((err, c) => {

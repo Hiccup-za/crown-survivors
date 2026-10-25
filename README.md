@@ -8,9 +8,10 @@ The game lives at `/` (`public/index.html`). The API is under `/api/*` with Bett
 
 | Path | Purpose |
 | --- | --- |
-| `public/` | Static game (Classic) |
+| `public/` | Static game (Classic + seasonal event modes) |
 | `api/` | Leaderboard API (Vercel serverless via `api/index.ts`) |
 | `api/_src`, `api/_scripts`, `api/_test` | API code, CLI scripts and tests. The `_` prefix keeps Vercel from deploying each file as its own function (Hobby allows 12); `api/index.ts` is the only one |
+| `docs/` | Event build notes and balance tables (`docs/halloween-event.md`) |
 
 ## Environment variables (Vercel + local)
 
@@ -82,7 +83,24 @@ Build command (optional): `npm run typecheck`. Output: static files from `public
 | POST | `/api/scores` | Submit score (authenticated) |
 | GET | `/api/leaderboard?board=fastest\|survival\|kills` | Public leaderboard |
 | GET | `/api/me/rank?board=…` | Your rank (authenticated) |
+| POST | `/api/events/:id/scores` | Submit an event run (authenticated; only while the event is open, plus 2 h grace) |
+| GET | `/api/events/:id/leaderboard?board=crowns\|fastest\|kills` | Event leaderboard (stays readable after the event as its archive) |
+| GET | `/api/events/:id/me/rank?board=…` | Your rank on an event board (authenticated) |
 | GET | `/api/health` | Health check JSON |
+
+## Seasonal events
+
+Events are data. The first is `halloween-2026` (Halloween Endless). Each event is one row in `EVENTS` in
+`public/index.html` and one in `api/_src/events.ts`, and the two must match: id, `startAt`/`endAt` (SAST,
+end exclusive), theme. While an event is live, the title wears its skin and offers its mode. After it ends,
+the mode is hidden and the title's **EVENTS** button opens the archive.
+
+Event scores live in `event_scores` (migration `002_event_scores.sql`) and never touch the Classic boards.
+Balance numbers and the per-chunk notes are in `docs/halloween-event.md`.
+
+QA on localhost or a preview deployment (ignored on `crown-survivors.vercel.app`):
+`?event=halloween-2026` forces the event live, and `?event=ended` shows the post-event title and archive.
+The API still enforces the real window for submissions.
 
 ## Flight Games
 
