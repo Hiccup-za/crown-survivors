@@ -43,7 +43,7 @@ so preview runs cannot post scores early.
 | Source | Embers |
 | --- | --- |
 | Trash kill (Pip, Shade Bat, Candy Skel) | 1 at 30% |
-| Elite-type kill (Jack Wisp, Vine Gourd) | 1 |
+| Elite-type kill (Jack Wisp, Skelly Knight) | 1 |
 | Elite spawn (8× HP "ELITE INCOMING") | 6 |
 | Mini-boss kill | 15 |
 | Night Gourd kill | 30 |
@@ -86,14 +86,14 @@ Enemies scale by **tier** = 4 × (N − 1) + rituals cleared in the current rank
 | 8 | Rank 3 start | 50.6 | 1.48 | 3.00 | 11.6 |
 
 While a ritual is in progress, spawn rate × 0.55 (same as Classic during a boss). Elite spawns
-come every 42 s (first at 45 s), drawn from Jack Wisp / Vine Gourd from tier 2 onwards.
+come every 42 s (first at 45 s), drawn from Jack Wisp / Skelly Knight from tier 2 onwards.
 
 For reference, Classic enemy HP at each boss is ×2.6 / 5.5 / 9.4 / 15.5 / 23.5, so Rank 1 tracks
 Classic and Rank 2+ is the endless climb.
 
 ## Roster: Halloween ETYPE pool (Chunk 3a)
 
-Base stats sit next to the closest Classic type. The art for every enemy below and every boss further down is **Sprite Kit v2**.
+Base stats sit next to the closest Classic type. (The Skelly Knight replaced the Vine Gourd on 25 Oct and kept its slot, numbers and snare role.) The art for every enemy below and every boss further down is **Sprite Kit v2**.
 Character briefs, palette ramps and the detail budget live in `docs/sprite-kit.md`; review it live at `?sheet=halloween`.
 
 | Key | Name | Role | HP | Speed | Radius | Damage | XP | Behaviour | Classic ref |
@@ -102,7 +102,7 @@ Character briefs, palette ramps and the detail budget live in `docs/sprite-kit.m
 | `shade` | Shade Bat | Trash · flyer | 6 | 64 | 7 | 4 | 1 | bat flutter; 4% of spawns are a flock of 6 | bat 6/62 |
 | `cskel` | Candy Skel | Trash · walker | 34 | 30 | 10 | 9 | 3 | steady walker | skel 34/30 |
 | `jwisp` | Jack Wisp | Elite · elusive | 30 | 70 | 8 | 9 | 4 | spirals in like a wisp and flickers | wisp 38/70 |
-| `vgourd` | Vine Gourd | Elite · snare | 60 | 26 | 11 | 11 | 5 | inside 170 range, plants a thorn snare every 4–6 s (telegraphed circle r 26 over 1.0 s; hit = its damage + 50% slow for 1.2 s) | vine 40/40 |
+| `sknight` | Skelly Knight | Elite · snare (Grave Pin) | 60 | 26 | 11 | 11 | 5 | inside 170 range, every 4–6 s raises its sword (the tell) and pins the ground under you: bone spikes in a telegraphed circle (r 26 over 1.0 s; hit = its damage + 50% slow for 1.2 s) | vine 40/40 |
 
 Spawn pool by tier:
 
@@ -111,7 +111,7 @@ Spawn pool by tier:
 | 0 | Pip ×3, Shade Bat |
 | 1 | Pip ×2, Shade Bat ×2, Candy Skel |
 | 2 | + Jack Wisp |
-| 3+ | Pip, Shade Bat ×2, Candy Skel ×2, Jack Wisp, Vine Gourd |
+| 3+ | Pip, Shade Bat ×2, Candy Skel ×2, Jack Wisp, Skelly Knight |
 
 ## Mini-bosses (Chunk 3b)
 
