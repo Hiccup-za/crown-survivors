@@ -40,21 +40,19 @@ const codexDev=(()=>{try{return new URLSearchParams(location.search).get('codex'
 const codexDispItem=(kind,k)=>codexDev?{seen:1,taken:3}:codexItemRec(kind,k);
 const codexDispEnemy=id=>codexDev?{seen:1,kills:12}:codexEnemyRec(id);
 const UM=Math.min(390/360,844/640),LINK='#3b2a1a';
-const CODEX_DRAW=1.35,CODEX_ITEM_ROW=62;
-const CODEX_BOSS_EXT=[[2.05,1.3],[2.25,1.25],[2.05,1.3],[3.75,1.45],[2.55,1.35]],CODEX_ENEMY_EXT={blob:[1.08,1.18],bat:[1.5,1.08],skel:[1.38,1.12],ghost:[1.22,1.15],imp:[1.48,1.1],vine:[1.82,1.18],frog:[1.72,1.22],wisp:[1.22,1.12],harpy:[1.58,1.12]};
+const CODEX_DRAW=1.35,CODEX_ITEM_ROW=62,CODEX_ENEM_ART_W=92,CODEX_ENEM_ROW=94;
 const codexEnemyR=ent=>ent.boss?BOSS[ent.bi].r*.55:ETYPE[ent.id].r;
-const codexVertExt=ent=>{const r=codexEnemyR(ent);if(ent.boss){const p=CODEX_BOSS_EXT[ent.bi]||[2.1,1.3];return{up:p[0]*r,dn:p[1]*r}}const p=CODEX_ENEMY_EXT[ent.id]||[1.22,1.12];return{up:p[0]*r,dn:p[1]*r}};
-const codexRowHDesign=(ent,tab)=>{if(tab==='items')return CODEX_ITEM_ROW;const e=codexVertExt(ent),body=(e.up+e.dn)*UM*CODEX_DRAW+14;return Math.ceil(Math.max(body,38)+8)};
-const codexEnemyArtWDesign=ent=>ent.boss?96:(ent.id==='bat'||ent.id==='harpy'?54:48);
-const codexBossArtNudge=ent=>ent.boss&&ent.bi===3?{x:20,y:8}:{x:0,y:0};
+const codexRowHDesign=(ent,tab)=>tab==='items'?CODEX_ITEM_ROW:CODEX_ENEM_ROW;
+const codexArtNudgeInBox=ent=>ent.boss&&ent.bi===3?{x:10,y:6}:ent.boss&&ent.bi===4?{x:0,y:4}:{x:0,y:0};
 function codexDrawRow(ent,rx,ry,w,h,i,tab){const rec=tab==='items'?codexDispItem(ent.kind,ent.k):codexDispEnemy(ent.id),seen=!!rec.seen,cStat=rx+w-6;
  rr(rx,ry,w,h,8,seen?'#e9d3a0':'#d6c49a',pal.ink,2);const iconL=rx+4;
  if(tab==='items'){const cx=iconL+22,cy=ry+h/2;x.save();x.translate(cx,cy);x.scale(UM*1.2,UM*1.2);
   if(seen){if(ent.kind==='i')icon('p',ent.ic||INF[ent.k].ic,0,0,11);else if(ent.kind==='x')icon('x',ent.k,0,0,11);else icon(ent.kind==='p'?'p':'w',ent.k,0,0,11);if(ent.kind==='e'){x.strokeStyle='#ffd23f';x.lineWidth=2;x.beginPath();x.arc(0,0,13,0,7);x.stroke()}}else{x.globalAlpha=.35;x.fillStyle=pal.ink;x.fillRect(-12,-12,24,24);x.globalAlpha=1}
   x.restore();const tx=iconL+48;txt(seen?ent.n:'???',tx,ry+h*.32,14,seen?pal.ink:'#8b6a3a','left',false);txt(seen?(ent.d||''):'Not encountered yet',tx,ry+h*.58,10,'#5a4030','left',false);txt('Seen '+(rec.seen|0)+' · Taken '+(rec.taken|0),cStat,ry+h*.82,10,'#8b6a3a','right',false)}
- else{const artW=codexEnemyArtWDesign(ent),nu=codexBossArtNudge(ent),iconCx=iconL+artW/2+nu.x,iconCy=ry+h/2+nu.y;x.save();x.beginPath();x.rect(rx,ry,w,h);x.clip();x.translate(iconCx,iconCy);x.scale(UM*CODEX_DRAW,UM*CODEX_DRAW);
+ else{const pad=4,artX=rx+pad,artY=ry+pad,artH=h-pad*2,nu=codexArtNudgeInBox(ent);rr(artX,artY,CODEX_ENEM_ART_W,artH,6,seen?'#d6c49a':'#c9b48a',pal.ink,1.5);
+  x.save();x.beginPath();x.rect(artX,artY,CODEX_ENEM_ART_W,artH);x.clip();x.translate(artX+CODEX_ENEM_ART_W/2+nu.x,artY+artH/2+nu.y);x.scale(UM*CODEX_DRAW,UM*CODEX_DRAW);
   if(seen)enemyS({type:ent.boss?'boss':ent.id,x:0,y:0,r:codexEnemyR(ent),bi:ent.bi,ph:clock+i,flash:0,elite:0});else{x.globalAlpha=.25;x.fillStyle=pal.ink;x.beginPath();x.arc(0,0,10,0,7);x.fill();x.globalAlpha=1}
-  x.restore();const tx=iconL+artW+10;txt(seen?ent.n:'???',tx,ry+14,14,seen?pal.ink:'#8b6a3a','left',false);if(!seen)txt('Not encountered yet',tx,ry+32,10,'#5a4030','left',false);txt('Seen '+(rec.seen|0)+' · Kills '+(rec.kills|0),cStat,ry+h-14,10,'#8b6a3a','right',false)}}
+  x.restore();const tx=artX+CODEX_ENEM_ART_W+10;txt(seen?ent.n:'???',tx,ry+18,14,seen?pal.ink:'#8b6a3a','left',false);if(!seen)txt('Not encountered yet',tx,ry+38,10,'#5a4030','left',false);txt('Seen '+(rec.seen|0)+' · Kills '+(rec.kills|0),cStat,ry+h-14,10,'#8b6a3a','right',false)}}
 // ===== data =====
 const CH=[{n:'King Cube',d:'Balanced royal. Starts with Scepter Bolt.',c:'#e0a526',k:'#9c6a12',w:'bolt',hp:100,spd:1,p:0,perk:'+10% XP'},
  {n:'Ruby Knight',d:'Tanky brawler. Starts with Royal Aura.',c:'#c8452f',k:'#7d2618',w:'aura',hp:140,spd:.9,p:500,perk:'+1 Armor'},
