@@ -39,12 +39,9 @@ const codexEnemyCatalog=()=>{const out=Object.keys(ETYPE).map(k=>({id:k,boss:0,n
 const codexDev=(()=>{try{return new URLSearchParams(location.search).get('codex')==='dev'}catch(e){return false}})();
 const codexDispItem=(kind,k)=>codexDev?{seen:1,taken:3}:codexItemRec(kind,k);
 const codexDispEnemy=id=>codexDev?{seen:1,kills:12}:codexEnemyRec(id);
-const CODEX_BOSS_SPAN=[2.55,3.15,2.55,4.35,3.85],CODEX_ENEMY_SPAN={bat:3.1,harpy:3.2,wisp:2.6,frog:2.4,vine:2.3,ghost:2.2,skel:2.2,imp:2.2,blob:2.2};
-const codexEnemyDraw=(ent,iconL,y,rowH,i)=>{const iconSlot=Math.min(46*U,rowH-6*U),iconCx=iconL+iconSlot/2,iconCy=y+rowH/2;
- x.save();x.beginPath();x.rect(iconL,y+3*U,iconSlot,rowH-6*U);x.clip();x.translate(iconCx,iconCy);
- if(!codexDispEnemy(ent.id).seen){x.globalAlpha=.25;x.fillStyle=pal.ink;x.beginPath();x.arc(0,0,Math.min(10*U,iconSlot*.22),0,7);x.fill();x.globalAlpha=1;x.restore();return iconSlot}
- const baseR=ent.boss?BOSS[ent.bi].r:ETYPE[ent.id].r,span=ent.boss?CODEX_BOSS_SPAN[ent.bi]: (CODEX_ENEMY_SPAN[ent.id]||2.3),sc=(iconSlot*.44)/(baseR*span);
- x.scale(sc,sc);enemyS({type:ent.boss?'boss':ent.id,x:0,y:0,r:baseR,bi:ent.bi,ph:clock+i,flash:0,elite:0});x.restore();return iconSlot};
+const CODEX_ITEM_ROW=62,CODEX_ENEMY_ROW=56,CODEX_BOSS_ROW=[78,90,78,126,116];
+const codexRowH=(ent,tab)=>{if(tab==='items')return CODEX_ITEM_ROW*U;if(ent.boss)return(CODEX_BOSS_ROW[ent.bi]||82)*U;return CODEX_ENEMY_ROW*U};
+const codexEnemyArtW=ent=>ent.boss?80*U:44*U;
 // ===== data =====
 const CH=[{n:'King Cube',d:'Balanced royal. Starts with Scepter Bolt.',c:'#e0a526',k:'#9c6a12',w:'bolt',hp:100,spd:1,p:0,perk:'+10% XP'},
  {n:'Ruby Knight',d:'Tanky brawler. Starts with Royal Aura.',c:'#c8452f',k:'#7d2618',w:'aura',hp:140,spd:.9,p:500,perk:'+1 Armor'},
@@ -532,16 +529,19 @@ function drawCodex(){menuBg();const top=.04,hgt=.92,{px,pw}=panel(top,hgt),pBot=
  const listX=px+inset,listW=pw-inset*2,scrollG=16*U,pad=4*U,rowW=listW-pad*2-scrollG,cStat=listX+pad+rowW-6*U;
  rr(listX,listTop,listW,listH,10*U,'rgba(30,20,10,.35)',pal.ink,2);
  const entries=codex.tab==='items'?codexItemCatalog():codexEnemyCatalog();
- const rh=Math.min(74*U,Math.max(56*U,listH/Math.min(entries.length,6)));
- const maxS=Math.max(0,entries.length*rh-listH+pad*2);codex.scroll=Math.max(0,Math.min(maxS,codex.scroll));
+ const rowHs=entries.map(e=>codexRowH(e,codex.tab));let totH=0,yPos=[];for(const h of rowHs){yPos.push(totH);totH+=h}
+ const maxS=Math.max(0,totH-listH+pad*2);codex.scroll=Math.max(0,Math.min(maxS,codex.scroll));
  x.save();x.beginPath();x.rect(listX+pad,listTop+pad,rowW,listH-pad*2);x.clip();
- entries.forEach((ent,i)=>{const y=listTop+pad+i*rh-codex.scroll;if(y+rh<listTop+pad||y>listTop+listH-pad)return;
-  const rec=codex.tab==='items'?codexDispItem(ent.kind,ent.k):codexDispEnemy(ent.id),seen=!!rec.seen,rowH=rh-6*U;
+ entries.forEach((ent,i)=>{const outerH=rowHs[i],y=listTop+pad+yPos[i]-codex.scroll;if(y+outerH<listTop+pad||y>listTop+listH-pad)return;
+  const rec=codex.tab==='items'?codexDispItem(ent.kind,ent.k):codexDispEnemy(ent.id),seen=!!rec.seen,rowH=outerH-6*U;
   rr(listX+pad,y,rowW,rowH,8*U,seen?'#e9d3a0':'#d6c49a',pal.ink,2);
   const iconL=listX+pad+4*U;let tx=listX+pad+62*U;
   if(codex.tab==='items'){const cx=iconL+22*U,cy=y+rowH/2;x.save();x.translate(cx,cy);x.scale(U*1.2,U*1.2);
    if(seen){if(ent.kind==='i')icon('p',ent.ic||INF[ent.k].ic,0,0,11);else if(ent.kind==='x')icon('x',ent.k,0,0,11);else icon(ent.kind==='p'?'p':'w',ent.k,0,0,11);if(ent.kind==='e'){x.strokeStyle='#ffd23f';x.lineWidth=2;x.beginPath();x.arc(0,0,13,0,7);x.stroke()}}else{x.globalAlpha=.35;x.fillStyle=pal.ink;x.fillRect(-12,-12,24,24);x.globalAlpha=1}
-   x.restore();tx=iconL+48*U}else{const slotW=codexEnemyDraw(ent,iconL,y,rowH,i);tx=iconL+slotW+10*U}
+   x.restore();tx=iconL+48*U}else{const artW=codexEnemyArtW(ent),artX=iconL,artY=y+4*U,artH=rowH-8*U,iconCx=artX+artW/2,iconCy=artY+artH/2;
+   x.save();x.beginPath();x.rect(listX+pad,y,rowW,rowH);x.clip();x.save();x.beginPath();x.rect(artX,artY,artW,artH);x.clip();x.translate(iconCx,iconCy);x.scale(U*1.35,U*1.35);
+   if(seen){const dr=ent.boss?BOSS[ent.bi].r*.55:ETYPE[ent.id].r;enemyS({type:ent.boss?'boss':ent.id,x:0,y:0,r:dr,bi:ent.bi,ph:clock+i,flash:0,elite:0})}else{x.globalAlpha=.25;x.fillStyle=pal.ink;x.beginPath();x.arc(0,0,10,0,7);x.fill();x.globalAlpha=1}
+   x.restore();x.restore();tx=artX+artW+10*U}
   txt(seen?ent.n:'???',tx,y+rowH*.32,14,seen?pal.ink:'#8b6a3a','left',false);
   txt(seen?(ent.d||''):'Not encountered yet',tx,y+rowH*.58,10,'#5a4030','left',false);
   if(codex.tab==='items')txt('Seen '+(rec.seen|0)+' · Taken '+(rec.taken|0),cStat,y+rowH*.82,10,'#8b6a3a','right',false);
