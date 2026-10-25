@@ -39,9 +39,12 @@ const codexEnemyCatalog=()=>{const out=Object.keys(ETYPE).map(k=>({id:k,boss:0,n
 const codexDev=(()=>{try{return new URLSearchParams(location.search).get('codex')==='dev'}catch(e){return false}})();
 const codexDispItem=(kind,k)=>codexDev?{seen:1,taken:3}:codexItemRec(kind,k);
 const codexDispEnemy=id=>codexDev?{seen:1,kills:12}:codexEnemyRec(id);
-const CODEX_ITEM_ROW=62,CODEX_ENEMY_ROW=56,CODEX_BOSS_ROW=[78,90,78,126,116];
-const codexRowH=(ent,tab)=>{if(tab==='items')return CODEX_ITEM_ROW*U;if(ent.boss)return(CODEX_BOSS_ROW[ent.bi]||82)*U;return CODEX_ENEMY_ROW*U};
-const codexEnemyArtW=ent=>ent.boss?80*U:44*U;
+const CODEX_DRAW=1.35,CODEX_ITEM_ROW=62;
+const CODEX_BOSS_EXT=[[2.05,1.3],[2.25,1.25],[2.05,1.3],[3.75,1.45],[2.55,1.35]],CODEX_ENEMY_EXT={blob:[1.08,1.18],bat:[1.5,1.08],skel:[1.38,1.12],ghost:[1.22,1.15],imp:[1.48,1.1],vine:[1.82,1.18],frog:[1.72,1.22],wisp:[1.22,1.12],harpy:[1.58,1.12]};
+const codexEnemyR=ent=>ent.boss?BOSS[ent.bi].r*.55:ETYPE[ent.id].r;
+const codexVertExt=ent=>{const r=codexEnemyR(ent);if(ent.boss){const p=CODEX_BOSS_EXT[ent.bi]||[2.1,1.3];return{up:p[0]*r,dn:p[1]*r}}const p=CODEX_ENEMY_EXT[ent.id]||[1.22,1.12];return{up:p[0]*r,dn:p[1]*r}};
+const codexRowH=(ent,tab)=>{if(tab==='items')return CODEX_ITEM_ROW*U;const e=codexVertExt(ent),body=(e.up+e.dn)*U*CODEX_DRAW+14*U;return Math.ceil(Math.max(body,38*U)+8*U)};
+const codexEnemyArtW=ent=>ent.boss?96*U:(ent.id==='bat'||ent.id==='harpy'?54*U:48*U);
 // ===== data =====
 const CH=[{n:'King Cube',d:'Balanced royal. Starts with Scepter Bolt.',c:'#e0a526',k:'#9c6a12',w:'bolt',hp:100,spd:1,p:0,perk:'+10% XP'},
  {n:'Ruby Knight',d:'Tanky brawler. Starts with Royal Aura.',c:'#c8452f',k:'#7d2618',w:'aura',hp:140,spd:.9,p:500,perk:'+1 Armor'},
@@ -538,14 +541,15 @@ function drawCodex(){menuBg();const top=.04,hgt=.92,{px,pw}=panel(top,hgt),pBot=
   const iconL=listX+pad+4*U;let tx=listX+pad+62*U;
   if(codex.tab==='items'){const cx=iconL+22*U,cy=y+rowH/2;x.save();x.translate(cx,cy);x.scale(U*1.2,U*1.2);
    if(seen){if(ent.kind==='i')icon('p',ent.ic||INF[ent.k].ic,0,0,11);else if(ent.kind==='x')icon('x',ent.k,0,0,11);else icon(ent.kind==='p'?'p':'w',ent.k,0,0,11);if(ent.kind==='e'){x.strokeStyle='#ffd23f';x.lineWidth=2;x.beginPath();x.arc(0,0,13,0,7);x.stroke()}}else{x.globalAlpha=.35;x.fillStyle=pal.ink;x.fillRect(-12,-12,24,24);x.globalAlpha=1}
-   x.restore();tx=iconL+48*U}else{const artW=codexEnemyArtW(ent),artX=iconL,artY=y+4*U,artH=rowH-8*U,iconCx=artX+artW/2,iconCy=artY+artH/2;
-   x.save();x.beginPath();x.rect(listX+pad,y,rowW,rowH);x.clip();x.save();x.beginPath();x.rect(artX,artY,artW,artH);x.clip();x.translate(iconCx,iconCy);x.scale(U*1.35,U*1.35);
-   if(seen){const dr=ent.boss?BOSS[ent.bi].r*.55:ETYPE[ent.id].r;enemyS({type:ent.boss?'boss':ent.id,x:0,y:0,r:dr,bi:ent.bi,ph:clock+i,flash:0,elite:0})}else{x.globalAlpha=.25;x.fillStyle=pal.ink;x.beginPath();x.arc(0,0,10,0,7);x.fill();x.globalAlpha=1}
-   x.restore();x.restore();tx=artX+artW+10*U}
-  txt(seen?ent.n:'???',tx,y+rowH*.32,14,seen?pal.ink:'#8b6a3a','left',false);
+   x.restore();tx=iconL+48*U;txt(seen?ent.n:'???',tx,y+rowH*.32,14,seen?pal.ink:'#8b6a3a','left',false);
   txt(seen?(ent.d||''):'Not encountered yet',tx,y+rowH*.58,10,'#5a4030','left',false);
-  if(codex.tab==='items')txt('Seen '+(rec.seen|0)+' · Taken '+(rec.taken|0),cStat,y+rowH*.82,10,'#8b6a3a','right',false);
-  else txt('Seen '+(rec.seen|0)+' · Kills '+(rec.kills|0),cStat,y+rowH*.82,10,'#8b6a3a','right',false)});
+  txt('Seen '+(rec.seen|0)+' · Taken '+(rec.taken|0),cStat,y+rowH*.82,10,'#8b6a3a','right',false)}else{const artW=codexEnemyArtW(ent),iconCx=iconL+artW/2,iconCy=y+rowH/2;
+   x.save();x.beginPath();x.rect(listX+pad,y,rowW,rowH);x.clip();x.translate(iconCx,iconCy);x.scale(U*CODEX_DRAW,U*CODEX_DRAW);
+   if(seen)enemyS({type:ent.boss?'boss':ent.id,x:0,y:0,r:codexEnemyR(ent),bi:ent.bi,ph:clock+i,flash:0,elite:0});
+   else{x.globalAlpha=.25;x.fillStyle=pal.ink;x.beginPath();x.arc(0,0,10,0,7);x.fill();x.globalAlpha=1}
+   x.restore();tx=iconL+artW+10*U;txt(seen?ent.n:'???',tx,y+14*U,14,seen?pal.ink:'#8b6a3a','left',false);
+   if(!seen)txt('Not encountered yet',tx,y+32*U,10,'#5a4030','left',false);
+   txt('Seen '+(rec.seen|0)+' · Kills '+(rec.kills|0),cStat,y+rowH-14*U,10,'#8b6a3a','right',false)}});
  x.restore();
  if(maxS>0){const trackX=listX+listW-scrollG+5*U,trackTop=listTop+pad,trackH=listH-pad*2,th=Math.max(22*U,trackH*trackH/(trackH+maxS));
   rr(trackX,trackTop,4*U,trackH,2*U,'#d6c49a');rr(trackX,trackTop+(trackH-th)*codex.scroll/maxS,4*U,th,2*U,'#a8875a')}
