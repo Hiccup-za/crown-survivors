@@ -47,15 +47,19 @@ const codexScale=UM*CODEX_DRAW;
 const codexEnemyArtBox=ent=>{if(!ent.boss)return{w:CODEX_ENEM_ART_W,h:CODEX_ENEM_ROW-8};const r=codexEnemyR(ent),b=CODEX_BOSS_BOUNDS[ent.bi]||CODEX_BOSS_BOUNDS[0],a=CODEX_ART_ANIM;
  return{w:Math.ceil((b[2]*r+a)*2*codexScale)+CODEX_ART_PAD*2,h:Math.ceil((b[0]*r+b[1]*r+a)*codexScale)+CODEX_ART_PAD*2}};
 const codexRowHDesign=(ent,tab)=>{if(tab==='items')return CODEX_ITEM_ROW;if(!ent.boss)return CODEX_ENEM_ROW;return codexEnemyArtBox(ent).h+8};
+const CODEX_THORN_REF={boss:1,bi:3};
+const codexEnemyTextLayout=(ent,rx,ry,w,h,artX,artW)=>{const tx=artX+artW+10,nameY=ry+18,subY=ry+38,statY=ry+h-14;
+ if(ent.boss&&(ent.bi===3||ent.bi===4)){const refW=codexEnemyArtBox(CODEX_THORN_REF).w,refH=codexRowHDesign(CODEX_THORN_REF,'enemies');return{tx:rx+4+refW+10,nameY,subY,statY:ry+refH-14}}
+ return{tx,nameY,subY,statY}};
 function codexDrawRow(ent,rx,ry,w,h,i,tab){const rec=tab==='items'?codexDispItem(ent.kind,ent.k):codexDispEnemy(ent.id),seen=!!rec.seen,cStat=rx+w-6;
  rr(rx,ry,w,h,8,seen?'#e9d3a0':'#d6c49a',pal.ink,2);const iconL=rx+4;
  if(tab==='items'){const cx=iconL+22,cy=ry+h/2;x.save();x.translate(cx,cy);x.scale(UM*1.2,UM*1.2);
   if(seen){if(ent.kind==='i')icon('p',ent.ic||INF[ent.k].ic,0,0,11);else if(ent.kind==='x')icon('x',ent.k,0,0,11);else icon(ent.kind==='p'?'p':'w',ent.k,0,0,11);if(ent.kind==='e'){x.strokeStyle='#ffd23f';x.lineWidth=2;x.beginPath();x.arc(0,0,13,0,7);x.stroke()}}else{x.globalAlpha=.35;x.fillStyle=pal.ink;x.fillRect(-12,-12,24,24);x.globalAlpha=1}
   x.restore();const tx=iconL+48;txt(seen?ent.n:'???',tx,ry+h*.32,14,seen?pal.ink:'#8b6a3a','left',false);txt(seen?(ent.d||''):'Not encountered yet',tx,ry+h*.58,10,'#5a4030','left',false);txt('Seen '+(rec.seen|0)+' · Taken '+(rec.taken|0),cStat,ry+h*.82,10,'#8b6a3a','right',false)}
- else{const pad=4,box=codexEnemyArtBox(ent),artW=box.w,artH=ent.boss?box.h:h-pad*2,artX=rx+pad,artY=ry+pad;rr(artX,artY,artW,artH,6,seen?'#d6c49a':'#c9b48a',pal.ink,1.5);
+ else{const pad=4,box=codexEnemyArtBox(ent),artW=box.w,artH=ent.boss?box.h:h-pad*2,artX=rx+pad,artY=ry+pad,L=codexEnemyTextLayout(ent,rx,ry,w,h,artX,artW);
   x.save();x.beginPath();x.rect(artX,artY,artW,artH);x.clip();x.translate(artX+artW/2,artY+artH/2);x.scale(UM*CODEX_DRAW,UM*CODEX_DRAW);
   if(seen)enemyS({type:ent.boss?'boss':ent.id,x:0,y:0,r:codexEnemyR(ent),bi:ent.bi,ph:clock+i,flash:0,elite:0});else{x.globalAlpha=.25;x.fillStyle=pal.ink;x.beginPath();x.arc(0,0,10,0,7);x.fill();x.globalAlpha=1}
-  x.restore();const tx=artX+artW+10;txt(seen?ent.n:'???',tx,ry+18,14,seen?pal.ink:'#8b6a3a','left',false);if(!seen)txt('Not encountered yet',tx,ry+38,10,'#5a4030','left',false);txt('Seen '+(rec.seen|0)+' · Kills '+(rec.kills|0),cStat,ry+h-14,10,'#8b6a3a','right',false)}}
+  x.restore();txt(seen?ent.n:'???',L.tx,L.nameY,14,seen?pal.ink:'#8b6a3a','left',false);if(!seen)txt('Not encountered yet',L.tx,L.subY,10,'#5a4030','left',false);txt('Seen '+(rec.seen|0)+' · Kills '+(rec.kills|0),cStat,L.statY,10,'#8b6a3a','right',false)}}
 // ===== data =====
 const CH=[{n:'King Cube',d:'Balanced royal. Starts with Scepter Bolt.',c:'#e0a526',k:'#9c6a12',w:'bolt',hp:100,spd:1,p:0,perk:'+10% XP'},
  {n:'Ruby Knight',d:'Tanky brawler. Starts with Royal Aura.',c:'#c8452f',k:'#7d2618',w:'aura',hp:140,spd:.9,p:500,perk:'+1 Armor'},
