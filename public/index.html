@@ -578,7 +578,7 @@ const _endRun=endRun;endRun=function(win){const was=G&&G.over;_endRun(win);if(wa
 // --- drawing in mockup space (390x844 design, scaled to fit) ---
 function lbBegin(){const k=Math.min(W/390,(H-SAT)/844);lbT={k,ox:(W-390*k)/2,oy:SAT+(H-SAT-844*k)/2,n:btns.length,U};x.save();x.translate(lbT.ox,lbT.oy);x.scale(k,k);U=UM}
 function lbEnd(){x.restore();U=lbT.U;for(let i=lbT.n;i<btns.length;i++){const b=btns[i];b.x=lbT.ox+b.x*lbT.k;b.y=lbT.oy+b.y*lbT.k;b.w*=lbT.k;b.h*=lbT.k}}
-const CX_TOP=179,CX_LH=441,CX_ROWW=326,CX_RX=28,CX_IN_B=762,CX_BACK_H=36,CX_FOOT_PAD=12,CX_BACK_Y=CX_IN_B-CX_FOOT_PAD-CX_BACK_H,CX_HINT_Y=CX_BACK_Y-16;
+const CX_TOP=179,CX_ROWW=326,CX_RX=28,CX_IN_B=762,CX_BACK_H=36,CX_FOOT_PAD=12,CX_BACK_Y=CX_IN_B-CX_FOOT_PAD-CX_BACK_H,CX_HINT_Y=CX_BACK_Y-16,CX_LIST_HINT_M=14,CX_LH=CX_HINT_Y-CX_TOP-CX_LIST_HINT_M,CX_SB_Y=CX_TOP+3,CX_SB_H=CX_LH-6;
 function drawCodex(){menuBg();lbBegin();let maxS=0;try{
  pix('CODEX',195,40,20,pal.gold,2,'#e0a526');txt(codexDev?'QA preview — save unchanged':'Track what you have seen, taken, and slain',195,72,10,codexDev?'#c8452f':'#8b6a3a','center',false);
  rr(13,146,364,630,16,'rgba(0,0,0,.35)');rr(13,140,364,630,16,'#f3e2b8',LINK,4);
@@ -591,7 +591,7 @@ function drawCodex(){menuBg();lbBegin();let maxS=0;try{
  x.save();try{x.beginPath();x.rect(24,CX_TOP,334,CX_LH);x.clip();
  entries.forEach((ent,i)=>{const outer=rowHs[i],ry=CX_TOP+3+yPos[i]-codex.scroll,h=outer-4;if(ry+h<CX_TOP||ry>CX_TOP+CX_LH)return;
   const vi=Math.max(0,(ry-CX_TOP)/Math.max(outer,1)),a=Math.max(0,Math.min(1,(clock-codex.t0-vi*.04)/.18));x.globalAlpha=a;codexDrawRow(ent,CX_RX,ry+(1-a)*8,CX_ROWW,h,i,tab);x.globalAlpha=1})}finally{x.restore()}
- if(maxS>0){const th=Math.max(30,436*CX_LH/(CX_LH+maxS));rr(359,182,5,436,2.5,'#d6c49a');rr(359,182+(436-th)*codex.scroll/maxS,5,th,2.5,'#a8875a');
+ if(maxS>0){const th=Math.max(30,CX_SB_H*CX_LH/(CX_LH+maxS));rr(359,CX_SB_Y,5,CX_SB_H,2.5,'#d6c49a');rr(359,CX_SB_Y+(CX_SB_H-th)*codex.scroll/maxS,5,th,2.5,'#a8875a');
   const st0='SCROLL FOR MORE';txt(st0,203,CX_HINT_Y,10,'#8b6a3a','center',false);txt('▼',203-x.measureText(st0).width/2-12,CX_HINT_Y+Math.sin(clock*4)*2,10,'#8b6a3a','center',false)}
  else if(entries.length)txt('FULL LIST',195,CX_HINT_Y,10,'#8b6a3a','center',false);
  button('BACK',135,CX_BACK_Y,120,CX_BACK_H,()=>go(codex.back),'#8b5a2b',14);codex._maxS=maxS;codex._k=lbT.k}catch(e){console.error(e)}finally{lbEnd()}}
