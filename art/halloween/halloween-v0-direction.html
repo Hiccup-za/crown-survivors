@@ -363,6 +363,26 @@ function drawNightGourd(r) {
   x.restore();
 }
 
+// 32×32 summon currency. Drawn at native size with origin at the cell center.
+function drawSoulEmber() {
+  x.fillStyle = 'rgba(255,176,48,.34)';
+  x.beginPath(); x.arc(0, 1, 13, 0, 7); x.fill();
+  x.fillStyle = pal.ink;
+  x.beginPath();
+  x.moveTo(0, -13); x.lineTo(8, -1); x.lineTo(5, 11); x.lineTo(-5, 11); x.lineTo(-8, -1);
+  x.closePath(); x.fill();
+  x.fillStyle = PUMP.fill;
+  x.beginPath();
+  x.moveTo(0, -10); x.lineTo(6, -1); x.lineTo(3.5, 9); x.lineTo(-3.5, 9); x.lineTo(-6, -1);
+  x.closePath(); x.fill();
+  x.fillStyle = pal.gold;
+  x.beginPath();
+  x.moveTo(0, -3); x.lineTo(2.6, 2); x.lineTo(0, 7); x.lineTo(-2.6, 2);
+  x.closePath(); x.fill();
+  x.fillStyle = 'rgba(255,255,255,.5)';
+  x.fillRect(-1.6, -7, 1.6, 2.4);
+}
+
 function drawEntity(fn, cx, cy, scale) {
   x.save(); x.translate(cx, cy); x.scale(scale, scale); fn(); x.restore();
 }
@@ -459,6 +479,17 @@ function drawSheet() {
       txt('Vines: quadratic thorn lashes — not stacked green blobs', 1570, 520, 12, '#5a4030', 'center', false);
       txt('Hollow Twin: single body, vertical ink split, two faces', 1570, 548, 12, '#5a4030', 'center', false);
       txt('Do not label art "Classic" — live Crown Survivors idiom only', 1570, 576, 12, '#5a4030', 'center', false);
+    }},
+    { title: 'PICKUP', x: 40, y: 708, w: 720, h: 268, draw: () => {
+      x.save(); x.translate(170, 860); x.scale(4, 4); drawSoulEmber(); x.restore();
+      txt('preview', 170, 948, 13, '#8b6a3a', 'center', false);
+      const nx = 360, ny = 848;
+      rr(nx - 16, ny - 16, 32, 32, 3, '#fff8e4', pal.ink, 2);
+      x.save(); x.translate(nx, ny); drawSoulEmber(); x.restore();
+      txt('32×32 native', nx, 892, 13, pal.ink, 'center', false);
+      txt('Soul Embers', 560, 820, 22, pal.ink, 'center');
+      txt('summon currency · enemies drop', 560, 852, 14, '#5a4030', 'center', false);
+      txt('warm orange · ember gold · ink', 560, 878, 13, '#8b6a3a', 'center', false);
     }}
   ];
 
