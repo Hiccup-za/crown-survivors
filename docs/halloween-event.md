@@ -26,8 +26,10 @@ so preview runs cannot post scores early.
 ## Run loop
 
 1. Kill enemies, collect **Soul Embers** (pickups: magnet range applies).
-2. Spend embers on the next **ritual** (button at the bottom of the HUD, or `E` / `Space`). Only
-   one ritual can be in progress at a time.
+2. Rituals **summon themselves**. Once your embers cover the next ritual's cost, a 2 s countdown runs
+   (the tell, shown on the ember meter at the bottom of the HUD), the cost is spent, and the bosses rise.
+   The player never triggers it. Only one ritual can be in progress at a time. Embers collected during a
+   ritual carry over to the next one.
 3. A ritual is cleared when every boss it summoned is dead. That drops a chest and heals 25% max HP.
 4. R1–R3 summon pumpkin mini-bosses. R4 summons **The Night Gourd**. Each Night Gourd kill is a
    **Pumpkin Crown** (saved immediately). Clearing R4 raises **Night Rank** by one and the ladder
