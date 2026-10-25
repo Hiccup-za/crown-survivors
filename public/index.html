@@ -39,6 +39,7 @@ const codexEnemyCatalog=()=>{const out=Object.keys(ETYPE).map(k=>({id:k,boss:0,n
 const codexDev=(()=>{try{return new URLSearchParams(location.search).get('codex')==='dev'}catch(e){return false}})();
 const codexDispItem=(kind,k)=>codexDev?{seen:1,taken:3}:codexItemRec(kind,k);
 const codexDispEnemy=id=>codexDev?{seen:1,kills:12}:codexEnemyRec(id);
+const UM=Math.min(390/360,844/640),LINK='#3b2a1a';
 const CODEX_DRAW=1.35,CODEX_ITEM_ROW=62;
 const CODEX_BOSS_EXT=[[2.05,1.3],[2.25,1.25],[2.05,1.3],[3.75,1.45],[2.55,1.35]],CODEX_ENEMY_EXT={blob:[1.08,1.18],bat:[1.5,1.08],skel:[1.38,1.12],ghost:[1.22,1.15],imp:[1.48,1.1],vine:[1.82,1.18],frog:[1.72,1.22],wisp:[1.22,1.12],harpy:[1.58,1.12]};
 const codexEnemyR=ent=>ent.boss?BOSS[ent.bi].r*.55:ETYPE[ent.id].r;
@@ -532,25 +533,6 @@ function drawShop(){menuBg();const {px,pw}=panel(.04,.92);pix('UPGRADES',W/2,H*.
  button('BACK',W/2-60*U,H*.96-46*U,120*U,38*U,()=>go(G&&G.over?'title':'title'),'#8b5a2b',15)}
 const codex={tab:'items',scroll:0,back:'title',drag:null,t0:0};
 function openCodex(back){codex.tab='items';codex.scroll=0;codex.back=back||'title';codex.drag=null;codex.t0=clock;go('codex')}
-const CX_TOP=179,CX_LH=441,CX_ROWW=326,CX_RX=28;
-function drawCodex(){menuBg();lbBegin();
- pix('CODEX',195,40,20,pal.gold,2,'#e0a526');txt(codexDev?'QA preview — save unchanged':'Track what you have seen, taken, and slain',195,72,10,codexDev?'#c8452f':'#8b6a3a','center',false);
- rr(13,146,364,630,16,'rgba(0,0,0,.35)');rr(13,140,364,630,16,'#f3e2b8',LINK,4);
- [['items','ITEMS'],['enemies','ENEMIES']].forEach(([id,lbl],i)=>{const X=75+i*124,on=codex.tab===id;rr(X,on?104:110,116,on?44:34,9,on?'#f3e2b8':'#a8875a',LINK,3);if(on){x.fillStyle='#f3e2b8';x.fillRect(X+3,138,110,14)}
-  txt(lbl,X+58,on?124:127,9,on?'#7d2618':'#3b2a1a','center',false);btns.push({x:X,y:104,w:116,h:44,k:'cxtab'+id,f:()=>{if(codex.tab!==id){codex.tab=id;codex.scroll=0;codex.t0=clock;sfx.click()}}})});
- rr(21,148,348,614,10,null,'#c9a66b',2);txt(codex.tab==='items'?'ITEM / UPGRADE':'ENEMY / BOSS',CX_RX,164,9,'#8b6a3a','left',false);txt('PROGRESS',348,164,9,'#8b6a3a','right',false);x.fillStyle='#c9a66b';x.fillRect(CX_RX,CX_TOP-4,CX_ROWW,2);
- const entries=codex.tab==='items'?codexItemCatalog():codexEnemyCatalog(),tab=codex.tab;
- const rowHs=entries.map(e=>codexRowHDesign(e,tab));let totH=0,yPos=[];for(const h of rowHs){yPos.push(totH);totH+=h}
- const maxS=Math.max(0,totH+4-CX_LH);codex.scroll=Math.max(0,Math.min(maxS,codex.scroll));
- x.save();x.beginPath();x.rect(24,CX_TOP,334,CX_LH);x.clip();
- entries.forEach((ent,i)=>{const outer=rowHs[i],y=CX_TOP+3+yPos[i]-codex.scroll,h=outer-4;if(y+h<CX_TOP||y>CX_TOP+CX_LH)return;
-  const vi=Math.max(0,(y-CX_TOP)/Math.max(outer,1)),a=Math.max(0,Math.min(1,(clock-codex.t0-vi*.04)/.18));x.globalAlpha=a;codexDrawRow(ent,CX_RX,y+(1-a)*8,CX_ROWW,h,i,tab);x.globalAlpha=1});
- if(maxS>0){const fg=x.createLinearGradient(0,CX_TOP+CX_LH-36,0,CX_TOP+CX_LH);fg.addColorStop(0,'rgba(243,226,184,0)');fg.addColorStop(1,'rgba(243,226,184,1)');x.fillStyle=fg;x.fillRect(24,CX_TOP+CX_LH-36,334,36)}
- if(codex.scroll>1){const tg=x.createLinearGradient(0,CX_TOP,0,CX_TOP+14);tg.addColorStop(0,'rgba(243,226,184,1)');tg.addColorStop(1,'rgba(243,226,184,0)');x.fillStyle=tg;x.fillRect(24,CX_TOP,334,14)}x.restore();
- if(maxS>0){const th=Math.max(30,436*CX_LH/(CX_LH+maxS));rr(359,182,5,436,2.5,'#d6c49a');rr(359,182+(436-th)*codex.scroll/maxS,5,th,2.5,'#a8875a');
-  const st0='SCROLL FOR MORE';txt(st0,203,634,10,'#8b6a3a','center',false);txt('▼',203-x.measureText(st0).width/2-12,634+Math.sin(clock*4)*2,10,'#8b6a3a','center',false)}
- else if(entries.length)txt('FULL LIST',195,634,10,'#8b6a3a','center',false);
- x.fillStyle='#c9a66b';x.fillRect(CX_RX,650,CX_ROWW,2);button('BACK',135,788,120,36,()=>go(codex.back),'#8b5a2b',14);codex._maxS=maxS;codex._k=lbT.k;lbEnd()}
 function draw(){btns=[];if(scene==='play'&&G){SC=SC||st();drawWorld();drawHud()}else if(scene==='title')drawTitle();else if(scene==='chars')drawChars();else if(scene==='shop')drawShop();else if(scene==='codex')drawCodex();else if(scene==='lb')drawLB();else if(scene==='settings'){menuBg();settingsPanel(()=>go('title'))}
  for(const q of uiParts){x.globalAlpha=Math.min(1,q.l*2);x.fillStyle=q.c;x.fillRect(q.x,q.y,5*U,5*U)}x.globalAlpha=1;
  if(toast)txt(toast.t,W/2,H*.5,16,pal.paper);if(trans){const a=trans.t<.22?trans.t/.22:1-(trans.t-.22)/.22;x.fillStyle='rgba(30,20,10,'+Math.max(0,a)+')';x.fillRect(0,0,W,H)}}
@@ -561,7 +543,6 @@ const LBK='crownsurv_classic_lb',HERO_ID=CH.map(c=>c.n.toLowerCase().replace(/ /
 let LBS;try{LBS=Object.assign({tok:null,user:null,best:{},pend:null,ranks:{}},JSON.parse(localStorage.getItem(LBK)||'{}'))}catch(e){LBS={tok:null,user:null,best:{},pend:null,ranks:{}}}
 const lbSave=()=>{try{localStorage.setItem(LBK,JSON.stringify(LBS))}catch(e){}};
 const lbIn=()=>!!(LB_API&&LBS.tok&&LBS.user);
-const UM=Math.min(390/360,844/640),LINK='#3b2a1a';
 const lb={want:null,board:'fastest',data:{},me:{},scroll:0,t0:0,back:'title',rank:null,drag:null};
 let lbT={k:1,ox:0,oy:0},lbCard=null;
 const fmtT=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'),fmtN=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');
@@ -596,6 +577,25 @@ const _endRun=endRun;endRun=function(win){const was=G&&G.over;_endRun(win);if(wa
 // --- drawing in mockup space (390x844 design, scaled to fit) ---
 function lbBegin(){const k=Math.min(W/390,(H-SAT)/844);lbT={k,ox:(W-390*k)/2,oy:SAT+(H-SAT-844*k)/2,n:btns.length,U};x.save();x.translate(lbT.ox,lbT.oy);x.scale(k,k);U=UM}
 function lbEnd(){x.restore();U=lbT.U;for(let i=lbT.n;i<btns.length;i++){const b=btns[i];b.x=lbT.ox+b.x*lbT.k;b.y=lbT.oy+b.y*lbT.k;b.w*=lbT.k;b.h*=lbT.k}}
+const CX_TOP=179,CX_LH=441,CX_ROWW=326,CX_RX=28;
+function drawCodex(){menuBg();lbBegin();let maxS=0;try{
+ pix('CODEX',195,40,20,pal.gold,2,'#e0a526');txt(codexDev?'QA preview — save unchanged':'Track what you have seen, taken, and slain',195,72,10,codexDev?'#c8452f':'#8b6a3a','center',false);
+ rr(13,146,364,630,16,'rgba(0,0,0,.35)');rr(13,140,364,630,16,'#f3e2b8',LINK,4);
+ [['items','ITEMS'],['enemies','ENEMIES']].forEach(([id,lbl],i)=>{const X=75+i*124,on=codex.tab===id;rr(X,on?104:110,116,on?44:34,9,on?'#f3e2b8':'#a8875a',LINK,3);if(on){x.fillStyle='#f3e2b8';x.fillRect(X+3,138,110,14)}
+  txt(lbl,X+58,on?124:127,9,on?'#7d2618':'#3b2a1a','center',false);btns.push({x:X,y:104,w:116,h:44,k:'cxtab'+id,f:()=>{if(codex.tab!==id){codex.tab=id;codex.scroll=0;codex.t0=clock;sfx.click()}}})});
+ rr(21,148,348,614,10,null,'#c9a66b',2);txt(codex.tab==='items'?'ITEM / UPGRADE':'ENEMY / BOSS',CX_RX,164,9,'#8b6a3a','left',false);txt('PROGRESS',348,164,9,'#8b6a3a','right',false);x.fillStyle='#c9a66b';x.fillRect(CX_RX,CX_TOP-4,CX_ROWW,2);
+ const entries=codex.tab==='items'?codexItemCatalog():codexEnemyCatalog(),tab=codex.tab;
+ const rowHs=entries.map(e=>codexRowHDesign(e,tab));let totH=0,yPos=[];for(const h of rowHs){yPos.push(totH);totH+=h}
+ maxS=Math.max(0,totH+4-CX_LH);codex.scroll=Math.max(0,Math.min(maxS,codex.scroll));
+ x.save();x.beginPath();x.rect(24,CX_TOP,334,CX_LH);x.clip();
+ entries.forEach((ent,i)=>{const outer=rowHs[i],y=CX_TOP+3+yPos[i]-codex.scroll,h=outer-4;if(y+h<CX_TOP||y>CX_TOP+CX_LH)return;
+  const vi=Math.max(0,(y-CX_TOP)/Math.max(outer,1)),a=Math.max(0,Math.min(1,(clock-codex.t0-vi*.04)/.18));x.globalAlpha=a;codexDrawRow(ent,CX_RX,y+(1-a)*8,CX_ROWW,h,i,tab);x.globalAlpha=1});
+ if(maxS>0){const fg=x.createLinearGradient(0,CX_TOP+CX_LH-36,0,CX_TOP+CX_LH);fg.addColorStop(0,'rgba(243,226,184,0)');fg.addColorStop(1,'rgba(243,226,184,1)');x.fillStyle=fg;x.fillRect(24,CX_TOP+CX_LH-36,334,36)}
+ if(codex.scroll>1){const tg=x.createLinearGradient(0,CX_TOP,0,CX_TOP+14);tg.addColorStop(0,'rgba(243,226,184,1)');tg.addColorStop(1,'rgba(243,226,184,0)');x.fillStyle=tg;x.fillRect(24,CX_TOP,334,14)}x.restore();
+ if(maxS>0){const th=Math.max(30,436*CX_LH/(CX_LH+maxS));rr(359,182,5,436,2.5,'#d6c49a');rr(359,182+(436-th)*codex.scroll/maxS,5,th,2.5,'#a8875a');
+  const st0='SCROLL FOR MORE';txt(st0,203,634,10,'#8b6a3a','center',false);txt('▼',203-x.measureText(st0).width/2-12,634+Math.sin(clock*4)*2,10,'#8b6a3a','center',false)}
+ else if(entries.length)txt('FULL LIST',195,634,10,'#8b6a3a','center',false);
+ x.fillStyle='#c9a66b';x.fillRect(CX_RX,650,CX_ROWW,2);button('BACK',135,788,120,36,()=>go(codex.back),'#8b5a2b',14);codex._maxS=maxS;codex._k=lbT.k}catch(e){console.error(e)}finally{lbEnd()}}
 function crown(cx,cy,w,col){const h=w*.62;x.beginPath();x.moveTo(cx-w/2,cy+h/2);x.lineTo(cx-w/2,cy-h/2);x.lineTo(cx-w/4,cy);x.lineTo(cx,cy-h/2-2);x.lineTo(cx+w/4,cy);x.lineTo(cx+w/2,cy-h/2);x.lineTo(cx+w/2,cy+h/2);x.closePath();x.fillStyle=col;x.fill();x.lineWidth=2;x.strokeStyle=LINK;x.lineJoin='miter';x.stroke();x.fillStyle='#c8452f';x.fillRect(cx-2,cy+h/2-5,4,3)}
 const MED=[['#ffd23f','#e0a526','#fff1a8'],['#d9dee6','#9aa3b2','#ffffff'],['#e09a5a','#a8622e','#f6c99a']];
 function heroAt(cx,cy,ci,s,t){x.save();x.translate(cx,cy);x.scale(s,s);heroS(0,0,Math.max(0,Math.min(CH.length-1,ci|0)),1,t,1,false);x.restore()}
