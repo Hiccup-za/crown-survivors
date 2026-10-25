@@ -476,15 +476,26 @@ function inkLine(P,w,c,rim=1.2){x.lineCap=x.lineJoin='round';x.beginPath();P();x
 const gloss=(cx,cy,rx,ry)=>{x.fillStyle=F('rgba(255,255,255,.24)');x.beginPath();x.ellipse(cx,cy,rx,ry,-.5,0,7);x.fill()};
 // pumpkin ribs inside an oval, in the ramp's deep tone; sh slides them sideways (a roll)
 function ribs(rx,ry,n,c,lw,sh=0){x.save();x.beginPath();oval(0,0,rx,ry)();x.clip();x.strokeStyle=F(c);x.lineWidth=lw;x.globalAlpha*=.55;for(let i=0;i<n;i++){const px=(((i+.5)/n+sh)%1*2-1)*rx*.95;x.beginPath();x.moveTo(px*.5,-ry);x.quadraticCurveTo(px*1.15,0,px*.5,ry);x.stroke()}x.restore()}
-// square eye looking forward (+x): o.lid 0..1 in o.lidC, o.brow angle (sign per side), o.white / o.pupil recolour it
+// square eye looking forward (+x): o.lid 0..1 in o.lidC, o.brow angle (sign per side), o.white / o.pupil recolour it.
+// o.glare 0..1 cuts a slanted lid whose ink edge is the brow (low on the inner side: o.side -1 left eye, +1 right eye, 0 = one eye, V-shaped)
 function eye(cx,cy,w,h,o={}){x.fillStyle=pal.ink;x.fillRect(cx-w/2-.9,cy-h/2-.9,w+1.8,h+1.8);x.fillStyle=F(o.white||'#fff');x.fillRect(cx-w/2,cy-h/2,w,h);
  const pw=w*.46,ph=h*.62;x.fillStyle=o.pupil?F(o.pupil):pal.ink;x.fillRect(cx+w/2-pw-w*.08,cy-ph/2+h*.06,pw,ph);
+ if(o.glare){const sd=o.side||0,g=h*o.glare,T0=cy-h/2-1.3,hi=cy-h/2+g*.12,lo=cy-h/2+g,L=cx-w/2-1.3,Rr=cx+w/2+1.3,yl=sd>0?lo:hi,yr=sd<0?lo:hi,ext=w*.14;
+  x.fillStyle=F(o.lidC);x.beginPath();x.moveTo(L,T0);x.lineTo(Rr,T0);x.lineTo(Rr,yr);if(!sd)x.lineTo(cx,lo);x.lineTo(L,yl);x.fill();
+  x.strokeStyle=pal.ink;x.lineWidth=(o.bw||1.1)*2;x.lineCap=x.lineJoin='round';x.beginPath();x.moveTo(L-ext,yl);if(!sd)x.lineTo(cx,lo);x.lineTo(Rr+ext,yr);x.stroke()}
  if(o.lid){x.fillStyle=F(o.lidC);x.fillRect(cx-w/2,cy-h/2,w,h*o.lid);x.fillStyle=pal.ink;x.fillRect(cx-w/2-.9,cy-h/2+h*o.lid-.7,w+1.8,1.4)}
  if(o.brow!=null){x.save();x.translate(cx,cy-h/2-(o.bg||1.8));x.rotate(o.brow);x.fillStyle=pal.ink;x.fillRect(-w*.7,-(o.bw||1.1),w*1.4,(o.bw||1.1)*2);x.restore()}}
 const tri=(cx,cy,s,c)=>{x.fillStyle=c;x.beginPath();x.moveTo(cx,cy-s);x.lineTo(cx-s,cy+s*.65);x.lineTo(cx+s,cy+s*.65);x.fill()};
 // carved jack-o'-lantern grin: a crescent with square teeth left in the skin colour
 function grin(cx,cy,w,h,c,teeth,skin){x.fillStyle=c;x.beginPath();x.moveTo(cx-w/2,cy-h*.3);x.quadraticCurveTo(cx,cy+h*.35,cx+w/2,cy-h*.3);x.quadraticCurveTo(cx,cy+h*1.05,cx-w/2,cy-h*.3);x.fill();
  if(teeth){x.fillStyle=F(skin);for(let i=0;i<teeth;i++){const t=(i+1)/(teeth+1),y=cy+h*(-.3*(1-t)*(1-t)+.7*t*(1-t)-.3*t*t);x.fillRect(cx+w*(t-.5)-w*.06,y-1,w*.12,h*.26+1)}}}
+// scowl: a carved mouth arched like a frown (corners down) with jagged fangs; c = hole colour (HOLLOW or a glow), skin = fang colour
+function snarl(cx,cy,w,h,c,skin,n=3){const L=cx-w/2,yc=cy+h*.2,top=t=>yc-1.5*h*t*(1-t),bot=t=>yc+1*h*t*(1-t),tw=w/n*.3;x.fillStyle=c;x.beginPath();x.moveTo(L,yc);x.quadraticCurveTo(cx,yc-h*.75,L+w,yc);x.quadraticCurveTo(cx,yc+h*.5,L,yc);x.fill();
+ x.fillStyle=F(skin);for(let i=0;i<n;i++){const t=(i+.5)/n,tx=L+w*t,ty=top(t);x.beginPath();x.moveTo(tx-tw,ty-1);x.lineTo(tx,ty+h*.3);x.lineTo(tx+tw,ty-1);x.fill()}
+ for(let i=1;i<n;i++){const t=i/n,tx=L+w*t,ty=bot(t);x.beginPath();x.moveTo(tx-tw*.75,ty+1);x.lineTo(tx,ty-h*.17);x.lineTo(tx+tw*.75,ty+1);x.fill()}}
+// angled carved eye: high outer corner, low inner corner (s -1 left eye, +1 right eye); rim > 0 adds an ink casing
+function slit(cx,cy,w,h,s,c,rim=0){const P=()=>{x.moveTo(cx+s*w/2,cy-h/2);x.lineTo(cx-s*w/2,cy+h*.05);x.lineTo(cx+s*w*.15,cy+h/2);x.closePath()};
+ if(rim){x.lineJoin='round';x.fillStyle=x.strokeStyle=pal.ink;x.lineWidth=rim*2;x.beginPath();P();x.stroke();x.fill()}x.fillStyle=c;x.beginPath();P();x.fill()}
 function stitch(x0,y0,x1,y1,n,w){x.strokeStyle=pal.ink;x.lineWidth=1.1;x.lineCap='round';x.beginPath();x.moveTo(x0,y0);x.lineTo(x1,y1);const dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy)||1,nx=-dy/L*w,ny=dx/L*w;
  for(let i=0;i<n;i++){const t=(i+.5)/n,px=x0+dx*t,py=y0+dy*t;x.moveTo(px-nx,py-ny);x.lineTo(px+nx,py+ny)}x.stroke()}
 // curled stem rising from (x0,y0); k = curl direction
@@ -499,11 +510,11 @@ function flame(cx,by,w,h,sw,cols,rim=1.2){const P=k=>{const W2=w*k/2,H=h*k;x.mov
  x.lineJoin='round';if(rim){x.fillStyle=x.strokeStyle=pal.ink;x.lineWidth=rim*2;x.beginPath();P(1);x.stroke();x.fill()}cols.forEach((c,i)=>{x.fillStyle=F(c);x.beginPath();P(1-i*.3);x.fill()})}
 // --- trash + elite drawers: (r, frame 0-3, state 'n' | 't'), facing +x ---
 const SPRK={
- // PIP: rolling pumpkin with a manic carved grin. Bounce squash/stretch, ribs scroll to fake the roll, leaf flips
+ // PIP: mean little rolling pumpkin: glaring eyes, jagged scowl. Bounce squash/stretch, ribs scroll to fake the roll, leaf flips
  pip:(r,f)=>{const sy=[1,.9,1,1.08][f],rx=r*1.02,ry=r*.92;x.translate(0,[0,r*.1,0,-r*.12][f]);x.scale(1/sy,sy);
   shaded(oval(0,0,rx,ry),RAMP.pump,r*.26);ribs(rx,ry,4,RAMP.pump[3],r*.11,f/16);gloss(-r*.42,-r*.45,r*.2,r*.11);
   stemC(-r*.1,-ry,r*.55,f<2?1:-1);leaf(-r*.05,-ry-r*.08,r*.42,f%2?-.4:-.9);
-  eye(r*.02,-r*.22,r*.32,r*.34);eye(r*.52,-r*.24,r*.28,r*.34);grin(r*.26,r*.26,r*.95,r*.44,HOLLOW,2,RAMP.pump[1])},
+  eye(r*.04,-r*.2,r*.34,r*.36,{glare:.55,side:-1,lidC:RAMP.pump[1],bw:.9});eye(r*.55,-r*.22,r*.3,r*.36,{glare:.55,side:1,lidC:RAMP.pump[1],bw:.9});snarl(r*.28,r*.22,r*.92,r*.46,HOLLOW,RAMP.pump[1],3)},
  // SHADE BAT: purple-black bat, pumpkin-orange membranes over finger bones, a stem curl on its head, orange slit eyes (its accent)
  shade:(r,f)=>{const ty=[-r*1.05,-r*.25,r*.55,-r*.25][f],by=[r*.12,0,-r*.12,0][f];
   for(const s of[-1,1]){const S=[s*r*.3,by-r*.18],T=[s*r*1.95,by+ty],P1=[s*r*1.5,by+ty*.35+r*.5],P2=[s*r*1.0,by+ty*.15+r*.55],B=[s*r*.35,by+r*.3];
@@ -513,8 +524,8 @@ const SPRK={
    x.strokeStyle=pal.ink;x.lineWidth=1.3;x.beginPath();x.moveTo(...S);x.lineTo(...T);x.moveTo(...S);x.lineTo(...P1);x.moveTo(...S);x.lineTo(...P2);x.stroke()}
   for(const s of[-1,1]){x.fillStyle=pal.ink;x.beginPath();x.moveTo(s*r*.1,by-r*.45);x.lineTo(s*r*.4,by-r*1.05);x.lineTo(s*r*.52,by-r*.32);x.fill();x.fillStyle=F(RAMP.night[0]);x.beginPath();x.moveTo(s*r*.2,by-r*.5);x.lineTo(s*r*.39,by-r*.86);x.lineTo(s*r*.44,by-r*.42);x.fill()}
   shaded(oval(0,by,r*.6,r*.66),RAMP.night,r*.18,1.3);stemC(r*.02,by-r*.6,r*.42,1);
-  x.fillStyle=pal.ink;x.fillRect(-r*.08,by-r*.24,r*.3,r*.2);x.fillRect(r*.3,by-r*.26,r*.26,r*.2);x.fillStyle=F('#ffb13d');x.fillRect(-r*.03,by-r*.2,r*.2,r*.11);x.fillRect(r*.34,by-r*.22,r*.17,r*.11);
-  x.fillStyle=F(RAMP.bone[0]);x.beginPath();x.moveTo(r*.1,by+r*.14);x.lineTo(r*.18,by+r*.36);x.lineTo(r*.26,by+r*.14);x.moveTo(r*.32,by+r*.14);x.lineTo(r*.39,by+r*.32);x.lineTo(r*.46,by+r*.14);x.fill()},
+  slit(r*.06,by-r*.16,r*.32,r*.24,-1,F('#ffb13d'),.8);slit(r*.44,by-r*.18,r*.28,r*.22,1,F('#ffb13d'),.8);
+  x.fillStyle=F(RAMP.bone[0]);x.beginPath();x.moveTo(r*.08,by+r*.12);x.lineTo(r*.17,by+r*.46);x.lineTo(r*.26,by+r*.12);x.moveTo(r*.32,by+r*.12);x.lineTo(r*.4,by+r*.42);x.lineTo(r*.48,by+r*.12);x.fill()},
  // CANDY SKEL: bone skeleton, carved pumpkin head, ragged candy-corn scarf, rusty sickle. 2-step walk, head bob, scarf swing
  cskel:(r,f)=>{const st=[1,0,-1,0][f],hb=[0,-r*.06,0,-r*.06][f],sw=[0,.15,0,-.15][f],bone=(P,w)=>inkLine(P,w,RAMP.bone[1]);
   bone(()=>{x.moveTo(-r*.3,-r*.05);x.lineTo(-r*.45-st*r*.1,r*.4)},r*.16);
@@ -524,7 +535,7 @@ const SPRK={
   x.save();x.translate(-r*.25,-r*.24);x.rotate(.5+sw);x.fillStyle=pal.ink;x.fillRect(-r*.72,-r*.13,r*.74,r*.26);['#fff1c9','#ffb13d','#e8792a'].forEach((c,i)=>{x.fillStyle=F(c);x.fillRect(-r*.68+i*r*.22,-r*.09,r*.22,r*.18)});x.restore();
   x.fillStyle=pal.ink;x.fillRect(-r*.42,-r*.35,r*.84,r*.22);x.fillStyle=F('#e8792a');x.fillRect(-r*.39,-r*.32,r*.78,r*.16);x.fillStyle=F('#fff1c9');x.fillRect(-r*.39,-r*.32,r*.78,r*.05);
   x.save();x.translate(r*.04,-r*.8+hb);const hr=r*.6;shaded(oval(0,0,hr*1.05,hr*.95),RAMP.pump,hr*.26,1.4);ribs(hr*1.05,hr*.95,3,RAMP.pump[3],hr*.12);stemC(-hr*.1,-hr*.95,hr*.5,-1);
-  tri(hr*.05,-hr*.1,hr*.26,F(HOLLOW));tri(hr*.6,-hr*.13,hr*.22,F(HOLLOW));stitch(-hr*.2,hr*.42,hr*.78,hr*.34,4,hr*.13);x.restore();
+  slit(hr*.08,-hr*.1,hr*.5,hr*.44,-1,F(HOLLOW));slit(hr*.62,-hr*.12,hr*.42,hr*.4,1,F(HOLLOW));stitch(-hr*.2,hr*.5,hr*.29,hr*.32,2,hr*.13);stitch(hr*.29,hr*.32,hr*.78,hr*.48,2,hr*.13);x.restore();
   bone(()=>{x.moveTo(r*.32,-r*.05);x.lineTo(r*.55,r*.18);x.lineTo(r*.72,r*.08)},r*.16);inkLine(()=>{x.moveTo(r*.7,r*.32);x.lineTo(r*.78,-r*.55)},r*.13,RAMP.wood[1]);
   x.fillStyle=pal.ink;x.beginPath();x.moveTo(r*.7,-r*.64);x.quadraticCurveTo(r*1.45,-r*.98,r*1.58,-r*.18);x.quadraticCurveTo(r*1.3,-r*.62,r*.8,-r*.4);x.fill();
   x.fillStyle=F(RAMP.iron[1]);x.beginPath();x.moveTo(r*.8,-r*.58);x.quadraticCurveTo(r*1.38,-r*.86,r*1.46,-r*.32);x.quadraticCurveTo(r*1.25,-r*.6,r*.82,-r*.47);x.fill();x.fillStyle=F('#b0602a');x.fillRect(r*1.02,-r*.73,r*.12,r*.08);x.fillRect(r*1.3,-r*.55,r*.08,r*.1)},
@@ -535,10 +546,10 @@ const SPRK={
   flame(-r*.05+sw*r*.2,-r*.7,r*.72,r*(1.05+fl*.14),sw*r*.45,['#ff8a1a','#ffb13d',GLOW]);
   x.save();x.translate(r*.68,-r*.98);x.rotate(.62);shaded(()=>{x.moveTo(-r*.42,r*.1);x.quadraticCurveTo(0,-r*.34,r*.42,r*.1);x.closePath()},RAMP.pump,r*.06,1.2,0);stemC(0,-r*.12,r*.32,1);x.restore();
   x.globalAlpha=.3;x.fillStyle=F(GLOW);x.beginPath();x.arc(r*.22,r*.02,r*.7,0,7);x.fill();x.globalAlpha=1;
-  tri(-r*.02,-r*.16,r*.21,F(GLOW));tri(r*.5,-r*.18,r*.18,F(GLOW));x.fillStyle=pal.ink;
-  x.save();x.translate(-r*.06,-r*.44);x.rotate(.35);x.fillRect(-r*.2,-r*.05,r*.4,r*.1);x.restore();x.save();x.translate(r*.55,-r*.46);x.rotate(-.35);x.fillRect(-r*.18,-r*.05,r*.36,r*.1);x.restore();
-  grin(r*.24,r*.3,r*.85,r*.36,F(GLOW),2,RAMP.pump[1])},
- // VINE GOURD: lumpy gourd strangled by a thorn vine, one big angry eye above it, a small fanged grin below. Tendrils writhe;
+  slit(r*.0,-r*.14,r*.46,r*.36,-1,F(GLOW));slit(r*.5,-r*.16,r*.4,r*.34,1,F(GLOW));x.fillStyle=pal.ink;
+  x.save();x.translate(-r*.04,-r*.42);x.rotate(.5);x.fillRect(-r*.22,-r*.06,r*.44,r*.12);x.restore();x.save();x.translate(r*.54,-r*.44);x.rotate(-.5);x.fillRect(-r*.2,-r*.06,r*.4,r*.12);x.restore();
+  snarl(r*.24,r*.24,r*.86,r*.44,F(GLOW),RAMP.pump[1],3)},
+ // VINE GOURD: lumpy gourd strangled by a thorn vine, one big glaring eye above it, a fanged scowl below. Tendrils writhe;
  // on the tell they dig into the ground and the eye flares green
  vgourd:(r,f,st)=>{const T=st==='t',w=[0,1,2,1][f];
   for(let i=0;i<3;i++){const a=[-2.5,-.55,2.2][i]+(T?0:(w-1)*.18*(i%2?1:-1)),L=r*1.75,tx=T?(i-1)*r*.9:Math.cos(a)*L,ty=T?r*1.15:Math.sin(a)*L,cx=Math.cos(a+.7)*r*1.2,cy=T?r*.5:Math.sin(a+.7)*r*1.2;
@@ -552,8 +563,8 @@ const SPRK={
   [[-.66,-.05],[.7,.15],[-.3,.66]].forEach(([a,b])=>{x.fillStyle=pal.ink;x.beginPath();x.arc(a*r,b*r,r*.1,0,7);x.fill();x.fillStyle=F(RAMP.pump[0]);x.beginPath();x.arc(a*r-r*.02,b*r-r*.02,r*.065,0,7);x.fill()});
   inkLine(()=>{x.moveTo(-r*1.08,r*.3);x.bezierCurveTo(-r*.5,-r*.05,r*.3,r*.5,r*1.02,r*.05)},r*.13,RAMP.stem[1]);inkLine(()=>{x.moveTo(r*.55,r*.82);x.quadraticCurveTo(r*.95,r*.62,r*1.0,r*.25)},r*.1,RAMP.stem[2]);leaf(r*.25,r*.22,r*.42,.5);
   for(const [px,py,a] of[[-r*.62,r*.18,-.5],[-r*.1,r*.26,.1],[r*.62,r*.22,-.3]]){x.save();x.translate(px,py);x.rotate(a);x.fillStyle=pal.ink;x.beginPath();x.moveTo(-r*.08,0);x.lineTo(0,-r*.24);x.lineTo(r*.08,0);x.fill();x.restore()}
-  eye(r*.16,-r*.3,r*.56,r*.44,{pupil:T?'#2f6a28':null,white:T?'#b8ff8a':'#fff',lid:.25,lidC:RAMP.pump[1],brow:T?-.5:-.3,bw:1.5,bg:2.2});
-  grin(r*.2,r*.5,r*.5,r*.24,HOLLOW,1,RAMP.pump[1]);stemC(-r*.12,-r*.9,r*.5,1);leaf(-r*.04,-r*1.0,r*.45,-.7)}};
+  eye(r*.16,-r*.3,r*.56,r*.46,{pupil:T?'#2f6a28':null,white:T?'#b8ff8a':'#fff',glare:T?.55:.42,side:0,lidC:RAMP.pump[1],bw:1.4});
+  snarl(r*.2,r*.44,r*.6,r*.34,HOLLOW,RAMP.pump[1],3);stemC(-r*.12,-r*.9,r*.5,1);leaf(-r*.04,-r*1.0,r*.45,-.7)}};
 // per drawer: frame rate (frames per unit of e.ph) and half-size of its cached box in radii (tight boxes keep blits cheap)
 const SPRF={pip:10,shade:14,cskel:6,jwisp:8,vgourd:5},SPRR={pip:1.6,shade:2.1,cskel:1.75,jwisp:2.45,vgourd:2.2};
 // cache: one canvas per (type, r, frame, state, FL, scale bucket); keys carry the scale, so a resize just starts new entries
@@ -565,7 +576,7 @@ function sprite(id,r,f,st){const s=Math.round((Math.abs(x.getTransform().a)||1)*
 function hwEnemyS(e,T,r,fl){if(scene==='play'&&G){const d=G.p.x-e.x;if(Math.abs(d)>3)e.fc=d<0?-1:1}if(e.fc<0)x.scale(-1,1);if(T==='jwisp'&&Math.sin(e.ph*9)>.85)x.globalAlpha=.55;
  FL=fl?1:0;sprite(T,r,((e.ph*SPRF[T])|0)&3,T==='vgourd'&&e.shootT<.5?'t':'n');FL=0;x.globalAlpha=1}
 // --- ritual bosses: drawn live (at most 3 on screen), poses read from the AI state (tell / next / dash / bph / vol / pose) ---
-// PATCH LORD: fat pumpkin king, crown of curled stems, sewn-on cheek patch, smug lidded eyes. Tell: rears up, eyes wide, mouth gapes, then slams
+// PATCH LORD: fat pumpkin tyrant, crown of curled stems, sewn-on cheek patch, glaring eyes, fanged scowl. Tell: rears up, eyes wide, roars, then slams
 function patchS(e,r){const T=e.tell>0&&e.next==='slam',s=T?Math.min(1,(.7-e.tell)/.5):0,ft=[0,1,0,-1][((e.ph*5)|0)&3];
  if(s){x.globalAlpha=.2*s;x.fillStyle=F(GLOW);x.beginPath();x.arc(0,-r*.1,r*1.5,0,7);x.fill();x.globalAlpha=.9*s;x.strokeStyle=F('#ffd23f');x.lineWidth=3;x.stroke();x.globalAlpha=1}
  for(const k of[-1,0,1]){const fy=r*.8+(k?ft*k*r*.06:0);inkLine(()=>{x.moveTo(k*r*.55,r*.5);x.quadraticCurveTo(k*r*.7,fy,k*r*.7+r*.16,fy+r*.04)},r*.13,RAMP.wood[1],1.5)}
@@ -574,9 +585,9 @@ function patchS(e,r){const T=e.tell>0&&e.next==='slam',s=T?Math.min(1,(.7-e.tell
  for(let i=-2;i<=2;i++){x.save();x.translate(i*rx*.16,-ry*.93);x.rotate(i*.32);stemC(0,0,r*.5,i<0?-1:1);x.restore()}leaf(-r*.35,-ry*.98,r*.42,-2.7);leaf(r*.35,-ry*.98,r*.42,-.45);
  x.save();x.translate(-r*.66,r*.14);x.rotate(-.18);x.fillStyle=pal.ink;x.fillRect(-r*.25,-r*.23,r*.5,r*.46);x.fillStyle=F('#d98a3a');x.fillRect(-r*.21,-r*.19,r*.42,r*.38);x.fillStyle=F(RAMP.pump[0]);x.fillRect(-r*.21,-r*.19,r*.42,r*.07);
  const q=r*.21;stitch(-q,-q,q,-q,3,r*.05);stitch(q,-q,q,q,3,r*.05);stitch(q,q,-q,q,3,r*.05);stitch(-q,q,-q,-q,3,r*.05);x.restore();
- eye(-r*.06,-r*.2,r*.32,r*.3,{lid:T?0:.45,lidC:RAMP.pump[1],brow:T?.38:.06,bw:2,bg:3});eye(r*.44,-r*.22,r*.3,r*.3,{lid:T?0:.45,lidC:RAMP.pump[1],brow:T?-.38:-.06,bw:2,bg:3});
- grin(r*.16,r*.32,r*.95,r*(.32+.4*s),HOLLOW,2,RAMP.pump[1]);x.restore()}
-// HOLLOW TWIN: one pumpkin split down a jagged crack. Far half: glowing carved half-face; near half: stitched hollow with one red eye; pulp and seeds between.
+ eye(-r*.06,-r*.2,r*.34,r*.32,{glare:T?.2:.55,side:-1,lidC:RAMP.pump[1],bw:2});eye(r*.44,-r*.22,r*.32,r*.32,{glare:T?.2:.55,side:1,lidC:RAMP.pump[1],bw:2});
+ snarl(r*.18,r*.28,r*1.0,r*(.4+.45*s),HOLLOW,RAMP.pump[1],4);x.restore()}
+// HOLLOW TWIN: one pumpkin split down a jagged crack. Far half: glowing carved glare and scowl; near half: stitched frown, one red eye in a hollow socket; pulp and seeds between.
 // Fan tell: the halves part and the seeds glow. Dash tell: it leans in
 function twinS(e,r){const fan=e.tell>0&&e.next==='fan',s=fan?Math.min(1,(.5-e.tell)/.3):.08+.05*Math.sin(e.ph*3),o=s*r*.4,Z=[];for(let i=0;i<=8;i++)Z.push([(i%2?.12:-.1)*r,-r*1.1+i*r*.275]);
  if(e.tell>0&&e.next==='dash')x.rotate(.14);
@@ -584,8 +595,8 @@ function twinS(e,r){const fan=e.tell>0&&e.next==='fan',s=fan?Math.min(1,(.5-e.te
  x.save();x.translate(-o,0);stemC(-r*.05,-r*.92,r*.6,-1);leaf(-r*.2,-r*1.0,r*.5,-2.5);x.restore();
  for(const sd of[-1,1]){x.save();x.translate(sd*o,0);x.beginPath();Z.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.lineTo(sd*r*1.5,r*1.3);x.lineTo(sd*r*1.5,-r*1.3);x.closePath();x.clip();
   shaded(oval(0,0,r*1.02,r*.95),RAMP.pump,r*.22,3);ribs(r*1.02,r*.95,6,RAMP.pump[3],r*.07);
-  if(sd<0){gloss(-r*.55,-r*.45,r*.22,r*.12);x.globalAlpha=.28;x.fillStyle=F(GLOW);x.beginPath();x.arc(-r*.42,0,r*.55,0,7);x.fill();x.globalAlpha=1;tri(-r*.45,-r*.18,r*.2,F(GLOW));grin(-r*.38,r*.3,r*.7,r*.36,F(GLOW),1,RAMP.pump[1])}
-  else{x.fillStyle=pal.ink;x.beginPath();x.ellipse(r*.44,-r*.2,r*.22,r*.2,0,0,7);x.fill();x.fillStyle=F('#c8452f');x.fillRect(r*.42,-r*.28,r*.15,r*.15);stitch(r*.16,r*.38,r*.76,r*.3,4,r*.08)}
+  if(sd<0){gloss(-r*.55,-r*.45,r*.22,r*.12);x.globalAlpha=.28;x.fillStyle=F(GLOW);x.beginPath();x.arc(-r*.42,0,r*.55,0,7);x.fill();x.globalAlpha=1;slit(-r*.44,-r*.16,r*.44,r*.38,-1,F(GLOW));snarl(-r*.12,r*.22,r*1.0,r*.44,F(GLOW),RAMP.pump[1],4)}
+  else{slit(r*.46,-r*.17,r*.5,r*.42,1,pal.ink);x.fillStyle=F('#c8452f');x.fillRect(r*.36,-r*.17,r*.14,r*.14);stitch(r*.12,r*.34,r*.46,r*.24,2,r*.08);stitch(r*.46,r*.24,r*.8,r*.38,2,r*.08)}
   x.beginPath();oval(0,0,r*1.02+3,r*.95+3)();x.clip();x.strokeStyle=pal.ink;x.lineWidth=5;x.lineJoin='miter';x.beginPath();Z.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.stroke();x.restore()}}
 // HARVEST WHEEL: angry pumpkin hub in a spiked, iron-banded cartwheel with straw poking out. Rev-up: spokes blur and the face strains
 function wheelS(e,r){const rev=e.tell>0&&e.next==='roll'||e.dash>0;x.save();x.rotate(e.spin||0);
@@ -598,8 +609,9 @@ function wheelS(e,r){const rev=e.tell>0&&e.next==='roll'||e.dash>0;x.save();x.ro
  if(rev){x.globalAlpha=.4;x.strokeStyle=F(RAMP.wood[0]);x.lineWidth=r*.3;for(let i=0;i<4;i++){x.beginPath();x.arc(0,0,r*.62,i*1.571,i*1.571+.9);x.stroke()}x.globalAlpha=1}x.restore();
  for(let i=0;i<5;i++){const b=-2.6+i*.55;inkLine(()=>{x.moveTo(Math.cos(b)*r*.35,Math.sin(b)*r*.35);x.lineTo(Math.cos(b)*r*.66,Math.sin(b)*r*.66)},r*.05,'#e8c860',.9)}
  const h=r*.58;shaded(oval(0,0,h*1.06,h),RAMP.pump,h*.24,2.4);ribs(h*1.06,h,4,RAMP.pump[3],h*.1);gloss(-h*.5,-h*.5,h*.22,h*.12);stemC(-h*.05,-h,h*.5,1);
- eye(-h*.1,-h*.2,h*.36,h*(rev?.16:.3),{brow:.55,bw:1.9,bg:2.4});eye(h*.48,-h*.22,h*.32,h*(rev?.16:.28),{brow:-.55,bw:1.9,bg:2.4});
- x.fillStyle=pal.ink;x.fillRect(-h*.12,h*.24,h*.8,h*.34);x.fillStyle=F(RAMP.bone[1]);x.fillRect(-h*.07,h*.28,h*.7,h*.26);x.fillStyle=pal.ink;x.fillRect(-h*.07,h*.4,h*.7,h*.03);for(let k=1;k<4;k++)x.fillRect(-h*.07+k*h*.175,h*.28,h*.03,h*.26)}
+ eye(-h*.1,-h*.18,h*.38,h*.34,{glare:rev?.72:.5,side:-1,lidC:RAMP.pump[1],bw:1.8});eye(h*.48,-h*.2,h*.34,h*.32,{glare:rev?.72:.5,side:1,lidC:RAMP.pump[1],bw:1.8});
+ x.fillStyle=pal.ink;x.fillRect(-h*.14,h*.22,h*.84,h*.36);x.fillStyle=F(RAMP.bone[1]);for(let k=0;k<5;k++){const tx=-h*.1+k*h*.152;x.beginPath();x.moveTo(tx,h*.26);x.lineTo(tx+h*.152,h*.26);x.lineTo(tx+h*.076,h*.44);x.fill();
+  if(k<4){x.beginPath();x.moveTo(tx+h*.076,h*.54);x.lineTo(tx+h*.228,h*.54);x.lineTo(tx+h*.152,h*.38);x.fill()}}}
 // THE NIGHT GOURD: massive dark pumpkin, gold crown fused to a twisted stem, fanged maw glowing from inside (its one glow), thorn roots to the ground.
 // P2: glowing crack seams. P3: the top breaks open and burns, glow turns hot. Tells: maw opens (volley/spiral), roots glow (vines), eyes flare (rain), lean (charge)
 function gourdS(e,r){const ph=e.bph||1,gl=ph===3?HOT:GLOW,ps=e.poseT>0?e.pose:null,open=e.vol>0||ps==='volley'?1:ps==='spiral'?.55:.12,flare=ps==='rain'?1.35:1,t=e.ph,rx=r*1.05,ry=r*.92;
@@ -616,7 +628,7 @@ function gourdS(e,r){const ph=e.bph||1,gl=ph===3?HOT:GLOW,ps=e.poseT>0?e.pose:nu
  x.fillStyle=pal.ink;x.beginPath();x.moveTo(-r*.72,-r*.52);x.lineTo(-r*.04,-r*.24);x.lineTo(r*.14,-r*.26);x.lineTo(r*.8,-r*.57);x.lineTo(r*.82,-r*.43);x.lineTo(r*.14,-r*.1);x.lineTo(-r*.04,-r*.08);x.lineTo(-r*.74,-r*.38);x.fill();
  for(const [cx,s] of[[-r*.34,-1],[r*.46,1]]){x.save();x.translate(cx,-r*.1);x.scale(s*flare,flare);x.fillStyle=pal.ink;x.beginPath();x.moveTo(-r*.27,-r*.04);x.lineTo(r*.28,-r*.18);x.lineTo(r*.23,r*.09);x.lineTo(-r*.2,r*.11);x.fill();
   x.fillStyle=F(gl);x.beginPath();x.moveTo(-r*.2,-r*.01);x.lineTo(r*.21,-r*.12);x.lineTo(r*.17,r*.05);x.lineTo(-r*.15,r*.07);x.fill();x.restore()}
- const my=r*.36,mw=r*.64,mh=r*(.16+.3*open),mx=r*.08,maw=()=>{x.moveTo(mx-mw,my);for(let i=1;i<=6;i++)x.lineTo(mx-mw+i*mw/3,my+(i%2?-r*.07:r*.03));x.quadraticCurveTo(mx,my+mh*2.2,mx-mw,my);x.closePath()};
+ const my=r*.36,mw=r*.64,mh=r*(.16+.3*open),mx=r*.08,maw=()=>{x.moveTo(mx-mw,my);for(let i=1;i<=6;i++)x.lineTo(mx-mw+i*mw/3,my+(i%2?-r*.07:r*.03)-Math.sin(i/6*Math.PI)*r*.12);x.quadraticCurveTo(mx,my+mh*2.2,mx-mw,my);x.closePath()};
  x.globalAlpha=.25;x.fillStyle=F(gl);x.beginPath();x.ellipse(mx,my+mh*.5,mw*1.25,mh+r*.28,0,0,7);x.fill();x.globalAlpha=1;
  x.save();x.lineJoin='round';x.fillStyle=x.strokeStyle=pal.ink;x.lineWidth=5;x.beginPath();maw();x.stroke();x.fill();x.clip();x.fillStyle=F(gl);x.beginPath();x.ellipse(mx,my+mh*.9,mw*.62,mh*.75,0,0,7);x.fill();x.restore();
  x.fillStyle=F(RAMP.bone[1]);for(const fx of[-.3,.08,.44]){x.beginPath();x.moveTo(r*(fx-.07),my-r*.02);x.lineTo(r*fx,my+r*.1+mh*.3);x.lineTo(r*(fx+.07),my-r*.02);x.fill()}}
@@ -1002,6 +1014,9 @@ if(LB_API){const m=location.hash.match(/lb_token=([^&]+)/),er=/lb_error=/.test(l
 if(SHEETQ==='halloween')scene='sheet';
 window.__cs={get joy(){return joy},get mt(){return mt},setHp:f=>{G.p.hp=G.p.mhp*f},cards:()=>cards(),INF,get btns(){return btns},BOSS,spawnBoss:i=>{G.bossI=i+1;spawnBoss(i)},setPhase:n=>{G.phase=n},setT:t=>{G.t=t},get G(){return G},get S(){return S},get scene(){return scene},start:()=>{scene='play';startRun()},auto:(on=true)=>{G.auto=on},god:(on=true)=>{G.god=on},speed:n=>speedMul=n,go:s=>{scene=s},
  pickAuto:()=>{if(G&&G.choice){const c=G.choice;c.t=1;const cs=c.cards;const e=cs.find(q=>q.kind==='e')||cs.find(q=>q.kind==='w'&&q.lv>1)||cs[Math.random()*cs.length|0];choose(e);return true}return false},addGold:n=>{S.gold+=n;save()},
- startHw:()=>{scene='play';startRun(1)},embers:n=>{G.hw.embers+=n},summon:()=>hwSummon(),killRitual:()=>{SC=st();for(const e of G.hw.live.slice())hurtEnemy(e,1e9)},spriteCache:()=>SPR.size,ev:()=>evLive(),get runMode(){return runMode}};
+ startHw:()=>{scene='play';startRun(1)},embers:n=>{G.hw.embers+=n},summon:()=>hwSummon(),killRitual:()=>{SC=st();for(const e of G.hw.live.slice())hurtEnemy(e,1e9)},spriteCache:()=>SPR.size,
+ // review renders for the asset sheet: one character alone on a transparent canvas → PNG data URL. o: f, st, fl (1 flash, 2 silhouette), scale, e (boss pose fields)
+ art:(id,o={})=>{const B=!!HB[id],r=o.r||(B?HB[id].r:id==='hero'?10:ETYPE[id].r),s=o.scale||6,c=document.createElement('canvas');c.width=c.height=Math.ceil(r*(B?1.8:SPRR[id]||1.6)*2*s);const ox=x;x=c.getContext('2d');
+  try{x.setTransform(s,0,0,s,c.width/2,c.height/2);FL=o.fl||0;if(id==='hero')heroS(0,2,o.ci||0,1,0,1,false);else if(B)hwBossS(Object.assign({hb:id,r,ph:0,flash:0,fc:1},o.e||{}));else SPRK[id](r,o.f||0,o.st||'n')}finally{FL=0;x=ox}return c.toDataURL()},ev:()=>evLive(),get runMode(){return runMode}};
 })();
 </script></body></html>
