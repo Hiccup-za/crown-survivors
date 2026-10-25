@@ -583,6 +583,9 @@ function loop(t){const dt=Math.max(0,Math.min(.05,(t-t0)/1000));t0=t;for(let i=0
 // ===== leaderboard (hidden when LB_API is empty) =====
 FONT['#']=[10,31,10,31,10];
 const LBK='crownsurv_classic_lb',HERO_ID=CH.map(c=>c.n.toLowerCase().replace(/ /g,'-'));
+const HERO_SLUG=Object.assign({},Object.fromEntries(HERO_ID.map((id,i)=>[id,i])),{king:0,ruby:1,knight:1,mint:2,mage:2,shadow:3,rogue:3,pumpkin:4,pump:4});
+function applyHeroQueryUnlock(){try{const q=new URLSearchParams(location.search),raw=q.get('hero');if(!raw)return;const picked=[];for(const part of raw.split(',')){const slug=part.trim().toLowerCase();if(!slug)continue;const ci=HERO_SLUG[slug];if(ci==null||ci<0||ci>=CH.length)continue;picked.push(ci);if(!S.chars.includes(ci)){S.chars.push(ci);dbTrack('hero_unlock',{hero:HERO_ID[ci],via:'query'})}}if(!picked.length)return;S.char=picked[0];save();q.delete('hero');const qs=q.toString();history.replaceState(null,'',location.pathname+(qs?'?'+qs:'')+location.hash)}catch(e){}}
+applyHeroQueryUnlock();
 let LBS;try{LBS=Object.assign({tok:null,user:null,best:{},pend:null,ranks:{}},JSON.parse(localStorage.getItem(LBK)||'{}'))}catch(e){LBS={tok:null,user:null,best:{},pend:null,ranks:{}}}
 const lbSave=()=>{try{localStorage.setItem(LBK,JSON.stringify(LBS))}catch(e){}};
 const lbIn=()=>!!(LB_API&&LBS.tok&&LBS.user);
@@ -733,6 +736,6 @@ if(LB_API){const m=location.hash.match(/lb_token=([^&]+)/),er=/lb_error=/.test(l
  if(m){LBS.tok=decodeURIComponent(m[1]);lbSave()}else if(er){LBS.pend=null;lbSave();toast={t:'Sign-in cancelled',l:1.8};try{sessionStorage.removeItem('cs_sx')}catch(e){}}
  if(LBS.tok)lbRefreshMe().then(async()=>{try{if(lbIn()&&sessionStorage.getItem('cs_sx')){sessionStorage.removeItem('cs_sx');dbTrack('signin_x',{})}}catch(e){}if(!lbIn()||!LBS.pend)return;const p=LBS.pend;LBS.pend=null;lbSave();const res=await lbSubmit(p,p.board);if(res)lbShowRank(res);else openLB('title',p.board)})}
 window.__cs={get joy(){return joy},get mt(){return mt},setHp:f=>{G.p.hp=G.p.mhp*f},cards:()=>cards(),INF,WP,PS,CH,get btns(){return btns},BOSS,spawnBoss:i=>{G.bossI=i+1;spawnBoss(i)},setPhase:n=>{G.phase=n},setT:t=>{G.t=t},get G(){return G},get S(){return S},get scene(){return scene},start:()=>{scene='play';startRun()},auto:(on=true)=>{G.auto=on},god:(on=true)=>{G.god=on},speed:n=>speedMul=n,go:s=>{scene=s},
- pickAuto:()=>{if(G&&G.choice){const c=G.choice;c.t=1;const cs=c.cards;const e=cs.find(q=>q.kind==='e')||cs.find(q=>q.kind==='w'&&q.lv>1)||cs[Math.random()*cs.length|0];choose(e);return true}return false},addGold:n=>{S.gold+=n;save()}};
+ pickAuto:()=>{if(G&&G.choice){const c=G.choice;c.t=1;const cs=c.cards;const e=cs.find(q=>q.kind==='e')||cs.find(q=>q.kind==='w'&&q.lv>1)||cs[Math.random()*cs.length|0];choose(e);return true}return false},addGold:n=>{S.gold+=n;save()},heroSlugIndex:slug=>HERO_SLUG[(slug||'').trim().toLowerCase()],applyHeroQueryUnlock};
 })();
 </script></body></html>
