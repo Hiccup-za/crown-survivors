@@ -93,7 +93,8 @@ Classic and Rank 2+ is the endless climb.
 
 ## Roster: Halloween ETYPE pool (Chunk 3a)
 
-Base stats sit next to the closest Classic type.
+Base stats sit next to the closest Classic type. The art for every enemy below and every boss further down is **Sprite Kit v2**.
+Character briefs, palette ramps and the detail budget live in `docs/sprite-kit.md`; review it live at `?sheet=halloween`.
 
 | Key | Name | Role | HP | Speed | Radius | Damage | XP | Behaviour | Classic ref |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

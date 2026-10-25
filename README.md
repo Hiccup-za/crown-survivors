@@ -92,7 +92,8 @@ Balance numbers and the per-chunk notes are in `docs/halloween-event.md`.
 
 QA on localhost or a preview deployment (ignored on `crown-survivors.vercel.app`):
 `?event=halloween-2026` forces the event live, and `?event=ended` shows the post-event title and archive.
-The API still enforces the real window for submissions.
+The API still enforces the real window for submissions. `?sheet=halloween` opens the enemy review sheet: every event enemy, all
+frames, tells and silhouettes, drawn by the live code. The art rules are in `docs/sprite-kit.md`.
 
 ## Flight Games
 
