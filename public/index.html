@@ -28,11 +28,13 @@ const codexEnsure=()=>{if(!S.codex)S.codex={items:{},enemies:{}};if(!S.codex.ite
 const codexItemKey=(kind,k)=>kind+':'+k;
 const codexItemRec=(kind,k)=>{codexEnsure();const id=codexItemKey(kind,k);return S.codex.items[id]||(S.codex.items[id]={seen:0,taken:0})};
 const codexEnemyRec=id=>{codexEnsure();return S.codex.enemies[id]||(S.codex.enemies[id]={seen:0,kills:0})};
+const codexItemGet=(kind,k)=>(S.codex&&S.codex.items&&S.codex.items[codexItemKey(kind,k)])||{seen:0,taken:0};
+const codexEnemyGet=id=>(S.codex&&S.codex.enemies&&S.codex.enemies[id])||{seen:0,kills:0};
 const codexMarkItemSeen=(kind,k)=>{const r=codexItemRec(kind,k);if(!r.seen){r.seen=1;save()}};
 const codexMarkItemsSeen=cards=>{if(!cards)return;let ch=0;for(const c of cards){if(c.kind==='w'||c.kind==='p'||c.kind==='i'||c.kind==='e'){const r=codexItemRec(c.kind==='e'?'e':c.kind,c.k);if(!r.seen){r.seen=1;ch=1}}else if(c.kind==='x'){const r=codexItemRec('x',c.k);if(!r.seen){r.seen=1;ch=1}}}if(ch)save()};
 const codexMarkItemTaken=(kind,k)=>{const r=codexItemRec(kind,k);r.seen=1;r.taken=(r.taken||0)+1;save()};
 const codexMarkEnemySeen=id=>{const r=codexEnemyRec(id);if(!r.seen){r.seen=1;save()}};
-const codexMarkEnemyKill=id=>{const r=codexEnemyRec(id);r.seen=1;r.kills=(r.kills||0)+1;save()};
+const codexMarkEnemyKill=id=>{const r=codexEnemyRec(id);r.seen=1;r.kills=(r.kills||0)+1};// saved by endRun (or on tab hide), not per kill
 const ENAME={blob:'Mud Blob',bat:'Night Bat',skel:'Bone Soldier',ghost:'Pale Ghost',imp:'Fire Imp',vine:'Thorn Vine',frog:'Bog Frog',wisp:'Cloud Wisp',harpy:'Sky Harpy'};
 const codexItemCatalog=()=>{const out=[];for(const k in WP){out.push({kind:'w',k,n:WP[k].n,d:WP[k].d,c:WP[k].c,ev:WP[k].e});out.push({kind:'e',k,n:WP[k].e,d:'Evolution of '+WP[k].n,c:'#ffd23f'})}for(const k in PS)out.push({kind:'p',k,n:PS[k].n,d:PS[k].d,c:PS[k].c});for(const k in INF)out.push({kind:'i',k,n:INF[k].n,d:INF[k].d,ic:INF[k].ic});out.push({kind:'x',k:'gold',n:'Coin Sack',d:'Bonus gold',c:'#ffd23f'},{kind:'x',k:'heal',n:'Royal Feast',d:'Heal 30% HP',c:'#e8473a'});return out};
 const codexEnemyCatalog=()=>Object.keys(ETYPE).map(k=>({id:k,n:ENAME[k]||k,c:ETYPE[k].c}));
@@ -42,7 +44,9 @@ const UM=Math.min(390/360,844/640),LINK='#3b2a1a';
 const CODEX_ITEM_ROW=92,CODEX_ENEM_ROW=174,CODEX_BOSS_ROW=220;
 const codexRowHDesign=(ent,tab)=>tab==='items'?CODEX_ITEM_ROW:tab==='bosses'?CODEX_BOSS_ROW:CODEX_ENEM_ROW;
 const ELORE={blob:'Slow and soft. Shambles in by the dozen.',bat:'Fragile but fast, flutters in erratic bursts.',skel:'A sturdy soldier that soaks up punishment.',ghost:'Drifts straight through the crowd to reach you.',imp:'Keeps its distance and hurls fireballs.',vine:'Slithers toward you on a winding path.',frog:'Sits still, then leaps at blinding speed.',wisp:'Swirls around you in fast, looping orbits.',harpy:'Hangs back and fires three-feather volleys.'};
-const EFROM={blob:'0:00',bat:'0:25',skel:'1:20',ghost:'2:20',imp:'3:20',vine:'JUNGLE',frog:'JUNGLE',wisp:'SKIES',harpy:'SKIES'};
+// Spawn pools: [after seconds, ...types] until boss III, then fixed jungle / sky pools.
+const EPOOL=[[-1,'blob','blob'],[25,'bat','bat'],[80,'skel'],[140,'ghost','bat'],[200,'imp'],[300,'skel','imp']],EPOOL_JUNGLE=['vine','vine','frog','skel','bat','imp'],EPOOL_SKIES=['wisp','wisp','harpy','ghost','bat','frog'];
+const efrom=id=>{const r=EPOOL.find(r=>r.includes(id,1));return r?fmtT(Math.max(0,r[0])):EPOOL_JUNGLE.includes(id)?'JUNGLE':'SKIES'};
 const CXKIND={w:['WEAPON','#ffd23f'],e:['EVOLUTION','#ff8a3d'],p:['PASSIVE','#6ab0ff'],i:['ENDLESS','#c9a0ff'],x:['BONUS','#5fae7a']};
 const cxItemNote=e=>{const U_=s=>s.toUpperCase();if(e.kind==='w')return'MAX LV 5 · EVOLVES WITH '+U_(PS[WP[e.k].ev].n);if(e.kind==='e')return U_(WP[e.k].n)+' + '+U_(PS[WP[e.k].ev].n);
  if(e.kind==='p'){const w=Object.keys(WP).find(w=>WP[w].ev===e.k);return'MAX LV 5'+(w?' · EVOLVES '+U_(WP[w].n):'')}return e.kind==='i'?'STACKS FOREVER · SOFT CAP '+INF[e.k].cap:'INSTANT REWARD'};
@@ -122,7 +126,7 @@ cv.addEventListener('pointerdown',e=>{e.preventDefault();au();if(trans)return;co
 addEventListener('pointermove',e=>{if(joy.on&&e.pointerId===joy.id){joy.x=e.clientX;joy.y=e.clientY}if(mt.on&&e.pointerId===mt.id){if(e.buttons===0)mt.on=false;else mtSet(e.clientX,e.clientY)}});
 const up=e=>{if(e.pointerId===joy.id)joy.on=false;if(e.pointerId===mt.id)mt.on=false};const mtOff=()=>{mt.on=false};addEventListener('blur',mtOff);document.documentElement.addEventListener('mouseleave',mtOff);addEventListener('pointerup',up);addEventListener('pointercancel',up);
 const keysOff=()=>{for(const k in keys)keys[k]=0};addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey){keysOff();return}keys[e.key.toLowerCase()]=1;if(e.key==='p'&&G&&scene==='play')G.paused=!G.paused;if(e.key==='Escape'&&!trans){if(scene==='codex')go(codex.back);else if(scene==='settings')go('title');else if(scene==='shop'||scene==='chars')go('title');else if(scene==='lb'){lb.rank=null;go(lb.back)}}});addEventListener('keyup',e=>{const k=e.key.toLowerCase();keys[k]=0;if(k==='meta'||k==='os'||k==='control'||k==='alt')keysOff()});addEventListener('blur',keysOff);document.addEventListener('visibilitychange',()=>{if(document.hidden)keysOff()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&scene==='play'&&G&&!G.over)G.paused=true});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&scene==='play'&&G&&!G.over){G.paused=true;save()}});
 addEventListener('blur',()=>{if(scene==='play'&&G&&!G.over&&!G.auto)G.paused=true});
 // ===== helpers =====
 const rnd=(a,b)=>a+Math.random()*(b-a),d2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
@@ -244,7 +248,7 @@ function update(dt){clock+=dt;if(trans){trans.t+=dt;if(trans.t>=.22&&!trans.done
  // spawn
  if(!g.won){const bt=BOSS[g.bossI];if(bt&&g.t>=bt.t&&!g.boss){spawnBoss(g.bossI);g.bossI++}
   const rate=Math.min(12,.9+g.t/28+Math.pow(g.t/150,2))*(g.boss?.55:1)*(1+.2*g.curse);g.spawnAcc+=rate*dt;
-  const pool=['blob','blob'];if(g.t>25)pool.push('bat','bat');if(g.t>80)pool.push('skel');if(g.t>140)pool.push('ghost','bat');if(g.t>200)pool.push('imp');if(g.t>300)pool.push('skel','imp');if(g.phase===3){pool.length=0;pool.push('vine','vine','frog','skel','bat','imp')}else if(g.phase>=4){pool.length=0;pool.push('wisp','wisp','harpy','ghost','bat','frog')}
+  const pool=g.phase===3?[...EPOOL_JUNGLE]:g.phase>=4?[...EPOOL_SKIES]:EPOOL.flatMap(([t,...ks])=>g.t>t?ks:[]);
   while(g.spawnAcc>=1&&g.en.length<320){g.spawnAcc--;if(pool.includes('bat')&&Math.random()<.04){const t=pool[Math.random()*pool.length|0];for(let i=0;i<6;i++)spawnEnemy(t)}else spawnEnemy(pool[Math.random()*pool.length|0])}
   g.eliteT-=dt;if(g.eliteT<=0){g.eliteT=42;spawnEnemy(pool[Math.random()*pool.length|0],true);banner('ELITE INCOMING!','#ff8a3d')}}
  fireWeapons(dt);
@@ -545,7 +549,7 @@ function bossCard(ent,X,Y,w,h,rec){const i=ent.bi,B=BOSS[i],seen=!!rec.seen,kill
  wrapTxt(seen?BLORE[i]:'Survive until '+fmtT(B.t)+' to face this foe.',rw,9).slice(0,3).forEach((ln,j)=>txt(ln,rx,py0+94+j*12,9,seen?'#e9d3a0':'#8b6a3a','left',false));
  cxFoot(hx,hw,Y+h,'Seen '+(rec.seen|0)+' · Kills '+kills,'REWARD: '+(i===LASTB?'VICTORY':i===2?'CHEST +2 SLOTS':'CHEST'),seen?pal.gold:'#8b6a3a')}
 function enemyCard(ent,X,Y,w,h,rec,i){const id=ent.id,E=ETYPE[id],seen=!!rec.seen,kills=rec.kills|0,acc=seen?E.c:'#6b5640';
- cxFrame(X,Y,w,h,seen,kills);const hx=X+10,hy=Y+10,hw=w-20;cxHeader(hx,hy,hw,acc,'ENEMY',ent.n,seen,'APPEARS',EFROM[id]);
+ cxFrame(X,Y,w,h,seen,kills);const hx=X+10,hy=Y+10,hw=w-20;cxHeader(hx,hy,hw,acc,'ENEMY',ent.n,seen,'APPEARS',efrom(id));
  const ps=76,py0=hy+40;cxPortrait(hx,py0,ps,acc,seen,kills,()=>{const k=ps*(id==='bat'?.22:id==='vine'?.2:.27)/E.r;x.translate(0,id==='vine'?-ps*.1:0);x.scale(k,k);enemyS({type:id,x:0,y:0,r:E.r,ph:clock+i,flash:0,elite:0})});
  const rx=hx+ps+12,rw=hx+hw-rx,cw=(rw-12)/2;
  [['HP',E.hp,70,'#e8473a'],['SPEED',E.spd,70,'#6ab0ff'],['DAMAGE',E.dmg,12,'#ff8a3d'],['XP',E.xp,5,'#5fae7a']].forEach(([l,v,mx,c],j)=>cxStat(l,v,mx,c,v,rx+(j%2)*(cw+12),py0+(j>>1)*24,cw,seen));
@@ -616,7 +620,7 @@ function drawCodex(){menuBg();lbBegin();let maxS=0;try{
  maxS=Math.max(0,totH+4-CX_LH);codex.scroll=Math.max(0,Math.min(maxS,codex.scroll));
  x.save();try{x.beginPath();x.rect(24,CX_TOP,334,CX_LH);x.clip();
  entries.forEach((ent,i)=>{const outer=rowHs[i],ry=CX_TOP+3+yPos[i]-codex.scroll,h=outer-4;if(ry+h<CX_TOP||ry>CX_TOP+CX_LH)return;
-  const vi=Math.max(0,(ry-CX_TOP)/Math.max(outer,1)),a=Math.max(0,Math.min(1,(clock-codex.t0-vi*.04)/.18));x.globalAlpha=a;(tab==='items'?itemCard:tab==='bosses'?bossCard:enemyCard)(ent,CX_RX,ry+(1-a)*8,CX_ROWW,h-6,tab==='items'?codexItemRec(ent.kind,ent.k):codexEnemyRec(ent.id),i);x.globalAlpha=1})}finally{x.restore()}
+  const vi=Math.max(0,(ry-CX_TOP)/Math.max(outer,1)),a=Math.max(0,Math.min(1,(clock-codex.t0-vi*.04)/.18));x.globalAlpha=a;(tab==='items'?itemCard:tab==='bosses'?bossCard:enemyCard)(ent,CX_RX,ry+(1-a)*8,CX_ROWW,h-6,tab==='items'?codexItemGet(ent.kind,ent.k):codexEnemyGet(ent.id),i);x.globalAlpha=1})}finally{x.restore()}
  if(maxS>0){const th=Math.max(30,CX_SB_H*CX_LH/(CX_LH+maxS));rr(359,CX_SB_Y,5,CX_SB_H,2.5,'#d6c49a');rr(359,CX_SB_Y+(CX_SB_H-th)*codex.scroll/maxS,5,th,2.5,'#a8875a');
   const st0='SCROLL FOR MORE';txt(st0,203,CX_HINT_Y,10,'#8b6a3a','center',false);txt('▼',203-x.measureText(st0).width/2-12,CX_HINT_Y+Math.sin(clock*4)*2,10,'#8b6a3a','center',false)}
  else if(entries.length)txt('FULL LIST',195,CX_HINT_Y,10,'#8b6a3a','center',false);
