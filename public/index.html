@@ -337,7 +337,7 @@ function update(dt){clock+=dt;if(trans){trans.t+=dt;if(trans.t>=.22&&!trans.done
  // gems
  g.gemT-=dt;if(g.gemT<=0)g.gemChain=0;const mg=SC.mag;
  for(const q of g.gems){const dd=d2(q,p);if(q.vac||dd<mg*mg){const l=Math.sqrt(dd)||1,s=q.vac?520:300;q.x+=(p.x-q.x)/l*s*dt;q.y+=(p.y-q.y)/l*s*dt;
-  if(dd<14*14){q.got=1;if(q.k==='gold'){g.gold+=q.v;sfx.gold();dnum(p.x,p.y-24,q.v,'g')}else if(q.k==='heart'){p.hp=Math.min(p.mhp,p.hp+q.v);tone(880,.2,'triangle',.06,400)}else if(q.k==='chest'){chest()}else if(q.k==='magnet'){g.gems.forEach(o=>{if(o.k!=='chest')o.vac=1})}else if(q.k==='ember'){if(g.hw){g.hw.embers+=q.v;g.hw.got+=q.v}sfx.ember()}
+  if(dd<14*14){q.got=1;if(q.k==='gold'){g.gold+=q.v;sfx.gold();dnum(p.x,p.y-24,q.v,'g')}else if(q.k==='heart'){p.hp=Math.min(p.mhp,p.hp+q.v);tone(880,.2,'triangle',.06,400)}else if(q.k==='chest'){chest()}else if(q.k==='magnet'){g.gems.forEach(o=>{if(o.k!=='chest')o.vac=1})}else if(q.k==='ember'){if(g.hw){g.hw.embers+=q.v;g.hw.got+=q.v}sfx.ember();fx(q.x,q.y,q.v>1?10:5,'#ffb13d',80,.35)}
    else{g.gemChain++;g.gemT=.4;sfx.gem(g.gemChain);g.xp+=q.v*SC.xpm;if(g.tut&&g.tut.step===2)g.tut.step=2.5;while(g.xp>=need(g.lvl)){g.xp-=need(g.lvl);g.lvl++;g.queue++}}}}}
  g.gems=g.gems.filter(q=>!q.got);if(g.gems.length>450){const old=g.gems.splice(0,100),em=old.reduce((a,q)=>a+(q.k==='ember'?q.v:0),0),xs=old.filter(q=>q.k==='xp'||q.k==='mid');let s=xs.reduce((a,q)=>a+q.v,0);if(s)g.gems.push({x:p.x+rnd(-150,150),y:p.y+rnd(-150,150),v:s,k:'big'});if(em)g.gems.push({x:p.x+rnd(-150,150),y:p.y+rnd(-150,150),v:em,k:'ember'})}
  if(Math.random()<dt/40)g.gems.push({x:p.x+rnd(-180,180),y:p.y+rnd(-260,260),v:0,k:'magnet'});
@@ -491,10 +491,10 @@ function starShape(cx,cy,r,fill){x.beginPath();for(let i=0;i<10;i++){const a=-Ma
 // ===== menu layout ===== one spacing system for every screen, in U: gap between buttons (down and across), pad inside panel edges,
 // head = space above a panel heading, list = gap between list rows. Buttons: primary 220×54; secondary 105×42 (two fill the primary's width); back 120×42
 const UI={gap:10,pad:16,head:20,list:8,pri:[220,54,22],sec:[105,42,14],back:[120,42,14]};
-function bPri(l,y,f,c,pulse){const [w,h,sz]=UI.pri;if(pulse){const pl=1+Math.sin(clock*5)*.03;x.save();x.translate(W/2,y+h*U/2);x.scale(pl,pl);x.translate(-W/2,-(y+h*U/2))}button(l,W/2-w*U/2,y,w*U,h*U,f,c,fitSz(l,w*U,sz));if(pulse)x.restore()}
+function bPri(l,y,f,c,pulse){const [w,h,sz]=UI.pri;if(pulse){const pl=1+Math.sin(clock*5)*.03;x.save();x.translate(W/2,y+h*U/2);x.scale(pl,pl);x.translate(-W/2,-(y+h*U/2))}button(l,W/2-w*U/2,y,w*U,h*U,f,c,fitSz(l,(w-28)*U,sz));if(pulse)x.restore()}
 // a row under the primary's width: two secondary buttons, or one that spans it. a/b = [label, onTap, colour]
-function bRow(y,a,b){const [w,h,sz]=UI.sec,X=W/2-UI.pri[0]*U/2;if(!b)return button(a[0],X,y,UI.pri[0]*U,h*U,a[1],a[2],fitSz(a[0],UI.pri[0]*U,sz));
- button(a[0],X,y,w*U,h*U,a[1],a[2],fitSz(a[0],w*U,sz));button(b[0],X+(w+UI.gap)*U,y,w*U,h*U,b[1],b[2],fitSz(b[0],w*U,sz))}
+function bRow(y,a,b){const [w,h,sz]=UI.sec,X=W/2-UI.pri[0]*U/2;if(!b)return button(a[0],X,y,UI.pri[0]*U,h*U,a[1],a[2],fitSz(a[0],(UI.pri[0]-28)*U,sz));
+ button(a[0],X,y,w*U,h*U,a[1],a[2],fitSz(a[0],(w-28)*U,sz));button(b[0],X+(w+UI.gap)*U,y,w*U,h*U,b[1],b[2],fitSz(b[0],(w-28)*U,sz))}
 function bBack(y,f){const [w,h,sz]=UI.back;button('BACK',W/2-w*U/2,y,w*U,h*U,f,'#8b5a2b',sz)}
 const head=(t,top,sz,c,wave,c2)=>pix(t,W/2,top+(UI.head+sz/2)*U,sz,c,wave,c2);
 function panel(top=.08,hgt=.86){x.fillStyle='rgba(30,20,10,.6)';x.fillRect(0,0,W,H);const pw=Math.min(W-24*U,350*U),px=(W-pw)/2;rr(px,H*top+6*U,pw,H*hgt,16*U,'rgba(0,0,0,.35)');rr(px,H*top,pw,H*hgt,16*U,'#f3e2b8',pal.ink,4);rr(px+8*U,H*top+8*U,pw-16*U,H*hgt-16*U,10*U,null,'#c9a66b',2);return{px,pw}}
@@ -722,8 +722,15 @@ function gourdS(e,r){const ph=e.bph||1,gl=ph===3?HOT:GLOW,ps=e.poseT>0?e.pose:nu
  x.fillStyle=F(RAMP.bone[1]);for(const fx of[-.3,.08,.44]){x.beginPath();x.moveTo(r*(fx-.07),my-r*.02);x.lineTo(r*fx,my+r*.1+mh*.3);x.lineTo(r*(fx+.07),my-r*.02);x.fill()}}
 const HBS={patch:patchS,twin:twinS,wheel:wheelS,gourd:gourdS};
 function hwBossS(e){x.save();x.translate(0,Math.sin(e.ph*4)*2);if(scene==='play'&&G){const d=G.p.x-e.x;if(Math.abs(d)>6)e.fc=d<0?-1:1}if(e.fc<0)x.scale(-1,1);FL=FL||(e.flash>0?1:0);HBS[e.hb](e,e.r);if(FL<2)FL=0;x.restore()}
-function soulEmber(){x.fillStyle=pal.ink;x.beginPath();x.moveTo(0,-13);x.lineTo(8,-1);x.lineTo(5,11);x.lineTo(-5,11);x.lineTo(-8,-1);x.fill();x.fillStyle=RAMP.pump[1];x.beginPath();x.moveTo(0,-10);x.lineTo(6,-1);x.lineTo(3.5,9);x.lineTo(-3.5,9);x.lineTo(-6,-1);x.fill();
- x.fillStyle=pal.gold;x.beginPath();x.moveTo(0,-3);x.lineTo(2.6,2);x.lineTo(0,7);x.lineTo(-2.6,2);x.fill();x.fillStyle='rgba(255,255,255,.5)';x.fillRect(-1.6,-7,1.6,2.4)}
+// Soul Ember: a living flame, ink outline then nested tongues from deep ember to a white-hot core; the tip flickers and sways (ph offsets each ember)
+function soulEmber(ph=0){const t=clock*9+ph,tip=-16-2.5*Math.sin(t),sw=2.4*Math.sin(t*1.43+1);
+ const tongue=(k,oy,c)=>{x.fillStyle=c;x.beginPath();x.moveTo(sw*k,tip*k+oy);x.bezierCurveTo(4*k,-9*k+oy,9*k,-3*k+oy,8*k,3*k+oy);x.arc(0,3*k+oy,8*k,0,Math.PI);x.bezierCurveTo(-9*k,-3*k+oy,-4*k,-9*k+oy,sw*k,tip*k+oy);x.fill()};
+ tongue(1.22,-.6,pal.ink);tongue(1,0,RAMP.pump[3]);tongue(.8,1.8,RAMP.pump[1]);tongue(.58,3.6,pal.gold);tongue(.32,5.4,'#fff3c4');
+ x.fillStyle='rgba(255,255,255,.55)';x.beginPath();x.ellipse(-3.6,-1,1.1,2.6,-.4,0,7);x.fill()}
+// halo + rising sparks under a Soul Ember pickup (additive so it reads as light on the dusk arena)
+function emberGlow(q){const R=(q.v>1?22:15)*(1+.12*Math.sin(clock*7+q.x)),sd=Math.abs(q.x*.013+q.y*.007)%1;x.save();x.globalCompositeOperation='lighter';
+ const g=x.createRadialGradient(q.x,q.y,0,q.x,q.y,R);g.addColorStop(0,'rgba(255,200,90,.55)');g.addColorStop(.45,'rgba(255,110,30,.22)');g.addColorStop(1,'rgba(160,60,200,0)');x.fillStyle=g;x.fillRect(q.x-R,q.y-R,R*2,R*2);
+ for(let i=0;i<3;i++){const l=(clock*.9+i/3+sd)%1;x.globalAlpha=1-l;x.fillStyle=i?'#ff8a1a':'#ffd23f';x.fillRect(q.x+Math.sin(l*6+i*2+sd*9)*3.5-1,q.y-4-l*18-1,2,2)}x.restore()}
 // Pumpkin Crown icon: a little pumpkin wearing the gold crown
 function pcrown(cx,cy,s){x.save();x.translate(cx,cy);x.scale(s,s);shaded(oval(0,0,6.4,5.8),RAMP.pump,1.6,1.2);ribs(6.4,5.8,4,RAMP.pump[3],.8);crownG(0,-8.2,7.5);x.restore()}
 // ===== review sheet ===== ?sheet=halloween (ignored on production): every event enemy drawn by the live code, for art review (docs/sprite-kit.md)
@@ -755,11 +762,11 @@ function drawSheet(){const k=Math.min(W/1600,H/1100),u=U;x.fillStyle='#1c1624';x
   poses.forEach((p,j)=>{const cx=X+PW/2+(j-(poses.length-1)/2)*(PW/poses.length),e=Object.assign({hb:id,r:HB[id].r,ph:clock+j,flash:0,fc:1,spin:clock*(p.next==='roll'?8:1.5)},p);
    at(cx,872,s,()=>{sh(e.r);hwBossS(e)});at(cx,1022,s*.42,()=>{FL=2;hwBossS(Object.assign({},e,{ph:0}));FL=0});txt(lbl[j],cx,1064,9,pal.paper,'center',false)})});
  x.restore();U=u}
-function gemS(q){const gc=q.k==='ember'?'255,176,48':q.k==='gold'?'255,210,63':q.k==='heart'?'232,71,58':q.k==='chest'?'255,210,63':q.k==='magnet'?'200,69,47':q.k==='big'?'255,107,90':q.k==='mid'?'95,174,122':'106,176,255';const gr=(q.k==='chest'?20:q.k==='big'?13:9)*(1+.15*Math.sin(clock*6+q.x));x.fillStyle='rgba('+gc+',.28)';x.beginPath();x.arc(q.x,q.y,gr,0,7);x.fill();x.save();x.translate(q.x,q.y+Math.sin(clock*5+q.x)*2.2);x.scale(1.25,1.25);
+function gemS(q){const gc=q.k==='ember'?'255,176,48':q.k==='gold'?'255,210,63':q.k==='heart'?'232,71,58':q.k==='chest'?'255,210,63':q.k==='magnet'?'200,69,47':q.k==='big'?'255,107,90':q.k==='mid'?'95,174,122':'106,176,255';const gr=(q.k==='chest'?20:q.k==='big'?13:9)*(1+.15*Math.sin(clock*6+q.x));if(q.k==='ember')emberGlow(q);else{x.fillStyle='rgba('+gc+',.28)';x.beginPath();x.arc(q.x,q.y,gr,0,7);x.fill()}x.save();x.translate(q.x,q.y+Math.sin(clock*5+q.x)*2.2);x.scale(1.25,1.25);
  if(q.k==='gold'){const s=Math.abs(Math.cos(clock*5+q.y));x.scale(Math.max(.2,s),1);x.fillStyle=pal.ink;x.beginPath();x.arc(0,0,5,0,7);x.fill();x.fillStyle=pal.gold;x.beginPath();x.arc(0,0,4,0,7);x.fill()}
  else if(q.k==='heart'){x.fillStyle=pal.ink;x.fillRect(-5,-4,10,7);x.fillStyle='#e8473a';x.fillRect(-4,-3,3,3);x.fillRect(1,-3,3,3);x.fillRect(-4,-1,8,2);x.fillRect(-2,1,4,2)}
  else if(q.k==='chest'){x.fillStyle=pal.ink;x.fillRect(-9,-7,18,14);x.fillStyle='#9c6a12';x.fillRect(-8,-6,16,12);x.fillStyle=pal.gold;x.fillRect(-8,-2,16,2);x.fillRect(-2,-3,4,5);x.globalAlpha=.4+.3*Math.sin(clock*6);x.strokeStyle=pal.gold;x.lineWidth=2;x.strokeRect(-12,-10,24,20);x.globalAlpha=1}
- else if(q.k==='ember'){const s=q.v>1?.6:.42;x.scale(s,s*(1+.08*Math.sin(clock*12+q.x)));soulEmber()}
+ else if(q.k==='ember'){const s=q.v>1?.62:.44;x.scale(s,s);soulEmber(q.x*.37)}
  else if(q.k==='magnet'){x.strokeStyle=pal.ink;x.lineWidth=5;x.beginPath();x.arc(0,0,5,Math.PI,0);x.stroke();x.strokeStyle='#c8452f';x.lineWidth=3;x.beginPath();x.arc(0,0,5,Math.PI,0);x.stroke();x.fillStyle='#ddd';x.fillRect(-6.5,0,3,3);x.fillRect(3.5,0,3,3)}
  else{const s=q.k==='big'?6:q.k==='mid'?4.5:3.5,c=q.k==='big'?'#ff6b5a':q.k==='mid'?'#5fae7a':'#6ab0ff';x.rotate(Math.PI/4);x.fillStyle=pal.ink;x.fillRect(-s-1,-s-1,2*s+2,2*s+2);x.fillStyle=c;x.fillRect(-s,-s,2*s,2*s);x.fillStyle='rgba(255,255,255,.6)';x.fillRect(-s,-s,s*.8,s*.8)}x.restore()}
 // Jack-o'-lantern glyph (icons and Magic Pumpkin shots). u = unit, (ox,oy) offset in units, k = scale; colours default to ink body, paper face.
@@ -896,9 +903,14 @@ function drawOver(){const g=G,o=g.over;if(g.hw)return hwOver();const {px,pw}=pan
 // ===== menus =====
 // while an event is live the menus wear its skin: warm parchment checker (per the v0 direction), its roster orbiting, dusk vignette
 const EVSKIN={halloween:{g:'#e6be86',g2:'#d9a86a',orbit:['pip','shade','cskel','jwisp','sknight'],vig:'rgba(45,12,40,.78)'}};
-function menuBg(){const E=evLive(),sk=E&&EVSKIN[E.theme],ph=sk||PHASE[Math.abs(Math.floor(clock/12))%PHASE.length];x.fillStyle=ph.g;x.fillRect(0,0,W,H);const T=48*U,o=clock*20*U;for(let i=-1;i<W/T+1;i++)for(let j=-1;j<H/T+1;j++){if((i+j)&1){x.fillStyle=ph.g2;x.fillRect(i*T-(o%T),j*T+(o%T),T,T)}}
+// the event stage behind a menu: the Halloween arena (ground, props, mist) drifting like the menu checker, at 1 world unit = 1 U
+function stageBg(){const vw=W/U,vh=H/U,cx=clock*20,cy=-clock*20,T=48;x.save();x.scale(U,U);x.translate(-cx,-cy);x.fillStyle=HPH.g;x.fillRect(cx,cy,vw,vh);
+ for(let tx=Math.floor(cx/T);tx<=(cx+vw)/T;tx++)for(let ty=Math.floor(cy/T);ty<=(cy+vh)/T;ty++){const h=((tx*73856093)^(ty*19349663))>>>0;if((tx+ty)&1){x.fillStyle=HPH.g2;x.fillRect(tx*T,ty*T,T,T)}
+  if(h%5===0){x.fillStyle=HPH.tuft;x.fillRect(tx*T+h%30,ty*T+(h>>5)%30,2,6);x.fillRect(tx*T+h%30+3,ty*T+(h>>5)%30+2,2,4)}if(h%7===0){x.fillStyle=HPH.dot;x.globalAlpha=.6;x.fillRect(tx*T+(h>>3)%40,ty*T+(h>>7)%40,3,3);x.globalAlpha=1}hwProps(tx,ty,T,h)}
+ hwFog({x:cx+vw/2,y:cy+vh/2},vw/2+40,vh/2+40);x.restore()}
+function menuBg(stage){const E=evLive(),sk=E&&EVSKIN[E.theme],ph=sk||PHASE[Math.abs(Math.floor(clock/12))%PHASE.length];if(stage&&sk)stageBg();else{x.fillStyle=ph.g;x.fillRect(0,0,W,H);const T=48*U,o=clock*20*U;for(let i=-1;i<W/T+1;i++)for(let j=-1;j<H/T+1;j++){if((i+j)&1){x.fillStyle=ph.g2;x.fillRect(i*T-(o%T),j*T+(o%T),T,T)}}}
  const orb=sk?sk.orbit:['blob','bat','skel','ghost','imp','vine','frog','wisp','harpy'];for(let i=0;i<14;i++){const a=clock*.5+i*.45,R=(140+(i%3)*30)*U;const ex=W/2+Math.cos(a)*R,ey=H*.42+Math.sin(a)*R*.7;x.save();x.translate(ex,ey);x.scale(U*1.4,U*1.4);enemyS({type:orb[i%orb.length],x:0,y:0,r:9,ph:clock+i,flash:0});x.restore()}
- const vg=x.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,sk?sk.vig:'rgba(30,15,5,.7)');x.fillStyle=vg;x.fillRect(0,0,W,H)}
+ const vg=x.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,stage&&sk?HPH.vig:sk?sk.vig:'rgba(30,15,5,.7)');x.fillStyle=vg;x.fillRect(0,0,W,H)}
 function goldPill(y,cx=W/2){rr(cx-70*U,y,140*U,30*U,10*U,'rgba(30,20,10,.75)');x.fillStyle=pal.gold;x.beginPath();x.arc(cx-48*U,y+15*U,8*U,0,7);x.fill();txt(''+S.gold,cx+8*U,y+15*U,17,pal.gold)}
 function crownPill(y,cx){rr(cx-70*U,y,140*U,30*U,10*U,'rgba(30,20,10,.75)');pcrown(cx-48*U,y+17*U,1.25*U);txt(''+(S.pumpkinCrowns|0),cx+8*U,y+15*U,17,'#ffb13d')}
 const bestLine=()=>'Best '+Math.floor(S.best/60)+':'+String(Math.floor(S.best%60)).padStart(2,'0')+'  ·  Wins '+S.wins;
@@ -908,13 +920,15 @@ function titleBar(){button(S.muted?'♪×':'♪',10*U,H-44*U,40*U,30*U,()=>{S.mu
 function titleStack(pref,p,rows,hint){const sh=(UI.pri[1]+rows.length*(UI.gap+UI.sec[1]))*U,lim=H-(44+UI.pad)*U;let y=Math.min(pref,lim-sh-(hint?24*U:0));if(hint&&y<pref-1){hint=null;y=Math.min(pref,lim-sh)}
  bPri(p[0],y,p[1],p[2],1);y+=(UI.pri[1]+UI.gap)*U;for(const r of rows){bRow(y,r[0],r[1]);y+=(UI.sec[1]+UI.gap)*U}if(hint)txt(hint,W/2,y+4*U,11,pal.paper)}
 // event title: same layout language as Classic; Halloween Endless is the hero button, Classic stays one tap away
-function drawTitleEv(E){menuBg();pix('CROWN',W/2,H*.1,46,'#ff9a2a',3,'#d0661a');pix('SURVIVORS',W/2,H*.1+50*U,30,pal.paper,2,'#e9c27f');pix(E.n.toUpperCase(),W/2,H*.1+88*U,17,'#ffb13d',1.5,'#e07820');
- x.save();x.translate(W/2,H*.39);x.scale(U*4,U*4);heroS(0,0,S.char,1,clock*8,1,(clock%3)<.1);x.restore();
- for(let i=0;i<3;i++){const a=clock*3+i*2.09;x.save();x.translate(W/2+Math.cos(a)*70*U,H*.39+Math.sin(a)*70*U);x.scale(U*1.1,U*1.1);sprite('pip',8,((clock*10+i)|0)&3,'n');x.restore()}
- const py=H*.5;goldPill(py,W/2-74*U);crownPill(py,W/2+74*U);txt(bestLine(),W/2,py+44*U,12,pal.paper);
- const rows=[[['▶ CLASSIC',()=>{runMode='classic';go('chars',()=>{chs.focus=true})},'#c8452f'],['UPGRADES',()=>go('shop'),'#5fae7a']],[['CODEX',()=>openCodex('title'),'#6a5acd'],LB_API?['LEADERBOARD',()=>openLB('title'),'#6a5acd']:null]];
+function drawTitleEv(E){menuBg(1);pix('CROWN',W/2,H*.1,46,'#ff9a2a',3,'#d0661a');pix('SURVIVORS',W/2,H*.1+50*U,30,pal.paper,2,'#e9c27f');pix(E.n.toUpperCase(),W/2,H*.1+88*U,17,'#ffb13d',1.5,'#e07820');
+ const rows=[[['CLASSIC',()=>{runMode='classic';go('chars',()=>{chs.focus=true})},'#c8452f'],['UPGRADES',()=>go('shop'),'#5fae7a']],[['CODEX',()=>openCodex('title'),'#6a5acd'],LB_API?['LEADERBOARD',()=>openLB('title'),'#6a5acd']:null]];
  if(LB_API)rows.push([[E.n.toUpperCase()+' BOARD',()=>openLB('title',null,E.id),'#8a4ab0']]);if(LB_API&&evEnded())rows.push([['EVENTS',openEvents,'#d0661a']]);
- titleStack(py+70*U,['HALLOWEEN ENDLESS',()=>{runMode='halloween';go('chars',()=>{chs.focus=true})},'#d0661a'],rows);titleBar()}
+ // lay out from the stack up: on short phones the pills, best line and hero rise with it, so the pulsing primary never reaches the text above
+ const sh=(UI.pri[1]+rows.length*(UI.gap+UI.sec[1]))*U,sy=Math.min(H*.5+70*U,H-(44+UI.pad)*U-sh),py=sy-70*U,hy=Math.min(H*.39,py-70*U);
+ x.save();x.translate(W/2,hy);x.scale(U*4,U*4);heroS(0,0,S.char,1,clock*8,1,(clock%3)<.1);x.restore();
+ for(let i=0;i<3;i++){const a=clock*3+i*2.09;x.save();x.translate(W/2+Math.cos(a)*70*U,hy+Math.sin(a)*70*U);x.scale(U*1.1,U*1.1);sprite('pip',8,((clock*10+i)|0)&3,'n');x.restore()}
+ goldPill(py,W/2-74*U);crownPill(py,W/2+74*U);txt(bestLine(),W/2,py+44*U,12,pal.paper);
+ titleStack(sy,['HALLOWEEN ENDLESS',()=>{runMode='halloween';go('chars',()=>{chs.focus=true})},'#d0661a'],rows);titleBar()}
 function drawTitle(){const E=evLive();if(E)return drawTitleEv(E);menuBg();pix('CROWN',W/2,H*.12,46,pal.gold,3,'#e0a526');pix('SURVIVORS',W/2,H*.12+50*U,30,pal.paper,2,'#e9c27f');
  x.save();x.translate(W/2,H*.42);x.scale(U*4,U*4);heroS(0,0,S.char,1,clock*8,1,(clock%3)<.1);x.restore();
  for(let i=0;i<3;i++){const a=clock*3+i*2.09;x.fillStyle=pal.ink;x.beginPath();x.arc(W/2+Math.cos(a)*70*U,H*.42+Math.sin(a)*70*U,9*U,0,7);x.fill();x.fillStyle=pal.gold;x.beginPath();x.arc(W/2+Math.cos(a)*70*U,H*.42+Math.sin(a)*70*U,7*U,0,7);x.fill()}
@@ -946,7 +960,7 @@ function drawChars(){menuBg();const EV=evLive(),hw=!!EV&&runMode==='halloween',{
  for(const id in EVENTS){const ids=CH.map((c,i)=>i).filter(i=>CH[i].ev===id);if(!ids.length)continue;const E=EVENTS[id],on=eventOn(id);
   items.push({h:E.ic+' '+E.n.toUpperCase(),r:evWhen(id),c:on?E.c:'#8b6a3a'});ids.forEach(i=>items.push({i}))}
  let tot=0;for(const it of items){it.y=tot;if(it.h){it.pt=tot?10*U:0;tot+=it.pt+hh}else tot+=rh+gap}
- chs.maxS=Math.max(0,tot-gap-vh);if(chs.focus){chs.focus=false;const s=items.find(it=>it.i===S.char);if(s)chs.scroll=s.y-(vh-rh)/2}
+ chs.maxS=Math.max(0,tot-gap-vh+4*U);/* +4U: room for the selected row's border below the last card */if(chs.focus){chs.focus=false;const s=items.find(it=>it.i===S.char);if(s)chs.scroll=s.y-(vh-rh)/2}
  chs.scroll=Math.max(0,Math.min(chs.maxS,chs.scroll));chs.vp={y:top,h:vh};chs.rows=[];
  x.save();x.beginPath();x.rect(px+8*U,top,pw-16*U,vh);x.clip();
  for(const it of items){const y=top+it.y-chs.scroll;if(y>top+vh||y+rh<top)continue;
@@ -965,7 +979,7 @@ function drawChars(){menuBg();const EV=evLive(),hw=!!EV&&runMode==='halloween',{
  if(chs.scroll<chs.maxS-1){const g=x.createLinearGradient(0,top+vh-14*U,0,top+vh);g.addColorStop(0,'rgba(243,226,184,0)');g.addColorStop(1,'rgba(243,226,184,1)');x.fillStyle=g;x.fillRect(px+8*U,top+vh-14*U,pw-16*U,14*U)}
  if(chs.maxS>0){const th=Math.max(24*U,vh*vh/(vh+chs.maxS));rr(px+pw-12*U,top,4*U,vh,2*U,'#d6c49a');rr(px+pw-12*U,top+(vh-th)*chs.scroll/chs.maxS,4*U,th,2*U,'#a8875a')}
  // event live: Classic / event Endless mode switch sits between the list and the curse row
- if(EV){const ty=top+vh+8*U,bw2=(cw-10*U)/2;button('▶ CLASSIC',X0,ty,bw2,32*U,()=>{runMode='classic'},hw?'#a8875a':'#c8452f',12);button('HALLOWEEN ENDLESS',X0+bw2+10*U,ty,bw2,32*U,()=>{runMode='halloween'},hw?'#d0661a':'#a8875a',12)}
+ if(EV){const ty=top+vh+8*U,bw2=(cw-10*U)/2;button('CLASSIC',X0,ty,bw2,32*U,()=>{runMode='classic'},hw?'#a8875a':'#c8452f',12);button('HALLOWEEN ENDLESS',X0+bw2+10*U,ty,bw2,32*U,()=>{runMode='halloween'},hw?'#d0661a':'#a8875a',12)}
  const cy=H*.95-112*U;if(hw){txt('HALLOWEEN ENDLESS  ·  no curse',W/2,cy+8*U,13,'#c05812','center',false);txt('Collect Soul Embers · summon the rituals',W/2,cy+26*U,10,'#8b6a3a','center',false)}
  else if(S.maxCurse>0){txt('Curse:',px+24*U,cy+16*U,13,pal.ink,'left',false);for(let i=0;i<=S.maxCurse;i++)button(''+i,px+84*U+i*34*U,cy,30*U,32*U,()=>{S.curse=i;save()},S.curse===i?'#6a5acd':'#a8875a',13)}
  else txt('Win a run to unlock CURSE levels',W/2,cy+16*U,11,'#8b6a3a','center',false);
@@ -1012,9 +1026,14 @@ function bossCard(ent,X,Y,w,h,rec){const hb=ent.hb,i=hb?ent.ri:ent.bi,B=hb?HB[hb
  const phy=py0+78;txt('PHASES',rx,phy,8,'#c9a66b','left',false);for(let j=0;j<3;j++){x.fillStyle=seen&&j<phases?acc:'#4a3c2c';x.beginPath();x.arc(rx+rw-28+j*12,phy,4,0,7);x.fill();x.lineWidth=1.5;x.strokeStyle=pal.ink;x.stroke()}
  wrapTxt(seen?(hb?HLORE[hb]:BLORE[i]):hb?'Summon ritual R'+(i+1)+' in Halloween Endless to face this foe.':'Survive until '+fmtT(B.t)+' to face this foe.',rw,9).slice(0,3).forEach((ln,j)=>txt(ln,rx,py0+94+j*12,9,seen?'#e9d3a0':'#8b6a3a','left',false));
  cxFoot(hx,hw,Y+h,'Seen '+(rec.seen|0)+' · Kills '+kills,'REWARD: '+(hb?(hb==='gourd'?'PUMPKIN CROWN':hb==='wheel'?'CHEST +2 SLOTS':'CHEST'):i===LASTB?'VICTORY':i===2?'CHEST +2 SLOTS':'CHEST'),seen?pal.gold:'#8b6a3a')}
+// sprite-kit portraits fit their real ink, not the hitbox: union of all 4 frames plus the ground shadow, measured once per type
+const CXBOX={};
+function cxBox(id){if(CXBOX[id])return CXBOX[id];const r=ETYPE[id].r,s=4,R=Math.ceil(r*3*s),c=document.createElement('canvas');c.width=c.height=R*2;const o=x;x=c.getContext('2d',{willReadFrequently:true});try{x.setTransform(s,0,0,s,R,R);for(let f=0;f<4;f++)SPRK[id](r,f,'n')}finally{x=o}
+ const d=c.getContext('2d').getImageData(0,0,R*2,R*2).data;let x0=R*2,y0=R*2,x1=-1,y1=-1;for(let j=0;j<R*2;j++)for(let i=0;i<R*2;i++)if(d[(j*R*2+i)*4+3]>8){if(i<x0)x0=i;if(i>x1)x1=i;if(j<y0)y0=j;if(j>y1)y1=j}
+ if(x1<0)return CXBOX[id]={x:0,y:0,s:r*3.7};x0=Math.min((x0-R)/s,-r*.9);x1=Math.max((x1+1-R)/s,r*.9);y0=(y0-R)/s;y1=Math.max((y1+1-R)/s,r*1.1);return CXBOX[id]={x:(x0+x1)/2,y:(y0+y1)/2,s:Math.max(x1-x0,y1-y0)}}
 function enemyCard(ent,X,Y,w,h,rec,i){const id=ent.id,E=ETYPE[id],seen=!!rec.seen,kills=rec.kills|0,acc=seen?E.c:'#6b5640';
  cxFrame(X,Y,w,h,seen,kills);const hx=X+10,hy=Y+10,hw=w-20;cxHeader(hx,hy,hw,acc,'ENEMY',ent.n,seen,'APPEARS',efrom(id));
- const ps=76,py0=hy+40;cxPortrait(hx,py0,ps,acc,seen,kills,()=>{const k=ps*(id==='bat'?.22:id==='vine'?.2:.27)/E.r;x.translate(0,id==='vine'?-ps*.1:0);x.scale(k,k);enemyS({type:id,x:0,y:0,r:E.r,ph:clock+i,flash:0,elite:0})});
+ const ps=76,py0=hy+40;cxPortrait(hx,py0,ps,acc,seen,kills,()=>{const b=SPRK[id]&&cxBox(id);if(b){const k=ps*.84/b.s;x.scale(k,k);x.translate(-b.x,-b.y)}else{const k=ps*(id==='bat'?.22:id==='vine'?.2:.27)/E.r;x.translate(0,id==='vine'?-ps*.1:0);x.scale(k,k)}enemyS({type:id,x:0,y:0,r:E.r,ph:clock+i,flash:0,elite:0})});
  const rx=hx+ps+12,rw=hx+hw-rx,cw=(rw-12)/2;
  [['HP',E.hp,70,'#e8473a'],['SPEED',E.spd,70,'#6ab0ff'],['DAMAGE',E.dmg,12,'#ff8a3d'],['XP',E.xp,5,'#5fae7a']].forEach(([l,v,mx,c],j)=>cxStat(l,v,mx,c,v,rx+(j%2)*(cw+12),py0+(j>>1)*24,cw,seen));
  wrapTxt(seen?ELORE[id]:'Not encountered yet.',rw,9).slice(0,2).forEach((ln,j)=>txt(ln,rx,py0+54+j*12,9,seen?'#e9d3a0':'#8b6a3a','left',false));
