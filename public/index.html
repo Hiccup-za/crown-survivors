@@ -548,7 +548,7 @@ function pickHero(i){const c=CH[i];if(S.chars.includes(i)){S.char=i;save();retur
  if(S.gold>=c.p){const r=chs.rows.find(r=>r.i===i);S.gold-=c.p;S.chars.push(i);S.char=i;save();dbTrack('hero_unlock',{hero:HERO_ID[i]});sfx.buy();vib(30);for(let j=0;j<30;j++)uiParts.push({x:W/2,y:r?r.y+r.h/2:H/2,vx:rnd(-200,200),vy:rnd(-250,-50),l:1,c:['#ffd23f','#c8452f','#5fae7a'][j%3]})}
  else toast={t:'Need '+(c.p-S.gold)+' more gold',l:1.2}}
 function drawChars(){menuBg();const {px,pw}=panel(.05,.9);pix('CHOOSE HERO',W/2,H*.05+32*U,20,pal.gold,1.5);
- const top=H*.05+54*U,vh=H*.95-140*U-top,rh=58*U,gap=6*U,hh=24*U,X0=px+14*U,cw=pw-28*U;
+ const top=H*.05+54*U,vh=H*.95-124*U-top,rh=58*U,gap=6*U,hh=24*U,X0=px+14*U,cw=pw-28*U;
  const base=CH.map((c,i)=>i).filter(i=>!CH[i].ev),items=[{h:'HEROES',r:base.filter(i=>S.chars.includes(i)).length+'/'+base.length}];base.forEach(i=>items.push({i}));
  for(const id in EVENTS){const ids=CH.map((c,i)=>i).filter(i=>CH[i].ev===id);if(!ids.length)continue;const E=EVENTS[id],on=eventOn(id);
   items.push({h:E.ic+' '+E.n.toUpperCase(),r:on?'LIVE · ENDS '+fmtMD(E.to):'RETURNS '+fmtMD(E.from),c:on?E.c:'#8b6a3a'});ids.forEach(i=>items.push({i}))}
@@ -571,9 +571,9 @@ function drawChars(){menuBg();const {px,pw}=panel(.05,.9);pix('CHOOSE HERO',W/2,
  if(chs.scroll>1){const g=x.createLinearGradient(0,top,0,top+14*U);g.addColorStop(0,'rgba(243,226,184,1)');g.addColorStop(1,'rgba(243,226,184,0)');x.fillStyle=g;x.fillRect(px+8*U,top,pw-16*U,14*U)}
  if(chs.scroll<chs.maxS-1){const g=x.createLinearGradient(0,top+vh-14*U,0,top+vh);g.addColorStop(0,'rgba(243,226,184,0)');g.addColorStop(1,'rgba(243,226,184,1)');x.fillStyle=g;x.fillRect(px+8*U,top+vh-14*U,pw-16*U,14*U)}
  if(chs.maxS>0){const th=Math.max(24*U,vh*vh/(vh+chs.maxS));rr(px+pw-12*U,top,4*U,vh,2*U,'#d6c49a');rr(px+pw-12*U,top+(vh-th)*chs.scroll/chs.maxS,4*U,th,2*U,'#a8875a')}
- const cy=H*.95-128*U;if(S.maxCurse>0){txt('Curse:',px+24*U,cy+16*U,13,pal.ink,'left',false);for(let i=0;i<=S.maxCurse;i++)button(''+i,px+84*U+i*34*U,cy,30*U,32*U,()=>{S.curse=i;save()},S.curse===i?'#6a5acd':'#a8875a',13)}
+ const cy=H*.95-112*U;if(S.maxCurse>0){txt('Curse:',px+24*U,cy+16*U,13,pal.ink,'left',false);for(let i=0;i<=S.maxCurse;i++)button(''+i,px+84*U+i*34*U,cy,30*U,32*U,()=>{S.curse=i;save()},S.curse===i?'#6a5acd':'#a8875a',13)}
  else txt('Win a run to unlock CURSE levels',W/2,cy+16*U,11,'#8b6a3a','center',false);
- button('▶ START RUN',W/2-105*U,H*.95-88*U,210*U,50*U,()=>go('play',startRun),'#c8452f',20);button('BACK',W/2-55*U,H*.95-32*U,110*U,28*U,()=>go('title'),'#8b5a2b',13)}
+ const by=H*.95-66*U,bw=96*U;button('BACK',X0,by,bw,46*U,()=>go('title'),'#8b5a2b',14);button('▶ START RUN',X0+bw+10*U,by,cw-bw-10*U,46*U,()=>go('play',startRun),'#c8452f',20)}
 function drawShop(){menuBg();const {px,pw}=panel(.04,.92);pix('UPGRADES',W/2,H*.04+30*U,22,pal.gold,1.5);goldPill(H*.04+48*U);
  const rh=Math.min(50*U,(H*.92-170*U)/META.length);META.forEach(([k,n,d,base,max],i)=>{const y=H*.04+86*U+i*rh,lv=S.meta[k],cost=base*(lv+1),maxed=lv>=max;
   txt(n,px+20*U,y+rh*.3,14,pal.ink,'left',false);txt(d,px+20*U,y+rh*.62,10,'#5a4030','left',false);for(let j=0;j<Math.min(max,10);j++)rr(px+20*U+j*9*U,y+rh*.8,6*U,5*U,1.5*U,j<lv?'#c8452f':'#c9b48a');
