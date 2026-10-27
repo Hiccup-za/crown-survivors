@@ -1,4 +1,4 @@
--- Seasonal event leaderboards (first: halloween-2026). Kept apart from Classic `scores`
+-- Seasonal event leaderboards (first: harvest-2026). Kept apart from Classic `scores`
 -- so event runs never touch the Classic boards. One row per submitted run, scoped by event_id.
 -- Idempotent: safe to run more than once.
 

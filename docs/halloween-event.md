@@ -12,14 +12,14 @@ ships until he signs off.
 
 | Field | Value | Where |
 | --- | --- | --- |
-| id | `halloween-2026` | `EVENTS` in `public/index.html` and `api/src/events.ts` (keep in sync) |
-| name | `HALLOWEEN` | |
-| startAt | `2026-10-27T00:00:00+02:00` (SAST), **Needs Christopher** | |
-| endAt | `2026-11-03T00:00:00+02:00` (SAST, exclusive), **Needs Christopher** | |
+| id | `harvest-2026` | `EVENTS.harvest` in `public/index.html` and `api/src/events.ts` (keep in sync) |
+| name | `Harvest Moon` (shared with the Pumpkin Prince event hero) | |
+| startAt | `2026-10-28T00:00:00+02:00` (SAST) | |
+| endAt | `2026-11-08T00:00:00+02:00` (SAST, exclusive: last day is 7 Nov) | |
 | theme | `halloween` (title skin, arena, analytics `score_submit` board tag) | |
 | submit grace | 2 h after `endAt` (lets runs that were in progress at close still post) | `api/src/events.ts` |
 
-QA override (ignored on `crown-survivors.vercel.app`): `?event=halloween-2026` forces the
+QA override (ignored on `crown-survivors.vercel.app`): `?event=harvest-2026` forces the
 event live and `?event=ended` forces every event over. The API still enforces the real window,
 so preview runs cannot post scores early.
 

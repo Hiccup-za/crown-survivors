@@ -90,7 +90,7 @@ Build command (optional): `npm run typecheck`. Output: static files from `public
 
 ## Seasonal events
 
-Events are data. The first is `halloween-2026` (Halloween Endless). Each event is one row in `EVENTS` in
+Events are data. The first is `harvest-2026` (Harvest Moon: the Pumpkin Prince hero and Halloween Endless). Each event is one entry in `EVENTS` in
 `public/index.html` and one in `api/_src/events.ts`, and the two must match: id, `startAt`/`endAt` (SAST,
 end exclusive), theme. While an event is live, the title wears its skin and offers its mode. After it ends,
 the mode is hidden and the title's **EVENTS** button opens the archive.
@@ -99,7 +99,7 @@ Event scores live in `event_scores` (migration `002_event_scores.sql`) and never
 Balance numbers and the per-chunk notes are in `docs/halloween-event.md`.
 
 QA on localhost or a preview deployment (ignored on `crown-survivors.vercel.app`):
-`?event=halloween-2026` forces the event live, and `?event=ended` shows the post-event title and archive.
+`?event=harvest-2026` forces the event live, and `?event=ended` shows the post-event title and archive.
 The API still enforces the real window for submissions. `?sheet=halloween` opens the enemy review sheet: every event enemy, all
 frames, tells and silhouettes, drawn by the live code. The art rules are in `docs/sprite-kit.md`.
 

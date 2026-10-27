@@ -35,22 +35,26 @@ const codexMarkItemsSeen=cards=>{if(!cards)return;let ch=0;for(const c of cards)
 const codexMarkItemTaken=(kind,k)=>{const r=codexItemRec(kind,k);r.seen=1;r.taken=(r.taken||0)+1;save()};
 const codexMarkEnemySeen=id=>{const r=codexEnemyRec(id);if(!r.seen){r.seen=1;save()}};
 const codexMarkEnemyKill=id=>{const r=codexEnemyRec(id);r.seen=1;r.kills=(r.kills||0)+1};// saved by endRun (or on tab hide), not per kill
-const ENAME={blob:'Mud Blob',bat:'Night Bat',skel:'Bone Soldier',ghost:'Pale Ghost',imp:'Fire Imp',vine:'Thorn Vine',frog:'Bog Frog',wisp:'Cloud Wisp',harpy:'Sky Harpy'};
+const ENAME={blob:'Mud Blob',bat:'Night Bat',skel:'Bone Soldier',ghost:'Pale Ghost',imp:'Fire Imp',vine:'Thorn Vine',frog:'Bog Frog',wisp:'Cloud Wisp',harpy:'Sky Harpy',pip:'Pip',shade:'Shade Bat',cskel:'Candy Skel',jwisp:'Jack Wisp',sknight:'Skelly Knight'};
 // Codex lists: standard entries first, then one headed section per event (in EVENTS order). evOf(entry) -> event id or undefined.
 const cxGroup=(list,evOf)=>{const out=list.filter(e=>!evOf(e));for(const id in EVENTS){const g=list.filter(e=>evOf(e)===id);if(g.length)out.push({hdr:id},...g)}return out};
 const itemEv=e=>e.only!=null?CH[e.only].ev:undefined;
 const codexItemCatalog=()=>{const out=[];for(const k in WP){const o=WP[k].only;out.push({kind:'w',k,n:WP[k].n,d:WP[k].d,c:WP[k].c,ev:WP[k].e,only:o});out.push({kind:'e',k,n:WP[k].e,d:'Evolution of '+WP[k].n,c:'#ffd23f',only:o})}for(const k in PS)out.push({kind:'p',k,n:PS[k].n,d:PS[k].d,c:PS[k].c,only:PS[k].only});for(const k in INF)out.push({kind:'i',k,n:INF[k].n,d:INF[k].d,ic:INF[k].ic});out.push({kind:'x',k:'gold',n:'Coin Sack',d:'Bonus gold',c:'#ffd23f'},{kind:'x',k:'heal',n:'Royal Feast',d:'Heal 30% HP',c:'#e8473a'});return cxGroup(out,itemEv)};
 const codexEnemyCatalog=()=>cxGroup(Object.keys(ETYPE).map(k=>({id:k,n:ENAME[k]||k,c:ETYPE[k].c})),e=>ETYPE[e.id].ev);
-const codexBossCatalog=()=>cxGroup(BOSS.map((b,i)=>({id:'boss'+i,bi:i,n:b.n,c:b.c})),e=>BOSS[e.bi].ev);
+// Halloween Endless ritual bosses (HB) are tracked as 'hb:<key>'; ri = ritual index (R1..R4)
+const codexBossCatalog=()=>cxGroup([...BOSS.map((b,i)=>({id:'boss'+i,bi:i,n:b.n,c:b.c})),...Object.keys(HB).map((k,ri)=>({id:'hb:'+k,hb:k,ri,n:HB[k].n,c:HB[k].c}))],e=>(e.hb?HB[e.hb]:BOSS[e.bi]).ev);
 const BLORE=['Lumbers after you, belching up Mud Blobs every few seconds.','Swoops in sudden dashes and calls bat swarms to her side.','Erupts in rings of molten shot that fill the arena.','Seed spirals, root snares, vine lashes and bursting pods.','Thunder grids, gales and blink-strikes. Beware the Eye of the Storm.'];
+const HLORE={patch:'Squats and glows, then slams out a ring of seeds and a spill of Pips.',twin:'Dashes along a line, then parts its halves to fire seed fans.',wheel:'Revs up, rolls down a lane and bursts into spikes when it stops.',gourd:'Seed volleys, thorn snares and ember rain over three phases.'};
 const UM=Math.min(390/360,844/640),LINK='#3b2a1a';
 const CODEX_ITEM_ROW=92,CODEX_ENEM_ROW=174,CODEX_BOSS_ROW=220;
 const CODEX_HDR_ROW=34;
 const codexRowHDesign=(ent,tab)=>ent.hdr?CODEX_HDR_ROW:tab==='items'?CODEX_ITEM_ROW:tab==='bosses'?CODEX_BOSS_ROW:CODEX_ENEM_ROW;
-const ELORE={blob:'Slow and soft. Shambles in by the dozen.',bat:'Fragile but fast, flutters in erratic bursts.',skel:'A sturdy soldier that soaks up punishment.',ghost:'Drifts straight through the crowd to reach you.',imp:'Keeps its distance and hurls fireballs.',vine:'Slithers toward you on a winding path.',frog:'Sits still, then leaps at blinding speed.',wisp:'Swirls around you in fast, looping orbits.',harpy:'Hangs back and fires three-feather volleys.'};
+const ELORE={blob:'Slow and soft. Shambles in by the dozen.',bat:'Fragile but fast, flutters in erratic bursts.',skel:'A sturdy soldier that soaks up punishment.',ghost:'Drifts straight through the crowd to reach you.',imp:'Keeps its distance and hurls fireballs.',vine:'Slithers toward you on a winding path.',frog:'Sits still, then leaps at blinding speed.',wisp:'Swirls around you in fast, looping orbits.',harpy:'Hangs back and fires three-feather volleys.',
+ pip:'A grinning gourd that rolls straight at you in packs.',shade:'Flutters out of the dark, sometimes six at once.',cskel:'A candy-striped skeleton that never stops walking.',
+ jwisp:'Spirals in and flickers. Always drops a Soul Ember.',sknight:'Raises its sword, then pins the ground under you with bone spikes.'};
 // Spawn pools: [after seconds, ...types] until boss III, then fixed jungle / sky pools.
 const EPOOL=[[-1,'blob','blob'],[25,'bat','bat'],[80,'skel'],[140,'ghost','bat'],[200,'imp'],[300,'skel','imp']],EPOOL_JUNGLE=['vine','vine','frog','skel','bat','imp'],EPOOL_SKIES=['wisp','wisp','harpy','ghost','bat','frog'];
-const efrom=id=>{const r=EPOOL.find(r=>r.includes(id,1));return r?fmtT(Math.max(0,r[0])):EPOOL_JUNGLE.includes(id)?'JUNGLE':'SKIES'};
+const efrom=id=>{if(ETYPE[id].ev){const t=HW.pool.findIndex(p=>p.includes(id));return t>0?'AFTER R'+t:'START'}const r=EPOOL.find(r=>r.includes(id,1));return r?fmtT(Math.max(0,r[0])):EPOOL_JUNGLE.includes(id)?'JUNGLE':'SKIES'};
 const CXKIND={w:['WEAPON','#ffd23f'],e:['EVOLUTION','#ff8a3d'],p:['PASSIVE','#6ab0ff'],i:['ENDLESS','#c9a0ff'],x:['BONUS','#5fae7a']};
 // Evolution recipes stay hidden until that evolution has been taken at least once.
 const cxItemNote=e=>{const U_=s=>s.toUpperCase(),known=k=>codexItemGet('e',k).taken>0;if(e.kind==='w')return'MAX LV 5 · EVOLVES WITH '+(known(e.k)?U_(PS[WP[e.k].ev].n):'???');if(e.kind==='e')return known(e.k)?U_(WP[e.k].n)+' + '+U_(PS[WP[e.k].ev].n):'EVOLVE IT TO REVEAL THE RECIPE';
@@ -61,10 +65,15 @@ const CH=[{n:'King Cube',d:'Balanced royal. Starts with Scepter Bolt.',c:'#e0a52
  {n:'Mint Mage',d:'Glass cannon. Starts with Thunder Block.',c:'#5fae7a',k:'#2f6b44',w:'zap',hp:80,spd:1,p:1600,perk:'+20% Area'},
  {n:'Shadow Rogue',d:'Fast & lucky. Starts with Crown Boomerang.',c:'#4a3a5a',k:'#1a1020',w:'boom',hp:90,spd:1.2,p:1000,perk:'+15% Crit'},
  {n:'Pumpkin Prince',d:'Splash specialist. Starts with Magic Pumpkin.',c:'#e87820',k:'#9a4510',w:'pumpkin',hp:95,spd:1,p:2000,perk:'+15% Splash',ev:'harvest'}];
-// Limited-time events: inclusive [month,day] window on the player's local date. Event heroes (CH[].ev) can only be bought while their event is live; owned ones stay playable.
-// soon: announced but not launched yet (never live, whatever the date)
-const EVENTS={harvest:{n:'Harvest Moon',ic:'🎃',from:[10,1],to:[11,7],c:'#e87820',soon:1}},evForce={};
-const eventOn=id=>{const E=EVENTS[id];if(!E)return false;if(id in evForce)return evForce[id];if(E.soon)return false;const d=new Date(),v=(d.getMonth()+1)*100+d.getDate();return v>=E.from[0]*100+E.from[1]&&v<=E.to[0]*100+E.to[1]};
+// Limited-time events, keyed by the id heroes use (CH[].ev). Event heroes can only be bought while their event is live; owned ones stay playable.
+// While live the title wears the theme's skin and offers its Endless mode. id/startAt/endAt/theme must match api/src/events.ts. SAST; endAt exclusive.
+const EVENTS={harvest:{n:'Harvest Moon',ic:'🎃',c:'#e87820',id:'harvest-2026',startAt:'2026-10-28T00:00:00+02:00',endAt:'2026-11-08T00:00:00+02:00',theme:'halloween'}},evForce={};
+const EVL=Object.keys(EVENTS).map(k=>Object.assign(EVENTS[k],{key:k}));
+// QA overrides: __cs.event(key,on) forces one event on/off; ?event=<id> forces it live and ?event=ended forces every event over (URL ignored on production)
+const EVQ=location.hostname==='crown-survivors.vercel.app'?null:new URLSearchParams(location.search).get('event');
+const evState=e=>e.key in evForce?(evForce[e.key]?'live':'soon'):EVQ===e.id?'live':EVQ==='ended'?'ended':Date.now()<Date.parse(e.startAt)?'soon':Date.now()<Date.parse(e.endAt)?'live':'ended';
+const evLive=()=>EVL.find(e=>evState(e)==='live')||null,evPast=()=>EVL.filter(e=>evState(e)!=='soon').reverse(),evEnded=()=>EVL.some(e=>evState(e)==='ended');
+const eventOn=key=>!!EVENTS[key]&&evState(EVENTS[key])==='live';
 const WP={bolt:{n:'Scepter Bolt',e:'Royal Barrage',d:'Shoots nearest foe',ev:'tome',c:'#ffd23f'},orb:{n:'Orbit Coins',e:'Golden Halo',d:'Coins circle you',ev:'magnet',c:'#e0a526'},
  rain:{n:'Gold Rain',e:'Midas Flood',d:'Damaging gold pools',ev:'area',c:'#ffb13d'},aura:{n:'Royal Aura',e:'Throne Aura',d:'Burns nearby foes',ev:'armor',c:'#ff6b5a'},
  boom:{n:'Crown Boomerang',e:'Crown Storm',d:'Thrown crown returns',ev:'boots',c:'#c9a0ff'},zap:{n:'Thunder Block',e:'Storm Block',d:'Lightning strikes foes',ev:'luck',c:'#9fd3ff'},
@@ -88,20 +97,14 @@ const PHASE=[{g:'#e6c48a',g2:'#d9b071',dot:'#b98a4e',tuft:'#8a9a4a',vig:'rgba(60
 // Blood & Gore materials: c = colours dark→light, a = floor alpha, chip = bone chips instead of a pool
 const GORE={red:{c:['#6e0b0b','#8f1212','#b01a1a','#d6262e'],a:.92},bone:{c:['#e8e0cc','#d4c9ae','#b3a68a'],a:1,chip:1},ecto:{c:['#5fd8e8','#8ff5ff','#c4fbff'],a:.55},ichor:{c:['#5f9e1a','#8bd12a','#b6f04a'],a:.9}};
 const GMAT={blob:'red',bat:'red',skel:'bone',ghost:'ecto',imp:'red',vine:'ichor',frog:'ichor',wisp:'ecto',harpy:'red'},BMAT=['red','red','red','ichor','ecto'];
-// ===== events ===== seasonal events are data: the next one is one more row (keep in sync with api/src/events.ts). SAST; endAt exclusive.
-const EVL=[{id:'halloween-2026',name:'HALLOWEEN',startAt:'2026-10-27T00:00:00+02:00',endAt:'2026-11-03T00:00:00+02:00',theme:'halloween'}];
-// QA override, ignored on production: ?event=<id> forces that event live, ?event=ended forces every event over
-const EVQ=location.hostname==='crown-survivors.vercel.app'?null:new URLSearchParams(location.search).get('event');
-const evState=e=>EVQ===e.id?'live':EVQ==='ended'?'ended':Date.now()<Date.parse(e.startAt)?'soon':Date.now()<Date.parse(e.endAt)?'live':'ended';
-const evLive=()=>EVL.find(e=>evState(e)==='live')||null,evPast=()=>EVL.filter(e=>evState(e)!=='soon').reverse(),evEnded=()=>EVL.some(e=>evState(e)==='ended');
 // ===== halloween endless ===== every number here comes from the balance table in docs/halloween-event.md
-Object.assign(ETYPE,{pip:{hp:8,spd:56,r:8,dmg:5,xp:1,c:'#e07820'},shade:{hp:6,spd:64,r:7,dmg:4,xp:1,c:'#2a2038'},cskel:{hp:34,spd:30,r:10,dmg:9,xp:3,c:'#e8e0cc'},jwisp:{hp:30,spd:70,r:8,dmg:9,xp:4,c:'#ffb13d',el:1},sknight:{hp:60,spd:26,r:11,dmg:11,xp:5,c:'#e8e0cc',el:1}});
+Object.assign(ETYPE,{pip:{hp:8,spd:56,r:8,dmg:5,xp:1,c:'#e07820',ev:'harvest'},shade:{hp:6,spd:64,r:7,dmg:4,xp:1,c:'#2a2038',ev:'harvest'},cskel:{hp:34,spd:30,r:10,dmg:9,xp:3,c:'#e8e0cc',ev:'harvest'},jwisp:{hp:30,spd:70,r:8,dmg:9,xp:4,c:'#ffb13d',el:1,ev:'harvest'},sknight:{hp:60,spd:26,r:11,dmg:11,xp:5,c:'#e8e0cc',el:1,ev:'harvest'}});
 Object.assign(GMAT,{pip:'pulp',shade:'red',cskel:'bone',jwisp:'pulp',sknight:'bone'});GORE.pulp={c:['#7a3208','#b0500e','#e07820','#ffb84a'],a:.9};
 // cost = base × (1 + rankCost × (rank-1)); combo[rank-1][ritual] (rank 3+ reuses the last row); escorts get HW.escort of their HP
 const HW={drop:.3,embers:{elite:6,mini:15,gourd:30},cost:[40,70,110,160],rankCost:.5,countdown:2,bossHp:1,bossDmg:.2,escort:.6,crownGold:100,
  combo:[[['patch'],['twin'],['wheel'],['gourd']],[['patch','patch'],['twin','patch'],['wheel','twin'],['gourd','patch']],[['patch','twin'],['twin','wheel'],['wheel','twin','patch'],['gourd','wheel','twin']]],
  pool:[['pip','pip','pip','shade'],['pip','pip','shade','shade','cskel'],['pip','pip','shade','shade','cskel','jwisp'],['pip','shade','shade','cskel','cskel','jwisp','sknight']]};
-const HB={patch:{n:'PATCH LORD',hp:900,r:30,spd:36,dmg:18,c:'#d0661a'},twin:{n:'HOLLOW TWIN',hp:2400,r:30,spd:58,dmg:22,c:'#e07820'},wheel:{n:'HARVEST WHEEL',hp:4800,r:34,spd:44,dmg:26,c:'#8b6a42'},gourd:{n:'THE NIGHT GOURD',hp:10000,r:46,spd:30,dmg:30,c:'#c05812'}};
+const HB={patch:{n:'PATCH LORD',hp:900,r:30,spd:36,dmg:18,c:'#d0661a',ev:'harvest'},twin:{n:'HOLLOW TWIN',hp:2400,r:30,spd:58,dmg:22,c:'#e07820',ev:'harvest'},wheel:{n:'HARVEST WHEEL',hp:4800,r:34,spd:44,dmg:26,c:'#8b6a42',ev:'harvest'},gourd:{n:'THE NIGHT GOURD',hp:10000,r:46,spd:30,dmg:30,c:'#c05812',ev:'harvest'}};
 // enemy scaling by tier = 4×(rank-1) + rituals cleared this rank (never elapsed time)
 const hwK=t=>({hp:1+1.4*t+.6*t*t,spd:Math.min(1.6,1+.06*t),dmg:1+.25*t,rate:Math.min(12,2+1.2*t)}),hwTier=()=>4*(G.hw.rank-1)+G.hw.step;
 const hwCombo=()=>HW.combo[Math.min(G.hw.rank,HW.combo.length)-1][G.hw.step],hwCost=()=>Math.round(HW.cost[G.hw.step]*(1+HW.rankCost*(G.hw.rank-1)));
@@ -165,7 +168,7 @@ addEventListener('pointermove',e=>{if(joy.on&&e.pointerId===joy.id){joy.x=e.clie
 const up=e=>{if(e.pointerId===joy.id)joy.on=false;if(e.pointerId===mt.id)mt.on=false};const mtOff=()=>{mt.on=false};addEventListener('blur',mtOff);document.documentElement.addEventListener('mouseleave',mtOff);addEventListener('pointerup',up);addEventListener('pointercancel',up);
 // mouse/trackpad device (not touch-only): show keyboard hints on the choice screen
 const FINE=matchMedia('(hover:hover) and (pointer:fine)');
-const keysOff=()=>{for(const k in keys)keys[k]=0};addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey){keysOff();return}keys[e.key.toLowerCase()]=1;if(e.key==='p'&&G&&scene==='play')G.paused=!G.paused;if(e.key==='Escape'&&!trans){if(scene==='codex')go(codex.back);else if(scene==='settings')go('title');else if(scene==='shop'||scene==='chars')go('title');else if(scene==='lb'){lb.rank=null;go(lb.back)}}
+const keysOff=()=>{for(const k in keys)keys[k]=0};addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey){keysOff();return}keys[e.key.toLowerCase()]=1;if(e.key==='p'&&G&&scene==='play')G.paused=!G.paused;if(e.key==='Escape'&&!trans){if(scene==='codex')go(codex.back);else if(scene==='settings')go('title');else if(scene==='shop'||scene==='chars')go('title');else if(scene==='lb'){lb.rank=null;go(lb.back)}else if(scene==='events')go('title')}
  // choice screen: 1-4 picks a card, R rerolls; same .35s guard as clicks so a held/mashed key can't insta-pick
  if(G&&scene==='play'&&G.choice&&!e.repeat){const c=G.choice,i=+e.key-1;if(c.t>.35){if(i>=0&&i<c.cards.length)choose(c.cards[i]);else if(e.key.toLowerCase()==='r'&&G.rerolls>0){sfx.click();vib(6);reroll()}}}});addEventListener('keyup',e=>{const k=e.key.toLowerCase();keys[k]=0;if(k==='meta'||k==='os'||k==='control'||k==='alt')keysOff()});addEventListener('blur',keysOff);document.addEventListener('visibilitychange',()=>{if(document.hidden)keysOff()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&scene==='play'&&G&&!G.over){G.paused=true;save()}});
@@ -215,7 +218,7 @@ function wDesc(k,l){return({bolt:['','','+1 bolt','+dmg, faster','+1 bolt','+1 b
 function hurtEnemy(e,dmg,kb=0,ax=0,ay=0){if(e.dead)return;let crit=Math.random()<SC.crit;dmg*=SC.dmg*(crit?2:1)*rnd(.9,1.1);e.hp-=dmg;e.flash=.1;G.dmgDealt+=dmg;
  if(kb&&!e.boss){const l=Math.hypot(ax,ay)||1;e.kx+=ax/l*kb;e.ky+=ay/l*kb}if(ax||ay){e.hx=ax;e.hy=ay}else e.hx=e.hy=null;dnum(e.x,e.y-e.r,dmg,crit);
  if(S.gore){crit?sfx.chop():sfx.slash();if(e.hp>0&&lim('bh',30)){const d=goreDir(e);spray(e.x,e.y,d[0],d[1],2+(Math.random()*2|0),gMat(e),110,.5,0)}}else sfx.hit();if(e.hp<=0)killEnemy(e)}
-function killEnemy(e){e.dead=1;G.kills++;codexMarkEnemyKill(e.boss?'boss'+e.bi:e.type);if(S.gore){sfx.squelch();goreKill(e)}else sfx.kill();fx(e.x,e.y,e.boss?60:e.elite?20:7,e.boss?'#ffd23f':ETYPE[e.type]?ETYPE[e.type].c:'#fff',e.boss?200:80,.5,e.boss?6:3);
+function killEnemy(e){e.dead=1;G.kills++;codexMarkEnemyKill(e.boss?(e.hb?'hb:'+e.hb:'boss'+e.bi):e.type);if(S.gore){sfx.squelch();goreKill(e)}else sfx.kill();fx(e.x,e.y,e.boss?60:e.elite?20:7,e.boss?'#ffd23f':ETYPE[e.type]?ETYPE[e.type].c:'#fff',e.boss?200:80,.5,e.boss?6:3);
  const v=e.xp;G.gems.push({x:e.x,y:e.y,v,k:v>=15?'big':v>=3?'mid':'xp'});
  if(Math.random()<.045*SC.greed||e.elite)G.gems.push({x:e.x+rnd(-6,6),y:e.y+rnd(-6,6),v:e.elite?Math.round(8*SC.greed):Math.max(1,Math.round(SC.greed)),k:'gold'});
  if(Math.random()<.004||e.elite)G.gems.push({x:e.x+5,y:e.y,v:20,k:'heart'});
@@ -431,7 +434,7 @@ function hwRitual(dt){const h=G.hw;if(h.live.length||h.embers<hwCost()){h.cd=0;r
 function hwSummon(){const g=G,h=g&&g.hw;if(!h||g.over||h.live.length)return;const c=hwCost();if(h.embers<c)return;
  h.embers-=c;const combo=hwCombo(),N=h.rank,a0=Math.random()*6.28;
  combo.forEach((k,i)=>{const B=HB[k],a=a0+i*6.283/combo.length,hp=B.hp*(1+HW.bossHp*(N-1))*(i?HW.escort:1);
-  const e={type:'boss',hb:k,boss:1,x:g.p.x+Math.cos(a)*220,y:g.p.y+Math.sin(a)*220,hp,mhp:hp,r:B.r,spd:B.spd,dmg:B.dmg*(1+HW.bossDmg*(N-1)),xp:60,flash:0,kx:0,ky:0,ph:Math.random()*6,atk:2.2+i*.9,seq:0,hitT:{}};g.en.push(e);h.live.push(e)});
+  const e={type:'boss',hb:k,boss:1,x:g.p.x+Math.cos(a)*220,y:g.p.y+Math.sin(a)*220,hp,mhp:hp,r:B.r,spd:B.spd,dmg:B.dmg*(1+HW.bossDmg*(N-1)),xp:60,flash:0,kx:0,ky:0,ph:Math.random()*6,atk:2.2+i*.9,seq:0,hitT:{}};g.en.push(e);h.live.push(e);codexMarkEnemySeen('hb:'+k)});
  sfx.ritual();sfx.boss();vib([120,60,120]);shake=14;ringFx(g.p.x,g.p.y,'#ff8a1a',160);fx(g.p.x,g.p.y,30,'#ffb13d',180);
  banner(HB[combo[0]].n+(combo.length>1?' +'+(combo.length-1):'')+' RISES!','#ff8a3d')}
 // a ritual clears when every boss it summoned is dead; R4 clear = Night Rank up
@@ -905,13 +908,13 @@ function titleBar(){button(S.muted?'♪×':'♪',10*U,H-44*U,40*U,30*U,()=>{S.mu
 function titleStack(pref,p,rows,hint){const sh=(UI.pri[1]+rows.length*(UI.gap+UI.sec[1]))*U,lim=H-(44+UI.pad)*U;let y=Math.min(pref,lim-sh-(hint?24*U:0));if(hint&&y<pref-1){hint=null;y=Math.min(pref,lim-sh)}
  bPri(p[0],y,p[1],p[2],1);y+=(UI.pri[1]+UI.gap)*U;for(const r of rows){bRow(y,r[0],r[1]);y+=(UI.sec[1]+UI.gap)*U}if(hint)txt(hint,W/2,y+4*U,11,pal.paper)}
 // event title: same layout language as Classic; Halloween Endless is the hero button, Classic stays one tap away
-function drawTitleEv(E){menuBg();pix('CROWN',W/2,H*.1,46,'#ff9a2a',3,'#d0661a');pix('SURVIVORS',W/2,H*.1+50*U,30,pal.paper,2,'#e9c27f');pix(E.name,W/2,H*.1+88*U,17,'#ffb13d',1.5,'#e07820');
+function drawTitleEv(E){menuBg();pix('CROWN',W/2,H*.1,46,'#ff9a2a',3,'#d0661a');pix('SURVIVORS',W/2,H*.1+50*U,30,pal.paper,2,'#e9c27f');pix(E.n.toUpperCase(),W/2,H*.1+88*U,17,'#ffb13d',1.5,'#e07820');
  x.save();x.translate(W/2,H*.39);x.scale(U*4,U*4);heroS(0,0,S.char,1,clock*8,1,(clock%3)<.1);x.restore();
  for(let i=0;i<3;i++){const a=clock*3+i*2.09;x.save();x.translate(W/2+Math.cos(a)*70*U,H*.39+Math.sin(a)*70*U);x.scale(U*1.1,U*1.1);sprite('pip',8,((clock*10+i)|0)&3,'n');x.restore()}
  const py=H*.5;goldPill(py,W/2-74*U);crownPill(py,W/2+74*U);txt(bestLine(),W/2,py+44*U,12,pal.paper);
- const rows=[[['▶ CLASSIC',()=>{runMode='classic';go('chars')},'#c8452f'],['UPGRADES',()=>go('shop'),'#5fae7a']]];
- if(LB_API)rows.push([['LEADERBOARD',()=>openLB('title'),'#6a5acd'],[E.name+' BOARD',()=>openLB('title',null,E.id),'#8a4ab0']]);if(LB_API&&evEnded())rows.push([['EVENTS',openEvents,'#d0661a']]);
- titleStack(py+70*U,['HALLOWEEN ENDLESS',()=>{runMode='halloween';go('chars')},'#d0661a'],rows);titleBar()}
+ const rows=[[['▶ CLASSIC',()=>{runMode='classic';go('chars',()=>{chs.focus=true})},'#c8452f'],['UPGRADES',()=>go('shop'),'#5fae7a']],[['CODEX',()=>openCodex('title'),'#6a5acd'],LB_API?['LEADERBOARD',()=>openLB('title'),'#6a5acd']:null]];
+ if(LB_API)rows.push([[E.n.toUpperCase()+' BOARD',()=>openLB('title',null,E.id),'#8a4ab0']]);if(LB_API&&evEnded())rows.push([['EVENTS',openEvents,'#d0661a']]);
+ titleStack(py+70*U,['HALLOWEEN ENDLESS',()=>{runMode='halloween';go('chars',()=>{chs.focus=true})},'#d0661a'],rows);titleBar()}
 function drawTitle(){const E=evLive();if(E)return drawTitleEv(E);menuBg();pix('CROWN',W/2,H*.12,46,pal.gold,3,'#e0a526');pix('SURVIVORS',W/2,H*.12+50*U,30,pal.paper,2,'#e9c27f');
  x.save();x.translate(W/2,H*.42);x.scale(U*4,U*4);heroS(0,0,S.char,1,clock*8,1,(clock%3)<.1);x.restore();
  for(let i=0;i<3;i++){const a=clock*3+i*2.09;x.fillStyle=pal.ink;x.beginPath();x.arc(W/2+Math.cos(a)*70*U,H*.42+Math.sin(a)*70*U,9*U,0,7);x.fill();x.fillStyle=pal.gold;x.beginPath();x.arc(W/2+Math.cos(a)*70*U,H*.42+Math.sin(a)*70*U,7*U,0,7);x.fill()}
@@ -931,10 +934,10 @@ function settingsPanel(back){const rh=UI.sec[1],hgU=UI.head+22+UI.pad+2*rh+UI.ga
 // Hero picker: scrollable list grouped into the base roster then one section per event. Rows are hit-tested via chs (not btns) so the list can drag-scroll.
 const chs={scroll:0,drag:null,rows:[],vp:null,maxS:0,focus:true};
 const fitSz=(s,w,sz)=>{x.font='bold '+Math.round(sz*U)+'px "Courier New",Courier,monospace';const m=x.measureText(s).width;return m>w?Math.max(7,sz*w/m):sz};
-const fmtMD=([m,d])=>['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][m-1]+' '+d;
-const evWhen=id=>{const E=EVENTS[id];return eventOn(id)?'LIVE · ENDS '+fmtMD(E.to):E.soon?'COMING SOON':'RETURNS '+fmtMD(E.from)};
+const fmtD=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'Africa/Johannesburg'}).toUpperCase();
+const evWhen=id=>{const E=EVENTS[id],st=evState(E);return st==='live'?'LIVE · ENDS '+fmtD(Date.parse(E.endAt)-1):st==='soon'?'STARTS '+fmtD(E.startAt):'ENDED'};
 function pickHero(i){const c=CH[i];if(S.chars.includes(i)){S.char=i;save();return}
- if(c.ev&&!eventOn(c.ev)){const E=EVENTS[c.ev];toast={t:E.n+' event only · '+(E.soon?'coming soon':'returns '+fmtMD(E.from)),l:1.8};return}
+ if(c.ev&&!eventOn(c.ev)){const E=EVENTS[c.ev];toast={t:E.n+' event only · '+(evState(E)==='soon'?'starts '+fmtD(E.startAt):'event over'),l:1.8};return}
  if(S.gold>=c.p){const r=chs.rows.find(r=>r.i===i);S.gold-=c.p;S.chars.push(i);S.char=i;save();dbTrack('hero_unlock',{hero:HERO_ID[i]});sfx.buy();vib(30);for(let j=0;j<30;j++)uiParts.push({x:W/2,y:r?r.y+r.h/2:H/2,vx:rnd(-200,200),vy:rnd(-250,-50),l:1,c:['#ffd23f','#c8452f','#5fae7a'][j%3]})}
  else toast={t:'Need '+(c.p-S.gold)+' more gold',l:1.2}}
 function drawChars(){menuBg();const EV=evLive(),hw=!!EV&&runMode==='halloween',{px,pw}=panel(.05,.9);pix('CHOOSE HERO',W/2,H*.05+32*U,20,hw?'#ffb13d':pal.gold,1.5);
@@ -954,7 +957,7 @@ function drawChars(){menuBg();const EV=evLive(),hw=!!EV&&runMode==='halloween',{
   txt(c.n,px+80*U,y+rh*.25,fitSz(c.n,tw-(E?52*U:0),15),pal.ink,'left',false);txt(c.d,px+80*U,y+rh*.5,fitSz(c.d,tw,10),'#5a4030','left',false);txt(st,px+80*U,y+rh*.74,fitSz(st,tw,10),'#8b6a3a','left',false);
   if(E){rr(X0+cw-52*U,y+6*U,44*U,14*U,7*U,E.c,pal.ink,1.5);txt('EVENT',X0+cw-30*U,y+13*U,8,pal.paper,'center',false)}
   if(!own){rr(X0,y,cw,rh,10*U,'rgba(40,25,10,.55)');
-   if(E&&!live){txt(E.ic+' EVENT ONLY',px+pw/2,y+rh*.4,15,pal.paper);txt(E.soon?'Coming soon':'Returns '+fmtMD(E.from),px+pw/2,y+rh*.72,10,pal.paper,'center',false)}
+   if(E&&!live){txt(E.ic+' EVENT ONLY',px+pw/2,y+rh*.4,15,pal.paper);txt(evState(E)==='soon'?'Starts '+fmtD(E.startAt):'Event over',px+pw/2,y+rh*.72,10,pal.paper,'center',false)}
    else{txt('🔒 '+c.p+' gold',px+pw/2,y+rh*(E?.4:.5),16,S.gold>=c.p?pal.gold:pal.paper);if(E)txt('LIMITED TIME',px+pw/2,y+rh*.74,10,'#ffd23f')}}
   const vy=Math.max(y,top);chs.rows.push({i,x:X0,y:vy,w:cw,h:Math.min(y+rh,top+vh)-vy})}
  x.restore();
@@ -962,8 +965,8 @@ function drawChars(){menuBg();const EV=evLive(),hw=!!EV&&runMode==='halloween',{
  if(chs.scroll<chs.maxS-1){const g=x.createLinearGradient(0,top+vh-14*U,0,top+vh);g.addColorStop(0,'rgba(243,226,184,0)');g.addColorStop(1,'rgba(243,226,184,1)');x.fillStyle=g;x.fillRect(px+8*U,top+vh-14*U,pw-16*U,14*U)}
  if(chs.maxS>0){const th=Math.max(24*U,vh*vh/(vh+chs.maxS));rr(px+pw-12*U,top,4*U,vh,2*U,'#d6c49a');rr(px+pw-12*U,top+(vh-th)*chs.scroll/chs.maxS,4*U,th,2*U,'#a8875a')}
  // event live: Classic / event Endless mode switch sits between the list and the curse row
- if(EV){const ty=top+vh+8*U,bw2=(cw-10*U)/2;button('▶ CLASSIC',X0,ty,bw2,32*U,()=>{runMode='classic'},hw?'#a8875a':'#c8452f',12);button(EV.name+' ENDLESS',X0+bw2+10*U,ty,bw2,32*U,()=>{runMode='halloween'},hw?'#d0661a':'#a8875a',12)}
- const cy=H*.95-112*U;if(hw){txt(EV.name+' ENDLESS  ·  no curse',W/2,cy+8*U,13,'#c05812','center',false);txt('Collect Soul Embers · summon the rituals',W/2,cy+26*U,10,'#8b6a3a','center',false)}
+ if(EV){const ty=top+vh+8*U,bw2=(cw-10*U)/2;button('▶ CLASSIC',X0,ty,bw2,32*U,()=>{runMode='classic'},hw?'#a8875a':'#c8452f',12);button('HALLOWEEN ENDLESS',X0+bw2+10*U,ty,bw2,32*U,()=>{runMode='halloween'},hw?'#d0661a':'#a8875a',12)}
+ const cy=H*.95-112*U;if(hw){txt('HALLOWEEN ENDLESS  ·  no curse',W/2,cy+8*U,13,'#c05812','center',false);txt('Collect Soul Embers · summon the rituals',W/2,cy+26*U,10,'#8b6a3a','center',false)}
  else if(S.maxCurse>0){txt('Curse:',px+24*U,cy+16*U,13,pal.ink,'left',false);for(let i=0;i<=S.maxCurse;i++)button(''+i,px+84*U+i*34*U,cy,30*U,32*U,()=>{S.curse=i;save()},S.curse===i?'#6a5acd':'#a8875a',13)}
  else txt('Win a run to unlock CURSE levels',W/2,cy+16*U,11,'#8b6a3a','center',false);
  const by=H*.95-66*U,bw=96*U;button('BACK',X0,by,bw,46*U,()=>go('title'),'#8b5a2b',14);button(hw?'▶ START NIGHT':'▶ START RUN',X0+bw+10*U,by,cw-bw-10*U,46*U,()=>go('play',hw?startHw:startRun),hw?'#d0661a':'#c8452f',20)}
@@ -999,15 +1002,16 @@ function cxPortrait(X,Y,s,acc,seen,done,draw){x.save();rr(X,Y,s,s,8,null);x.clip
  x.restore();rr(X,Y,s,s,8,null,done?pal.gold:'#8b6a3a',2)}
 function cxStat(l,v,mx,c,s,X,Y,w,seen){txt(l,X,Y+5,8,'#c9a66b','left',false);txt(seen?String(s):'???',X+w,Y+5,10,pal.paper,'right',false);rr(X,Y+12,w,6,3,'#120c07');if(seen)rr(X,Y+12,Math.max(6,w*v/mx),6,3,c)}
 function cxFoot(hx,hw,bot,l,r,rc){const fy=bot-22;x.fillStyle='#4a3c2c';x.fillRect(hx,fy-8,hw,1.5);txt(l,hx,fy+3,9,'#c9a66b','left',false);txt(r,hx+hw,fy+3,9,rc,'right',false)}
-function bossCard(ent,X,Y,w,h,rec){const i=ent.bi,B=BOSS[i],seen=!!rec.seen,kills=rec.kills|0,acc=seen?B.c:'#6b5640',dmg=18+i*6,phases=i>=3?3:1;
- cxFrame(X,Y,w,h,seen,kills);const hx=X+10,hy=Y+10,hw=w-20;cxHeader(hx,hy,hw,acc,'BOSS '+['I','II','III','IV','V'][i],B.n,seen,'ARRIVES',fmtT(B.t));
- const ps=92,py0=hy+40;cxPortrait(hx,py0,ps,acc,seen,kills,()=>{x.translate(0,ps*.02);const k=ps*.34/(B.r*(i===1?2:1.25));x.scale(k,k);enemyS({type:'boss',x:0,y:0,r:B.r,bi:i,ph:clock+i,flash:0,elite:0})});
+// Classic bosses (BOSS[bi]) and Halloween Endless ritual bosses (HB[hb], summoned by ritual ri) share one card
+function bossCard(ent,X,Y,w,h,rec){const hb=ent.hb,i=hb?ent.ri:ent.bi,B=hb?HB[hb]:BOSS[i],seen=!!rec.seen,kills=rec.kills|0,acc=seen?B.c:'#6b5640',dmg=hb?B.dmg:18+i*6,phases=hb?(hb==='gourd'?3:1):i>=3?3:1;
+ cxFrame(X,Y,w,h,seen,kills);const hx=X+10,hy=Y+10,hw=w-20;cxHeader(hx,hy,hw,acc,hb?(hb==='gourd'?'FINAL BOSS':'MINI-BOSS'):'BOSS '+['I','II','III','IV','V'][i],B.n,seen,hb?'RITUAL':'ARRIVES',hb?'R'+(i+1):fmtT(B.t));
+ const ps=92,py0=hy+40;cxPortrait(hx,py0,ps,acc,seen,kills,()=>{x.translate(0,ps*.02);const k=ps*.34/(B.r*(i===1&&!hb?2:1.25));x.scale(k,k);enemyS({type:'boss',x:0,y:0,r:B.r,bi:i,hb,fc:1,ph:clock+i,flash:0,elite:0})});
  const by=py0+ps+6;rr(hx,by,ps,20,5,kills?pal.gold:seen?'#7d2618':'#4a3c2c');txt(kills?'SLAIN x'+kills:seen?'UNDEFEATED':'UNKNOWN',hx+ps/2,by+10,9,kills?pal.ink:pal.paper,'center',false);
  const rx=hx+ps+12,rw=hx+hw-rx;
  [['HP',B.hp,11500,'#e8473a',fmtN(B.hp)],['SPEED',B.spd,70,'#6ab0ff',B.spd],['DAMAGE',dmg,42,'#ff8a3d',dmg]].forEach(([l,v,mx,c,s],j)=>cxStat(l,v,mx,c,s,rx,py0+j*24,rw,seen));
  const phy=py0+78;txt('PHASES',rx,phy,8,'#c9a66b','left',false);for(let j=0;j<3;j++){x.fillStyle=seen&&j<phases?acc:'#4a3c2c';x.beginPath();x.arc(rx+rw-28+j*12,phy,4,0,7);x.fill();x.lineWidth=1.5;x.strokeStyle=pal.ink;x.stroke()}
- wrapTxt(seen?BLORE[i]:'Survive until '+fmtT(B.t)+' to face this foe.',rw,9).slice(0,3).forEach((ln,j)=>txt(ln,rx,py0+94+j*12,9,seen?'#e9d3a0':'#8b6a3a','left',false));
- cxFoot(hx,hw,Y+h,'Seen '+(rec.seen|0)+' · Kills '+kills,'REWARD: '+(i===LASTB?'VICTORY':i===2?'CHEST +2 SLOTS':'CHEST'),seen?pal.gold:'#8b6a3a')}
+ wrapTxt(seen?(hb?HLORE[hb]:BLORE[i]):hb?'Summon ritual R'+(i+1)+' in Halloween Endless to face this foe.':'Survive until '+fmtT(B.t)+' to face this foe.',rw,9).slice(0,3).forEach((ln,j)=>txt(ln,rx,py0+94+j*12,9,seen?'#e9d3a0':'#8b6a3a','left',false));
+ cxFoot(hx,hw,Y+h,'Seen '+(rec.seen|0)+' · Kills '+kills,'REWARD: '+(hb?(hb==='gourd'?'PUMPKIN CROWN':hb==='wheel'?'CHEST +2 SLOTS':'CHEST'):i===LASTB?'VICTORY':i===2?'CHEST +2 SLOTS':'CHEST'),seen?pal.gold:'#8b6a3a')}
 function enemyCard(ent,X,Y,w,h,rec,i){const id=ent.id,E=ETYPE[id],seen=!!rec.seen,kills=rec.kills|0,acc=seen?E.c:'#6b5640';
  cxFrame(X,Y,w,h,seen,kills);const hx=X+10,hy=Y+10,hw=w-20;cxHeader(hx,hy,hw,acc,'ENEMY',ent.n,seen,'APPEARS',efrom(id));
  const ps=76,py0=hy+40;cxPortrait(hx,py0,ps,acc,seen,kills,()=>{const k=ps*(id==='bat'?.22:id==='vine'?.2:.27)/E.r;x.translate(0,id==='vine'?-ps*.1:0);x.scale(k,k);enemyS({type:id,x:0,y:0,r:E.r,ph:clock+i,flash:0,elite:0})});
@@ -1126,7 +1130,7 @@ function xButton(X,Y,w,h,f,sz=18){btns.push({x:X,y:Y,w,h,f,k:'xbtn'+Y});const pr
 const LTOP=179,LH=401,RH=42;
 function drawLB(){menuBg();lbBegin();const b=lb.board,E=lb.ev&&evById(lb.ev),k=lbK(b,lb.ev),D=lb.data[k]||{st:'load'},rows=D.rows||[],meR=lb.me[k],myId=LBS.user&&LBS.user.handle;
  const tabs=E?EVB:TABS,colv=E?Object.fromEntries(EVB.map(t=>[t[0],t[2]])):COLV,foot=E?Object.fromEntries(EVB.map(t=>[t[0],t[3]])):FOOT;
- if(E){pix(E.name,195,40,20,'#ffb13d',2,'#e07820');const live=evState(E)==='live';rr(320,30,58,20,6,live?'#d0661a':'#8b6a3a',LINK,2);txt(live?'LIVE':'ARCHIVE',349,41,8,pal.paper,'center',false)}
+ if(E){pix(E.n.toUpperCase(),195,40,20,'#ffb13d',2,'#e07820');const live=evState(E)==='live';rr(320,30,58,20,6,live?'#d0661a':'#8b6a3a',LINK,2);txt(live?'LIVE':'ARCHIVE',349,41,8,pal.paper,'center',false)}
  else pix('LEADERBOARD',195,40,20,pal.gold,2,'#e0a526');if(lbIn())lbChip(102,62);
  rr(13,146,364,630,16,'rgba(0,0,0,.35)');rr(13,140,364,630,16,'#f3e2b8',LINK,4);
  tabs.forEach(([id,nm],i)=>{const X=15+i*120,on=id===b;rr(X,on?104:110,116,on?44:34,9,on?'#f3e2b8':'#a8875a',LINK,3);if(on){x.fillStyle='#f3e2b8';x.fillRect(X+3,138,110,14)}
@@ -1197,7 +1201,7 @@ function openEvents(){go('events');if(lbIn())for(const e of evPast())for(const [
 function drawEvents(){menuBg();lbBegin();pix('EVENTS',195,40,22,pal.gold,2,'#e0a526');if(lbIn())lbChip(102,62);
  rr(13,106,364,664,16,'rgba(0,0,0,.35)');rr(13,100,364,664,16,'#f3e2b8',LINK,4);rr(21,108,348,648,10,null,'#c9a66b',2);const L=evPast();
  if(!L.length)txt('No events yet. Check back soon!',195,240,12,'#8b6a3a','center',false);
- L.slice(0,3).forEach((e,i)=>{const y=122+i*206,live=evState(e)==='live';rr(33,y,324,190,12,'#e9d3a0',LINK,2);pix(e.name,195,y+30,16,'#e07820',0,'#c05812');
+ L.slice(0,3).forEach((e,i)=>{const y=122+i*206,live=evState(e)==='live';rr(33,y,324,190,12,'#e9d3a0',LINK,2);pix(e.n.toUpperCase(),195,y+30,16,'#e07820',0,'#c05812');
   rr(286,y+10,62,20,6,live?'#d0661a':'#8b6a3a',LINK,2);txt(live?'LIVE':'ENDED',317,y+21,8,pal.paper,'center',false);txt(evDates(e),195,y+56,11,'#5a4030','center',false);
   if(e.theme==='halloween'){pcrown(156,y+98,2.2);txt('Pumpkin Crowns',178,y+88,10,'#8b6a3a','left',false);txt(''+(S.pumpkinCrowns|0),178,y+105,18,LINK,'left',false)}
   const rk=EVB.map(([b])=>LBS.ranks[lbK(b,e.id)]?b.toUpperCase()+' #'+LBS.ranks[lbK(b,e.id)]:null).filter(Boolean);
