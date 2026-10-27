@@ -52,8 +52,9 @@ const ELORE={blob:'Slow and soft. Shambles in by the dozen.',bat:'Fragile but fa
 const EPOOL=[[-1,'blob','blob'],[25,'bat','bat'],[80,'skel'],[140,'ghost','bat'],[200,'imp'],[300,'skel','imp']],EPOOL_JUNGLE=['vine','vine','frog','skel','bat','imp'],EPOOL_SKIES=['wisp','wisp','harpy','ghost','bat','frog'];
 const efrom=id=>{const r=EPOOL.find(r=>r.includes(id,1));return r?fmtT(Math.max(0,r[0])):EPOOL_JUNGLE.includes(id)?'JUNGLE':'SKIES'};
 const CXKIND={w:['WEAPON','#ffd23f'],e:['EVOLUTION','#ff8a3d'],p:['PASSIVE','#6ab0ff'],i:['ENDLESS','#c9a0ff'],x:['BONUS','#5fae7a']};
-const cxItemNote=e=>{const U_=s=>s.toUpperCase();if(e.kind==='w')return'MAX LV 5 · EVOLVES WITH '+U_(PS[WP[e.k].ev].n);if(e.kind==='e')return U_(WP[e.k].n)+' + '+U_(PS[WP[e.k].ev].n);
- if(e.kind==='p'){const w=Object.keys(WP).find(w=>WP[w].ev===e.k);return'MAX LV 5'+(w?' · EVOLVES '+U_(WP[w].n):'')}return e.kind==='i'?'STACKS FOREVER · SOFT CAP '+INF[e.k].cap:'INSTANT REWARD'};
+// Evolution recipes stay hidden until that evolution has been taken at least once.
+const cxItemNote=e=>{const U_=s=>s.toUpperCase(),known=k=>codexItemGet('e',k).taken>0;if(e.kind==='w')return'MAX LV 5 · EVOLVES WITH '+(known(e.k)?U_(PS[WP[e.k].ev].n):'???');if(e.kind==='e')return known(e.k)?U_(WP[e.k].n)+' + '+U_(PS[WP[e.k].ev].n):'EVOLVE IT TO REVEAL THE RECIPE';
+ if(e.kind==='p'){const w=Object.keys(WP).find(w=>WP[w].ev===e.k);return'MAX LV 5'+(w?' · EVOLVES '+(known(w)?U_(WP[w].n):'???'):'')}return e.kind==='i'?'STACKS FOREVER · SOFT CAP '+INF[e.k].cap:'INSTANT REWARD'};
 // ===== data =====
 const CH=[{n:'King Cube',d:'Balanced royal. Starts with Scepter Bolt.',c:'#e0a526',k:'#9c6a12',w:'bolt',hp:100,spd:1,p:0,perk:'+10% XP'},
  {n:'Ruby Knight',d:'Tanky brawler. Starts with Royal Aura.',c:'#c8452f',k:'#7d2618',w:'aura',hp:140,spd:.9,p:500,perk:'+1 Armor'},
