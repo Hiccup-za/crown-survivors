@@ -745,11 +745,11 @@ function drawLB(){menuBg();lbBegin();const b=lb.board,D=lb.data[b]||{st:'load'},
   const st0='SCROLL FOR MORE  ·  TOP 50';txt(st0,203,594,10,'#8b6a3a','center',false);txt('▼',203-x.measureText(st0).width/2-12,594+Math.sin(clock*4)*2,10,'#8b6a3a','center',false)}
  else if(rows.length)txt('TOP 50',195,594,10,'#8b6a3a','center',false);
  x.fillStyle='#c9a66b';x.fillRect(28,610,326,2);
- if(!lbIn()){txt('Sign in to post scores & see your rank',195,628,10,'#8b6a3a','center',false);xButton(85,644,220,44,()=>lbSignIn(null),15)}
+ if(!lbIn()){txt(FOOT[b],195,638,10,'#8b6a3a','center',false);txt('Sign in to post scores & see your rank',195,678,10,'#8b6a3a','center',false);xButton(133,704,230,46,()=>lbSignIn(null),15)}
  else if(meR&&meR.row){if(!meVis){txt('YOUR BEST',195,624,9,'#8b6a3a','center',false);lbRow(636,46,meR.rank,meR.row,true,b)}}
  else if(D.st==='ok')txt(b==='fastest'?'Win a run to get on this board':'Finish a run to get on this board',195,654,11,'#8b6a3a','center',false);
  button('BACK',27,704,96,46,()=>{lb.rank=null;go(lb.back)},'#8b5a2b',14);
- const fl=wrapTxt(FOOT[b],212,10);fl.forEach((l,i)=>txt(l,135,727+(i-(fl.length-1)/2)*14,10,'#8b6a3a','left',false));
+ if(lbIn()){const fl=wrapTxt(FOOT[b],212,10);fl.forEach((l,i)=>txt(l,135,727+(i-(fl.length-1)/2)*14,10,'#8b6a3a','left',false))}
  if(lb.rank)drawRankFx();lbEnd()}
 function drawRankFx(){const R=lb.rank,e=clock-R.t0;if(e<0)return;
  if(!R.burst){R.burst=1;sfx.buy();vib([20,20,20,20,60]);const cf=['#ffd23f','#c8452f','#5fae7a','#6ab0ff','#c9a0ff','#fff3c4'],cx=lbT.ox+195*lbT.k,cy=lbT.oy+250*lbT.k;
