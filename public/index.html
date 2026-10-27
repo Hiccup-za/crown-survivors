@@ -62,8 +62,9 @@ const CH=[{n:'King Cube',d:'Balanced royal. Starts with Scepter Bolt.',c:'#e0a52
  {n:'Shadow Rogue',d:'Fast & lucky. Starts with Crown Boomerang.',c:'#4a3a5a',k:'#1a1020',w:'boom',hp:90,spd:1.2,p:1000,perk:'+15% Crit'},
  {n:'Pumpkin Prince',d:'Splash specialist. Starts with Magic Pumpkin.',c:'#e87820',k:'#9a4510',w:'pumpkin',hp:95,spd:1,p:2000,perk:'+15% Splash',ev:'harvest'}];
 // Limited-time events: inclusive [month,day] window on the player's local date. Event heroes (CH[].ev) can only be bought while their event is live; owned ones stay playable.
-const EVENTS={harvest:{n:'Harvest Moon',ic:'🎃',from:[10,1],to:[11,7],c:'#e87820'}},evForce={};
-const eventOn=id=>{const E=EVENTS[id];if(!E)return false;if(id in evForce)return evForce[id];const d=new Date(),v=(d.getMonth()+1)*100+d.getDate();return v>=E.from[0]*100+E.from[1]&&v<=E.to[0]*100+E.to[1]};
+// soon: announced but not launched yet (never live, whatever the date)
+const EVENTS={harvest:{n:'Harvest Moon',ic:'🎃',from:[10,1],to:[11,7],c:'#e87820',soon:1}},evForce={};
+const eventOn=id=>{const E=EVENTS[id];if(!E)return false;if(id in evForce)return evForce[id];if(E.soon)return false;const d=new Date(),v=(d.getMonth()+1)*100+d.getDate();return v>=E.from[0]*100+E.from[1]&&v<=E.to[0]*100+E.to[1]};
 const WP={bolt:{n:'Scepter Bolt',e:'Royal Barrage',d:'Shoots nearest foe',ev:'tome',c:'#ffd23f'},orb:{n:'Orbit Coins',e:'Golden Halo',d:'Coins circle you',ev:'magnet',c:'#e0a526'},
  rain:{n:'Gold Rain',e:'Midas Flood',d:'Damaging gold pools',ev:'area',c:'#ffb13d'},aura:{n:'Royal Aura',e:'Throne Aura',d:'Burns nearby foes',ev:'armor',c:'#ff6b5a'},
  boom:{n:'Crown Boomerang',e:'Crown Storm',d:'Thrown crown returns',ev:'boots',c:'#c9a0ff'},zap:{n:'Thunder Block',e:'Storm Block',d:'Lightning strikes foes',ev:'luck',c:'#9fd3ff'},
@@ -548,15 +549,16 @@ function settingsPanel(back){const hg=270*U/H,tp=(1-hg)/2,{px,pw}=panel(tp,hg);l
 const chs={scroll:0,drag:null,rows:[],vp:null,maxS:0,focus:true};
 const fitSz=(s,w,sz)=>{x.font='bold '+Math.round(sz*U)+'px "Courier New",Courier,monospace';const m=x.measureText(s).width;return m>w?Math.max(7,sz*w/m):sz};
 const fmtMD=([m,d])=>['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][m-1]+' '+d;
+const evWhen=id=>{const E=EVENTS[id];return eventOn(id)?'LIVE · ENDS '+fmtMD(E.to):E.soon?'COMING SOON':'RETURNS '+fmtMD(E.from)};
 function pickHero(i){const c=CH[i];if(S.chars.includes(i)){S.char=i;save();return}
- if(c.ev&&!eventOn(c.ev)){const E=EVENTS[c.ev];toast={t:E.n+' event only · returns '+fmtMD(E.from),l:1.8};return}
+ if(c.ev&&!eventOn(c.ev)){const E=EVENTS[c.ev];toast={t:E.n+' event only · '+(E.soon?'coming soon':'returns '+fmtMD(E.from)),l:1.8};return}
  if(S.gold>=c.p){const r=chs.rows.find(r=>r.i===i);S.gold-=c.p;S.chars.push(i);S.char=i;save();dbTrack('hero_unlock',{hero:HERO_ID[i]});sfx.buy();vib(30);for(let j=0;j<30;j++)uiParts.push({x:W/2,y:r?r.y+r.h/2:H/2,vx:rnd(-200,200),vy:rnd(-250,-50),l:1,c:['#ffd23f','#c8452f','#5fae7a'][j%3]})}
  else toast={t:'Need '+(c.p-S.gold)+' more gold',l:1.2}}
 function drawChars(){menuBg();const {px,pw}=panel(.05,.9);pix('CHOOSE HERO',W/2,H*.05+32*U,20,pal.gold,1.5);
  const top=H*.05+54*U,vh=H*.95-124*U-top,rh=58*U,gap=6*U,hh=24*U,X0=px+14*U,cw=pw-28*U;
  const base=CH.map((c,i)=>i).filter(i=>!CH[i].ev),items=[{h:'HEROES',r:base.filter(i=>S.chars.includes(i)).length+'/'+base.length}];base.forEach(i=>items.push({i}));
  for(const id in EVENTS){const ids=CH.map((c,i)=>i).filter(i=>CH[i].ev===id);if(!ids.length)continue;const E=EVENTS[id],on=eventOn(id);
-  items.push({h:E.ic+' '+E.n.toUpperCase(),r:on?'LIVE · ENDS '+fmtMD(E.to):'RETURNS '+fmtMD(E.from),c:on?E.c:'#8b6a3a'});ids.forEach(i=>items.push({i}))}
+  items.push({h:E.ic+' '+E.n.toUpperCase(),r:evWhen(id),c:on?E.c:'#8b6a3a'});ids.forEach(i=>items.push({i}))}
  let tot=0;for(const it of items){it.y=tot;if(it.h){it.pt=tot?10*U:0;tot+=it.pt+hh}else tot+=rh+gap}
  chs.maxS=Math.max(0,tot-gap-vh);if(chs.focus){chs.focus=false;const s=items.find(it=>it.i===S.char);if(s)chs.scroll=s.y-(vh-rh)/2}
  chs.scroll=Math.max(0,Math.min(chs.maxS,chs.scroll));chs.vp={y:top,h:vh};chs.rows=[];
@@ -569,7 +571,7 @@ function drawChars(){menuBg();const {px,pw}=panel(.05,.9);pix('CHOOSE HERO',W/2,
   txt(c.n,px+80*U,y+rh*.25,fitSz(c.n,tw-(E?52*U:0),15),pal.ink,'left',false);txt(c.d,px+80*U,y+rh*.5,fitSz(c.d,tw,10),'#5a4030','left',false);txt(st,px+80*U,y+rh*.74,fitSz(st,tw,10),'#8b6a3a','left',false);
   if(E){rr(X0+cw-52*U,y+6*U,44*U,14*U,7*U,E.c,pal.ink,1.5);txt('EVENT',X0+cw-30*U,y+13*U,8,pal.paper,'center',false)}
   if(!own){rr(X0,y,cw,rh,10*U,'rgba(40,25,10,.55)');
-   if(E&&!live){txt(E.ic+' EVENT ONLY',px+pw/2,y+rh*.4,15,pal.paper);txt('Returns '+fmtMD(E.from),px+pw/2,y+rh*.72,10,pal.paper,'center',false)}
+   if(E&&!live){txt(E.ic+' EVENT ONLY',px+pw/2,y+rh*.4,15,pal.paper);txt(E.soon?'Coming soon':'Returns '+fmtMD(E.from),px+pw/2,y+rh*.72,10,pal.paper,'center',false)}
    else{txt('🔒 '+c.p+' gold',px+pw/2,y+rh*(E?.4:.5),16,S.gold>=c.p?pal.gold:pal.paper);if(E)txt('LIMITED TIME',px+pw/2,y+rh*.74,10,'#ffd23f')}}
   const vy=Math.max(y,top);chs.rows.push({i,x:X0,y:vy,w:cw,h:Math.min(y+rh,top+vh)-vy})}
  x.restore();
@@ -684,7 +686,7 @@ const _endRun=endRun;endRun=function(win){const was=G&&G.over;_endRun(win);if(wa
 function lbBegin(){const k=Math.min(W/390,(H-SAT)/844);lbT={k,ox:(W-390*k)/2,oy:SAT+(H-SAT-844*k)/2,n:btns.length,U};x.save();x.translate(lbT.ox,lbT.oy);x.scale(k,k);U=UM}
 function lbEnd(){x.restore();U=lbT.U;for(let i=lbT.n;i<btns.length;i++){const b=btns[i];b.x=lbT.ox+b.x*lbT.k;b.y=lbT.oy+b.y*lbT.k;b.w*=lbT.k;b.h*=lbT.k}}
 const CX_TOP=179,CX_ROWW=326,CX_RX=28,CX_IN_B=762,CX_BACK_H=36,CX_FOOT_PAD=12,CX_BACK_Y=CX_IN_B-CX_FOOT_PAD-CX_BACK_H,CX_HINT_Y=CX_BACK_Y-16,CX_LIST_HINT_M=14,CX_LH=CX_HINT_Y-CX_TOP-CX_LIST_HINT_M,CX_SB_Y=CX_TOP+3,CX_SB_H=CX_LH-6;
-function cxSection(id,X,Y,w,h){const E=EVENTS[id],on=eventOn(id),c=on?E.c:'#8b6a3a',my=Y+h/2+2;txt(E.ic+' '+E.n.toUpperCase()+' EVENT',X+2,my,11,c,'left',false);txt(on?'LIVE · ENDS '+fmtMD(E.to):'RETURNS '+fmtMD(E.from),X+w-2,my,8,c,'right',false);x.fillStyle=c;x.fillRect(X,Y+h-2,w,2)}
+function cxSection(id,X,Y,w,h){const E=EVENTS[id],on=eventOn(id),c=on?E.c:'#8b6a3a',my=Y+h/2+2;txt(E.ic+' '+E.n.toUpperCase()+' EVENT',X+2,my,11,c,'left',false);txt(evWhen(id),X+w-2,my,8,c,'right',false);x.fillStyle=c;x.fillRect(X,Y+h-2,w,2)}
 function drawCodex(){menuBg();lbBegin();let maxS=0;try{
  pix('CODEX',195,40,20,pal.gold,2,'#e0a526');txt('Track what you have seen, taken, and slain',195,72,10,'#8b6a3a','center',false);
  rr(13,146,364,630,16,'rgba(0,0,0,.35)');rr(13,140,364,630,16,'#f3e2b8',LINK,4);
