@@ -36,13 +36,17 @@ const codexMarkItemTaken=(kind,k)=>{const r=codexItemRec(kind,k);r.seen=1;r.take
 const codexMarkEnemySeen=id=>{const r=codexEnemyRec(id);if(!r.seen){r.seen=1;save()}};
 const codexMarkEnemyKill=id=>{const r=codexEnemyRec(id);r.seen=1;r.kills=(r.kills||0)+1};// saved by endRun (or on tab hide), not per kill
 const ENAME={blob:'Mud Blob',bat:'Night Bat',skel:'Bone Soldier',ghost:'Pale Ghost',imp:'Fire Imp',vine:'Thorn Vine',frog:'Bog Frog',wisp:'Cloud Wisp',harpy:'Sky Harpy'};
-const codexItemCatalog=()=>{const out=[];for(const k in WP){const o=WP[k].only;out.push({kind:'w',k,n:WP[k].n,d:WP[k].d,c:WP[k].c,ev:WP[k].e,only:o});out.push({kind:'e',k,n:WP[k].e,d:'Evolution of '+WP[k].n,c:'#ffd23f',only:o})}for(const k in PS)out.push({kind:'p',k,n:PS[k].n,d:PS[k].d,c:PS[k].c,only:PS[k].only});for(const k in INF)out.push({kind:'i',k,n:INF[k].n,d:INF[k].d,ic:INF[k].ic});out.push({kind:'x',k:'gold',n:'Coin Sack',d:'Bonus gold',c:'#ffd23f'},{kind:'x',k:'heal',n:'Royal Feast',d:'Heal 30% HP',c:'#e8473a'});return out};
-const codexEnemyCatalog=()=>Object.keys(ETYPE).map(k=>({id:k,n:ENAME[k]||k,c:ETYPE[k].c}));
-const codexBossCatalog=()=>BOSS.map((b,i)=>({id:'boss'+i,bi:i,n:b.n,c:b.c}));
+// Codex lists: standard entries first, then one headed section per event (in EVENTS order). evOf(entry) -> event id or undefined.
+const cxGroup=(list,evOf)=>{const out=list.filter(e=>!evOf(e));for(const id in EVENTS){const g=list.filter(e=>evOf(e)===id);if(g.length)out.push({hdr:id},...g)}return out};
+const itemEv=e=>e.only!=null?CH[e.only].ev:undefined;
+const codexItemCatalog=()=>{const out=[];for(const k in WP){const o=WP[k].only;out.push({kind:'w',k,n:WP[k].n,d:WP[k].d,c:WP[k].c,ev:WP[k].e,only:o});out.push({kind:'e',k,n:WP[k].e,d:'Evolution of '+WP[k].n,c:'#ffd23f',only:o})}for(const k in PS)out.push({kind:'p',k,n:PS[k].n,d:PS[k].d,c:PS[k].c,only:PS[k].only});for(const k in INF)out.push({kind:'i',k,n:INF[k].n,d:INF[k].d,ic:INF[k].ic});out.push({kind:'x',k:'gold',n:'Coin Sack',d:'Bonus gold',c:'#ffd23f'},{kind:'x',k:'heal',n:'Royal Feast',d:'Heal 30% HP',c:'#e8473a'});return cxGroup(out,itemEv)};
+const codexEnemyCatalog=()=>cxGroup(Object.keys(ETYPE).map(k=>({id:k,n:ENAME[k]||k,c:ETYPE[k].c})),e=>ETYPE[e.id].ev);
+const codexBossCatalog=()=>cxGroup(BOSS.map((b,i)=>({id:'boss'+i,bi:i,n:b.n,c:b.c})),e=>BOSS[e.bi].ev);
 const BLORE=['Lumbers after you, belching up Mud Blobs every few seconds.','Swoops in sudden dashes and calls bat swarms to her side.','Erupts in rings of molten shot that fill the arena.','Seed spirals, root snares, vine lashes and bursting pods.','Thunder grids, gales and blink-strikes. Beware the Eye of the Storm.'];
 const UM=Math.min(390/360,844/640),LINK='#3b2a1a';
 const CODEX_ITEM_ROW=92,CODEX_ENEM_ROW=174,CODEX_BOSS_ROW=220;
-const codexRowHDesign=(ent,tab)=>tab==='items'?CODEX_ITEM_ROW:tab==='bosses'?CODEX_BOSS_ROW:CODEX_ENEM_ROW;
+const CODEX_HDR_ROW=34;
+const codexRowHDesign=(ent,tab)=>ent.hdr?CODEX_HDR_ROW:tab==='items'?CODEX_ITEM_ROW:tab==='bosses'?CODEX_BOSS_ROW:CODEX_ENEM_ROW;
 const ELORE={blob:'Slow and soft. Shambles in by the dozen.',bat:'Fragile but fast, flutters in erratic bursts.',skel:'A sturdy soldier that soaks up punishment.',ghost:'Drifts straight through the crowd to reach you.',imp:'Keeps its distance and hurls fireballs.',vine:'Slithers toward you on a winding path.',frog:'Sits still, then leaps at blinding speed.',wisp:'Swirls around you in fast, looping orbits.',harpy:'Hangs back and fires three-feather volleys.'};
 // Spawn pools: [after seconds, ...types] until boss III, then fixed jungle / sky pools.
 const EPOOL=[[-1,'blob','blob'],[25,'bat','bat'],[80,'skel'],[140,'ghost','bat'],[200,'imp'],[300,'skel','imp']],EPOOL_JUNGLE=['vine','vine','frog','skel','bat','imp'],EPOOL_SKIES=['wisp','wisp','harpy','ghost','bat','frog'];
@@ -657,6 +661,7 @@ const _endRun=endRun;endRun=function(win){const was=G&&G.over;_endRun(win);if(wa
 function lbBegin(){const k=Math.min(W/390,(H-SAT)/844);lbT={k,ox:(W-390*k)/2,oy:SAT+(H-SAT-844*k)/2,n:btns.length,U};x.save();x.translate(lbT.ox,lbT.oy);x.scale(k,k);U=UM}
 function lbEnd(){x.restore();U=lbT.U;for(let i=lbT.n;i<btns.length;i++){const b=btns[i];b.x=lbT.ox+b.x*lbT.k;b.y=lbT.oy+b.y*lbT.k;b.w*=lbT.k;b.h*=lbT.k}}
 const CX_TOP=179,CX_ROWW=326,CX_RX=28,CX_IN_B=762,CX_BACK_H=36,CX_FOOT_PAD=12,CX_BACK_Y=CX_IN_B-CX_FOOT_PAD-CX_BACK_H,CX_HINT_Y=CX_BACK_Y-16,CX_LIST_HINT_M=14,CX_LH=CX_HINT_Y-CX_TOP-CX_LIST_HINT_M,CX_SB_Y=CX_TOP+3,CX_SB_H=CX_LH-6;
+function cxSection(id,X,Y,w,h){const E=EVENTS[id],on=eventOn(id),c=on?E.c:'#8b6a3a',my=Y+h/2+2;txt(E.ic+' '+E.n.toUpperCase()+' EVENT',X+2,my,11,c,'left',false);txt(on?'LIVE · ENDS '+fmtMD(E.to):'RETURNS '+fmtMD(E.from),X+w-2,my,8,c,'right',false);x.fillStyle=c;x.fillRect(X,Y+h-2,w,2)}
 function drawCodex(){menuBg();lbBegin();let maxS=0;try{
  pix('CODEX',195,40,20,pal.gold,2,'#e0a526');txt('Track what you have seen, taken, and slain',195,72,10,'#8b6a3a','center',false);
  rr(13,146,364,630,16,'rgba(0,0,0,.35)');rr(13,140,364,630,16,'#f3e2b8',LINK,4);
@@ -668,7 +673,7 @@ function drawCodex(){menuBg();lbBegin();let maxS=0;try{
  maxS=Math.max(0,totH+4-CX_LH);codex.scroll=Math.max(0,Math.min(maxS,codex.scroll));
  x.save();try{x.beginPath();x.rect(24,CX_TOP,334,CX_LH);x.clip();
  entries.forEach((ent,i)=>{const outer=rowHs[i],ry=CX_TOP+3+yPos[i]-codex.scroll,h=outer-4;if(ry+h<CX_TOP||ry>CX_TOP+CX_LH)return;
-  const vi=Math.max(0,(ry-CX_TOP)/Math.max(outer,1)),a=Math.max(0,Math.min(1,(clock-codex.t0-vi*.04)/.18));x.globalAlpha=a;(tab==='items'?itemCard:tab==='bosses'?bossCard:enemyCard)(ent,CX_RX,ry+(1-a)*8,CX_ROWW,h-6,tab==='items'?codexItemGet(ent.kind,ent.k):codexEnemyGet(ent.id),i);x.globalAlpha=1})}finally{x.restore()}
+  const vi=Math.max(0,(ry-CX_TOP)/Math.max(outer,1)),a=Math.max(0,Math.min(1,(clock-codex.t0-vi*.04)/.18));x.globalAlpha=a;if(ent.hdr)cxSection(ent.hdr,CX_RX,ry+(1-a)*8,CX_ROWW,h);else(tab==='items'?itemCard:tab==='bosses'?bossCard:enemyCard)(ent,CX_RX,ry+(1-a)*8,CX_ROWW,h-6,tab==='items'?codexItemGet(ent.kind,ent.k):codexEnemyGet(ent.id),i);x.globalAlpha=1})}finally{x.restore()}
  if(maxS>0){const th=Math.max(30,CX_SB_H*CX_LH/(CX_LH+maxS));rr(359,CX_SB_Y,5,CX_SB_H,2.5,'#d6c49a');rr(359,CX_SB_Y+(CX_SB_H-th)*codex.scroll/maxS,5,th,2.5,'#a8875a');
   const st0='SCROLL FOR MORE';txt(st0,203,CX_HINT_Y,10,'#8b6a3a','center',false);txt('▼',203-x.measureText(st0).width/2-12,CX_HINT_Y+Math.sin(clock*4)*2,10,'#8b6a3a','center',false)}
  else if(entries.length)txt('FULL LIST',195,CX_HINT_Y,10,'#8b6a3a','center',false);
