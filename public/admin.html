@@ -40,7 +40,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--page);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1240px;margin:0 auto;padding:24px 16px 64px}
+.wrap{max-width:2400px;margin:0 auto;padding:24px clamp(12px,2.5vw,40px) 64px}
 header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;margin-bottom:20px}
 h1{font-size:20px;font-weight:650;margin:0;letter-spacing:-.01em}
 h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-spacing:0;margin-top:2px}
@@ -49,7 +49,9 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-
 .env{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--ring);color:var(--ink-2);white-space:nowrap}
 .env.nonprod{background:var(--accent);border-color:var(--accent);color:#fff}
 .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:20px}
-.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:2px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:2px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:none}
 .seg button{border:0;background:none;color:var(--ink-2);font:inherit;font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--ring)}
 .btn{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
@@ -69,7 +71,7 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-
 .tile .label{font-size:12px;color:var(--ink-2)}
 .tile .value{font-size:22px;font-weight:600;margin-top:2px}
 .tile .note{font-size:11px;color:var(--muted);margin-top:1px}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));gap:16px}
 .grid .wide{grid-column:1/-1}
 .section{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:28px 0 10px}
 .chart{position:relative;width:100%}
@@ -130,8 +132,27 @@ tr.link a{text-decoration:none}
 .chip{font-size:12px;padding:3px 9px;border-radius:999px;box-shadow:0 0 0 1px var(--ring)}
 .chip.off{color:var(--muted);box-shadow:none;background:var(--surface-2)}
 @media (max-width:900px){.pgrid{grid-template-columns:1fr}}
-@media (max-width:900px){.top{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:480px){.hero .value{font-size:48px}.seg button{padding:6px 9px}}
+@media (min-width:1700px){.top{grid-template-columns:minmax(320px,1fr) 3fr}.pgrid{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}}
+@media (max-width:900px){.top{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){
+  .wrap{padding-top:16px}
+  header{margin-bottom:14px}
+  .controls{gap:8px}
+  .controls .seg{width:100%}
+  .controls .seg button{flex:1}
+  .card{padding:14px}
+  .hero .value{font-size:44px}
+  .tile{padding:12px}
+  .tile .value{font-size:19px}
+  .pbar input[type=search]{max-width:none;flex-basis:100%}
+  .phead{gap:12px}
+  .phead img.big,.phead .av.big{width:48px;height:48px}
+  /* players table: drop Devices and Codex; both are on the profile */
+  #p-list th:nth-child(4),#p-list td:nth-child(4),#p-list th:nth-child(6),#p-list td:nth-child(6){display:none}
+  th,td{padding:5px 6px}
+}
+/* finger-sized controls on touch screens */
+@media (pointer:coarse){.seg button,.btn,.pbar input{min-height:40px}}
 </style>
 </head>
 <body class="signed-out">
@@ -221,14 +242,14 @@ function xLabels(labels,xAt,y,plotW){const every=Math.max(1,Math.ceil(labels.len
 
 // line chart with crosshair; series: [{name,color,values}]
 const LC={};
-function lineChart(id,labels,series,H=220){const el=document.getElementById(id),W=el.clientWidth||600,m={l:44,r:series.length>1?96:16,t:10,b:26},pw=W-m.l-m.r,ph=H-m.t-m.b;
+function lineChart(id,labels,series,H=220){const el=document.getElementById(id),W=el.clientWidth||600,ends=series.length>1&&W>=480,m={l:44,r:ends?96:16,t:10,b:26},pw=W-m.l-m.r,ph=H-m.t-m.b;
   const max=niceMax(Math.max(1,...series.flatMap(s=>s.values))),n=labels.length,xAt=i=>m.l+(n<2?pw/2:pw*i/(n-1)),yAt=v=>m.t+ph-ph*v/max;
   let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(series.map(x=>x.name).join(', '))} by day">`+yAxis(max,m.l,m.l+pw,m.t,ph)+xLabels(labels,xAt,H-6,pw);
   for(const se of series){s+=`<path d="${se.values.map((v,i)=>(i?'L':'M')+xAt(i).toFixed(1)+','+yAt(v).toFixed(1)).join('')}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`}
-  // direct end labels, unless they would collide (the legend still carries identity)
-  const ends=series.map(se=>({se,y:yAt(se.values[n-1]||0)}));
-  if(series.length>1&&ends.every((a,i)=>ends.every((b,k)=>k===i||Math.abs(a.y-b.y)>=14)))
-    for(const {se,y} of ends)s+=`<circle cx="${xAt(n-1)}" cy="${y}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/><text class="lbl" x="${xAt(n-1)+10}" y="${y+4}">${esc(se.name)}</text>`;
+  // direct end labels, unless the chart is narrow or they would collide (the legend still carries identity)
+  const last=series.map(se=>({se,y:yAt(se.values[n-1]||0)}));
+  if(ends&&last.every((a,i)=>last.every((b,k)=>k===i||Math.abs(a.y-b.y)>=14)))
+    for(const {se,y} of last)s+=`<circle cx="${xAt(n-1)}" cy="${y}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/><text class="lbl" x="${xAt(n-1)+10}" y="${y+4}">${esc(se.name)}</text>`;
   s+=`<g class="xg" style="display:none"><line class="xl" y1="${m.t}" y2="${m.t+ph}" stroke="var(--axis)" stroke-width="1"/>${series.map(se=>`<circle r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/>`).join('')}</g>`;
   s+=`<rect class="xh" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
   el.innerHTML=s;LC[id]={labels,series,xAt,yAt,n,m,pw};
@@ -252,11 +273,13 @@ function columnChart(id,labels,series,opt={}){const el=document.getElementById(i
   el.innerHTML=s+'</svg>'}
 
 // horizontal bars; rows: [{label,value,color,tip,valueText}]
-function barChart(id,rows,opt={}){const el=document.getElementById(id),W=el.clientWidth||600,lw=opt.labelW||150,vw=opt.valueW||90,rh=30,bh=16,H=rows.length*rh+4,pw=Math.max(40,W-lw-vw);
+// Too narrow for labels beside the bars (phones): labels sit above each bar instead.
+function barChart(id,rows,opt={}){const el=document.getElementById(id),W=el.clientWidth||600,vw=opt.valueW||90,stack=W<(opt.labelW||150)+vw+160,lw=stack?0:opt.labelW||150,
+  rh=stack?42:30,bh=stack?14:16,H=rows.length*rh+4,pw=Math.max(40,W-lw-vw);
   const max=opt.max||Math.max(1,...rows.map(r=>r.value));
-  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opt.label||'')}"><line x1="${lw}" x2="${lw}" y1="0" y2="${H}" stroke="var(--axis)"/>`;
-  rows.forEach((r,i)=>{const y=i*rh+(rh-bh)/2,w=Math.max(r.value?2:0,pw*r.value/max);
-    s+=`<text class="lbl" x="${lw-10}" y="${y+bh/2+4}" text-anchor="end">${esc(r.label)}</text><path d="${rpath(lw,y,w,bh,'right')}" fill="${r.color}"/>`+
+  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opt.label||'')}">`+(stack?'':`<line x1="${lw}" x2="${lw}" y1="0" y2="${H}" stroke="var(--axis)"/>`);
+  rows.forEach((r,i)=>{const y=stack?i*rh+20:i*rh+(rh-bh)/2,w=Math.max(r.value?2:0,pw*r.value/max);
+    s+=(stack?`<text class="lbl" x="0" y="${i*rh+14}">${esc(r.label)}</text>`:`<text class="lbl" x="${lw-10}" y="${y+bh/2+4}" text-anchor="end">${esc(r.label)}</text>`)+`<path d="${rpath(lw,y,w,bh,'right')}" fill="${r.color}"/>`+
       `<text class="val" x="${lw+w+8}" y="${y+bh/2+4}">${esc(r.valueText||fmtN(r.value))}</text>`+
       `<rect x="0" y="${i*rh}" width="${W}" height="${rh}" fill="transparent" data-tip="${esc(r.tip||tipRows(r.label,[[r.color,'Value',fmtN(r.value)]]))}"/>`});
   el.innerHTML=s+'</svg>'}

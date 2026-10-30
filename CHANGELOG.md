@@ -8,6 +8,9 @@
 - Player profiles show gold, shop upgrades, unlocked heroes, codex, leaderboard ranks and recent runs, for X accounts and for players who never signed in.
 - Accounts that played on more than one device show each device's save separately until cloud save ships.
 
+### Changed
+- The /admin dashboard now fills wide screens, lays charts out in as many columns as fit, and works on phones and touch screens.
+
 ## [0.2.0] - 2026-10-30
 
 ### Changed
