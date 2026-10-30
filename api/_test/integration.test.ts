@@ -136,6 +136,109 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
     });
   });
 
+  describe("admin players", () => {
+    const A1 = "00000000-0000-4000-8000-0000000000a1", A2 = "00000000-0000-4000-8000-0000000000a2";
+    const ANON = "00000000-0000-4000-8000-0000000000b1", OLD = "00000000-0000-4000-8000-0000000000c1";
+    const DAY = "2026-10-05 12:00+02";
+    let cookie = "";
+
+    const get = (path: string) => app.request(`${BASE}/api/admin${path}`, { headers: { Cookie: cookie } });
+    const session = (install: string, user: string | null, at = DAY) =>
+      pool.query(`INSERT INTO telemetry_sessions (session_id, install_id, user_id, started_at, last_seen) VALUES (gen_random_uuid(), $1, $2, $3, $3)`, [install, user, at]);
+    const snapshot = (install: string, user: string | null, gold: number, lastSeen = DAY) =>
+      pool.query(
+        `INSERT INTO player_snapshots (install_id, user_id, gold, pumpkin_crowns, runs, wins, kills, best_s, max_curse, codex_items,
+           codex_enemies, meta, chars, wins_by, pumpkin_by, codex, first_seen, last_seen)
+         VALUES ($1, $2, $3, 0, 4, 1, 100, 300, 1, 12, 5, '{"might":3}', '[0,1]', '{}', '{}', '{"items":{},"enemies":{}}', $4, $4)`,
+        [install, user, gold, lastSeen],
+      );
+
+    beforeEach(async () => {
+      await requestLink(ADMIN);
+      cookie = cookieFrom(await app.request(linkFromEmail()));
+      await pool.query(`INSERT INTO "user" (id, name, email, handle) VALUES ('u1', 'Player One', 'u1@x.invalid', 'playerone'), ('u2', 'Second', 'u2@x.invalid', 'second')`);
+      // u1: phone (played signed out first, then signed in) and laptop, with different saves.
+      await session(A1, null, "2026-10-04 09:00+02");
+      await session(A1, "u1", "2026-10-05 10:00+02");
+      await snapshot(A1, "u1", 500, "2026-10-05 10:00+02");
+      await session(A2, "u1", "2026-10-06 10:00+02");
+      await snapshot(A2, "u1", 900, "2026-10-06 10:00+02");
+      await pool.query(`INSERT INTO telemetry_runs (install_id, session_id, user_id, mode, hero, result, time_s, kills, level, gold_earned, created_at)
+        VALUES ($1, gen_random_uuid(), NULL, 'classic', 'king-cube', 'death', 200, 50, 5, 30, '2026-10-04 09:30+02')`, [A1]);
+      await pool.query(`INSERT INTO scores (user_id, hero, curse, won, time_s, kills, bosses, created_at) VALUES ('u1', 'king-cube', 0, false, 300, 120, 2, $1)`, [DAY]);
+      // An anonymous player, and one only active outside the range.
+      await session(ANON, null);
+      await snapshot(ANON, null, 70);
+      await session(OLD, null, "2026-09-01 12:00+02");
+    });
+
+    test("signed out gets 401 on every admin route", async () => {
+      cookie = "";
+      for (const p of ["/players?from=2026-10-01&to=2026-10-08", "/players/user/u1", `/players/install/${ANON}`, "/leaderboard"])
+        assert.equal((await get(p)).status, 401, p);
+    });
+
+    test("lists each account once across its devices, and anonymous installs on their own", async () => {
+      const { rows, truncated } = await (await get("/players?from=2026-10-01&to=2026-10-08")).json();
+      assert.equal(truncated, false);
+      assert.equal(rows.length, 2);
+      const u1 = rows.find((r: { user_id: string }) => r.user_id === "u1");
+      assert.equal(u1.handle, "playerone");
+      assert.equal(u1.devices, 2);
+      assert.equal(u1.gold, 900, "gold comes from the most recently seen device");
+      assert.equal(u1.runs, 1, "the run played before signing in still counts for the account");
+      assert.equal(u1.install_id, null);
+      const anon = rows.find((r: { install_id: string }) => r.install_id === ANON);
+      assert.equal(anon.user_id, null);
+      assert.equal(anon.gold, 70);
+    });
+
+    test("filters by handle and by install id prefix", async () => {
+      const byHandle = await (await get("/players?from=2026-10-01&to=2026-10-08&q=PLAYER")).json();
+      assert.deepEqual(byHandle.rows.map((r: { user_id: string }) => r.user_id), ["u1"]);
+      const byInstall = await (await get(`/players?from=2026-10-01&to=2026-10-08&q=${ANON.slice(0, 30)}`)).json();
+      assert.deepEqual(byInstall.rows.map((r: { install_id: string }) => r.install_id), [ANON]);
+      const wildcard = await (await get("/players?from=2026-10-01&to=2026-10-08&q=%25")).json();
+      assert.equal(wildcard.rows.length, 0, "% is matched literally");
+    });
+
+    test("a user profile has every device's save, runs and leaderboard standing", async () => {
+      const p = await (await get("/players/user/u1")).json();
+      assert.equal(p.kind, "user");
+      assert.equal(p.user.handle, "playerone");
+      assert.deepEqual(p.devices.map((d: { install_id: string }) => d.install_id), [A2, A1], "newest device first");
+      assert.equal(p.devices[0].snapshot.gold, 900);
+      assert.deepEqual(p.devices[0].snapshot.meta, { might: 3 });
+      assert.equal(p.devices[1].sessions, 2);
+      assert.equal(p.runs.total, 1);
+      assert.equal(p.boards.survival.rank, 1);
+      assert.equal(p.boards.fastest.rank, null, "no win, so not on the fastest board");
+    });
+
+    test("an install that signed in resolves to its account; an anonymous one stands alone", async () => {
+      assert.equal((await (await get(`/players/install/${A1}`)).json()).user.id, "u1");
+      const anon = await (await get(`/players/install/${ANON}`)).json();
+      assert.equal(anon.kind, "install");
+      assert.equal(anon.user, null);
+      assert.equal(anon.boards, null);
+      assert.equal(anon.devices[0].snapshot.gold, 70);
+    });
+
+    test("unknown ids get 404 and malformed ids 400", async () => {
+      assert.equal((await get("/players/user/nobody")).status, 404);
+      assert.equal((await get("/players/install/00000000-0000-4000-8000-00000000ffff")).status, 404);
+      assert.equal((await get("/players/install/not-a-uuid")).status, 400);
+      assert.equal((await get("/players/user/bad%20id")).status, 400);
+    });
+
+    test("the admin leaderboard carries user_id; the public one does not", async () => {
+      const admin = await (await get("/leaderboard?board=survival")).json();
+      assert.equal(admin.rows[0].user_id, "u1");
+      const pub = await (await app.request(`${BASE}/api/leaderboard?board=survival`)).json();
+      assert.equal("user_id" in pub.rows[0], false);
+    });
+  });
+
   describe("telemetry", () => {
     const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
     const ping = (install: number, ip: string, run = false) =>

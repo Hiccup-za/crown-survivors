@@ -3,7 +3,7 @@ import { pool } from "./db.js";
 // Admin dashboard aggregates over the telemetry tables (docs/telemetry.md). Read-only.
 
 /** Days are bucketed in event time (Harvest Moon dates are SAST). */
-const TZ = "Africa/Johannesburg";
+export const TZ = "Africa/Johannesburg";
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const MAX_RANGE_DAYS = 120;
 

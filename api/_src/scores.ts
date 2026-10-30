@@ -94,10 +94,11 @@ const SELECT_COLS = `
   r.rank::int AS rank, u.handle, u.name, u.image AS avatar,
   r.hero, r.curse, r.won, r.time_s, r.kills, r.bosses, r.created_at`;
 
-export async function getLeaderboard(board: Board, limit: number): Promise<LeaderboardRow[]> {
-  const { rows } = await pool.query<LeaderboardRow>(
+/** withUserId adds user_id for the admin dashboard; the public board never exposes it. */
+export async function getLeaderboard(board: Board, limit: number, withUserId = false): Promise<(LeaderboardRow & { user_id?: string })[]> {
+  const { rows } = await pool.query<LeaderboardRow & { user_id?: string }>(
     `WITH ${rankedCte(board)}
-     SELECT ${SELECT_COLS}
+     SELECT ${SELECT_COLS}${withUserId ? ", r.user_id" : ""}
      FROM ranked r JOIN "user" u ON u.id = r.user_id
      ORDER BY r.rank, r.created_at
      LIMIT $1`,

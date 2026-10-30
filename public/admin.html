@@ -102,6 +102,34 @@ th{font-weight:600;color:var(--ink-2)}
 .gate input{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 10px;border-radius:8px;min-width:220px}
 .gate .msg{margin:14px 0 0;font-size:13px}
 code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+/* players and profiles */
+a{color:inherit}
+.muted{color:var(--muted)}
+.pbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px}
+.pbar input{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 10px;border-radius:8px}
+.pbar input[type=search]{flex:1;min-width:220px;max-width:380px}
+.pgrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+.card .seg{margin-bottom:10px}
+.tw{overflow-x:auto}
+tr.link{cursor:pointer}
+tr.link:hover td{background:var(--surface-2)}
+tr.link a{text-decoration:none}
+.pl{display:inline-flex;align-items:center;gap:8px}
+.pl img,.av{width:24px;height:24px;border-radius:50%;flex:none;display:inline-block;background:var(--surface-2);object-fit:cover}
+.av.anon{background:repeating-linear-gradient(45deg,var(--surface-2) 0 4px,var(--grid) 4px 8px)}
+.phead{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.phead img.big,.phead .av.big{width:64px;height:64px}
+.phead h2{font-size:18px}
+.phead .sub{margin:2px 0 0}
+.badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);margin-left:8px;vertical-align:2px}
+.back{font-size:13px;color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2);margin:0 0 12px}
+.meter{display:inline-block;width:80px;height:6px;border-radius:3px;background:var(--surface-2);vertical-align:1px;margin-left:8px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--classic);border-radius:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;padding:3px 9px;border-radius:999px;box-shadow:0 0 0 1px var(--ring)}
+.chip.off{color:var(--muted);box-shadow:none;background:var(--surface-2)}
+@media (max-width:900px){.pgrid{grid-template-columns:1fr}}
 @media (max-width:900px){.top{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:480px){.hero .value{font-size:48px}.seg button{padding:6px 9px}}
 </style>
@@ -113,6 +141,7 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surf
     <div class="who"><span class="env" id="env" hidden></span><span class="who" id="who"></span></div>
   </header>
   <div class="controls">
+    <div class="seg" id="tabs" role="group" aria-label="View"><button data-v="overview">Overview</button><button data-v="players">Players</button></div>
     <div class="seg" id="ranges" role="group" aria-label="Date range"></div>
     <span class="spacer"></span>
     <span class="stamp" id="stamp"></span>
@@ -135,7 +164,7 @@ const ORD=['#1c5cab','#256abf','#2a78d6','#5598e7','#86b6ef']; // ordinal ramp f
 
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const qs=new URLSearchParams(location.search);
-const st={range:store.get('cs_admin_range')||'event',data:null};
+const st={range:store.get('cs_admin_range')||'event',data:null,view:'overview',q:'',day:'',board:'fastest',profile:null,dev:0};
 
 // ===== formatting =====
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -320,17 +349,137 @@ const put=(id,html)=>{document.getElementById(id).innerHTML=html};
 const addTable=(id,cols,rows)=>{if(rows.length)document.getElementById(id+'-t').innerHTML=table(cols,rows)};
 
 let redraw=null;
-async function load(){const {from,to}=rangeDates(st.range);document.getElementById('stamp').textContent='Loading…';
-  main.innerHTML='<div class="empty" style="height:240px">Loading stats…</div>';
-  const r=await api('/admin/stats?from='+from+'&to='+to);
+// Shared answer to a failed admin call. Returns true when it showed a gate instead of data.
+function guard(r,what){
   // Signed out: only the sign-in card shows.
   document.body.classList.toggle('signed-out',r.status===401);
   if(r.status===401){gate('Sign in','',
-    `<form data-link style="width:100%"><div class="row"><input type="email" name="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email"><button class="btn primary" type="submit">Email me a link</button></div><p class="msg" role="status">${linkErr?'That link has expired or was already used. Request a new one.':''}</p></form>`);return stamp('')}
-  if(r.status===403)return gate('No admin access','This account is signed in but its email is not in <code>ADMIN_EMAILS</code> on the API.','<button class="btn primary" data-signout>Sign out</button>'),stamp('');
-  if(r.status!==200||!r.j)return gate('Could not load stats',esc((r.j&&r.j.error)||'The API did not answer. Check your connection and try again.'),'<button class="btn primary" data-retry>Try again</button>'),stamp('');
+    `<form data-link style="width:100%"><div class="row"><input type="email" name="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email"><button class="btn primary" type="submit">Email me a link</button></div><p class="msg" role="status">${linkErr?'That link has expired or was already used. Request a new one.':''}</p></form>`);stamp('');return true}
+  if(r.status===403){gate('No admin access','This account is signed in but its email is not in <code>ADMIN_EMAILS</code> on the API.','<button class="btn primary" data-signout>Sign out</button>');stamp('');return true}
+  if(r.status!==200||!r.j){gate('Could not load '+what,esc((r.j&&r.j.error)||'The API did not answer. Check your connection and try again.'),'<button class="btn primary" data-retry>Try again</button>');stamp('');return true}
+  return false}
+async function loadStats(){const {from,to}=rangeDates(st.range);stamp('Loading…');
+  main.innerHTML='<div class="empty" style="height:240px">Loading stats…</div>';
+  const r=await api('/admin/stats?from='+from+'&to='+to);
+  if(guard(r,'stats'))return;
   st.data=r.j;render()}
 function stamp(t){document.getElementById('stamp').textContent=t}
+
+// ===== players: who played in the range (or on one day), plus the leaderboard; each row opens a profile =====
+const HEROES=['King Cube','Ruby Knight','Mint Mage','Shadow Rogue','Pumpkin Prince']; // CH order in index.html
+const BOARDS=[['fastest','Fastest win'],['survival','Longest run'],['kills','Most kills']];
+const profileHref=r=>'#player/'+(r.user_id?'user/'+encodeURIComponent(r.user_id):'install/'+r.install_id);
+const avatar=(src,cls='')=>src?`<img class="${cls}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<i class="av ${cls}"></i>`;
+const playerCell=r=>`<a class="pl" href="${profileHref(r)}">`+(r.user_id
+  ?avatar(r.avatar)+`<span><b>${esc(r.name||r.handle||'Player')}</b>${r.handle?` <span class="muted">@${esc(r.handle)}</span>`:''}</span>`
+  :`<i class="av anon"></i><span><b>Anonymous</b> <span class="muted">device ${esc(r.install_id.slice(0,8))}</span></span>`)+'</a>';
+const ago=t=>{const s=(Date.now()-new Date(t))/1000;return s<3600?Math.max(1,Math.round(s/60))+'m ago':s<86400?Math.round(s/3600)+'h ago':Math.round(s/86400)+'d ago'};
+// rows: [{href, cells:[html...]}]; cells are already escaped
+const linkTable=(cols,rows)=>'<div class="tw"><table><thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
+  rows.map(r=>`<tr class="link" data-href="${r.href}">`+r.cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+main.addEventListener('click',e=>{const tr=e.target.closest('tr.link');if(tr&&!e.target.closest('a'))location.hash=tr.dataset.href});
+
+function playersRange(){return st.day?{from:st.day,to:addDays(st.day,1)}:rangeDates(st.range)}
+function loadPlayers(){main.innerHTML=`
+  <div class="pbar">
+    <input type="search" id="p-q" placeholder="Search handle, name or device id" aria-label="Search players" value="${esc(st.q)}">
+    <label class="stamp">Day <input type="date" id="p-day" value="${st.day}" max="${today()}"></label>
+    ${st.day?'<button class="btn" id="p-clear">Whole range</button>':''}
+  </div>
+  <div class="pgrid">
+    <section class="card"><h2>Players</h2><div class="sub" id="p-sub"></div><div id="p-list"></div></section>
+    <section class="card"><h2>Leaderboard</h2><div class="sub">Each player's best run, all time</div>
+      <div class="seg" id="p-boards" role="group" aria-label="Board">${BOARDS.map(([k,n])=>`<button data-b="${k}" aria-pressed="${k===st.board}">${esc(n)}</button>`).join('')}</div>
+      <div id="p-board"></div></section>
+  </div>`;
+  let qt;document.getElementById('p-q').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{st.q=e.target.value.trim();fetchPlayers()},250)};
+  document.getElementById('p-day').onchange=e=>{st.day=e.target.value;drawRanges();loadPlayers()};
+  const c=document.getElementById('p-clear');if(c)c.onclick=()=>{st.day='';drawRanges();loadPlayers()};
+  document.getElementById('p-boards').onclick=e=>{const b=e.target.closest('button');if(!b)return;st.board=b.dataset.b;
+    document.querySelectorAll('#p-boards button').forEach(x=>x.setAttribute('aria-pressed',x===b));fetchBoard()};
+  fetchPlayers();fetchBoard()}
+async function fetchPlayers(){const {from,to}=playersRange(),q=st.q;stamp('Loading…');
+  const r=await api('/admin/players?from='+from+'&to='+to+(q?'&q='+encodeURIComponent(q):''));
+  if(st.view!=='players'||q!==st.q)return; // a newer search or view took over
+  if(guard(r,'players'))return;
+  const {rows,truncated}=r.j,list=document.getElementById('p-list');
+  document.getElementById('p-sub').textContent=(st.day?'Active on '+dayLbl(st.day):'Active '+dayLbl(from)+' to '+dayLbl(addDays(to,-1)))+
+    ' · '+fmtN(rows.length)+(truncated?'+':'')+' players'+(q?' matching "'+q+'"':'');
+  list.innerHTML=rows.length?linkTable(['Player','Last active','Runs','Devices','Gold','Codex'],rows.map(p=>({href:profileHref(p),cells:[
+    playerCell(p),esc(ago(p.last_active)),fmtN(p.runs),fmtN(p.devices),p.gold==null?'<span class="muted">no save</span>':fmtN(p.gold),p.codex_items==null?'':fmtN(p.codex_items)]})))
+    +(truncated?'<p class="note" style="margin-top:10px">Showing the 200 most recent. Narrow the range or search to see others.</p>':'')
+    :empty(q?'No players match that search':'Nobody played in this range');
+  stamp('')}
+async function fetchBoard(){const b=st.board,el=document.getElementById('p-board');el.innerHTML='<div class="empty">Loading…</div>';
+  const r=await api('/admin/leaderboard?board='+b);
+  if(st.view!=='players'||b!==st.board)return;
+  if(r.status!==200||!r.j){el.innerHTML=empty('Could not load the leaderboard');return}
+  const val=x=>b==='kills'?fmtN(x.kills):b==='fastest'?fmtDur(x.time_s)+(x.curse?' · curse '+x.curse:''):fmtDur(x.time_s);
+  el.innerHTML=r.j.rows.length?linkTable(['#','Player',b==='kills'?'Kills':'Time','Hero'],r.j.rows.map(x=>({href:profileHref(x),cells:[
+    fmtN(x.rank),playerCell(x),esc(val(x)),esc(heroLbl(x.hero))]}))):empty('No scores on this board yet')}
+
+// ===== profile: one X account (every device it signed in on) or one anonymous device =====
+async function loadProfile(kind,id){stamp('Loading…');main.innerHTML='<div class="empty" style="height:240px">Loading player…</div>';
+  const r=await api('/admin/players/'+kind+'/'+encodeURIComponent(id));
+  if(st.view!=='profile')return;
+  if(r.status===404){document.body.classList.remove('signed-out');gate('Player not found','No sessions, saves, runs or scores for this id.','<a class="btn primary" href="#players">Back to players</a>');return stamp('')}
+  if(guard(r,'this player'))return;
+  // A device that once signed in opens as its account, so the URL names the account.
+  if(kind==='install'&&r.j.kind==='user')try{history.replaceState(null,'','#player/user/'+encodeURIComponent(r.j.user.id))}catch(e){}
+  st.profile=r.j;st.dev=0;renderProfile();stamp('')}
+function renderProfile(){const p=st.profile,u=p.user,devs=p.devices,d=devs[st.dev]||null,s=d&&d.snapshot;
+  const devName=(x,i)=>(x.touch?'Mobile':'Desktop')+(devs.length>1?' '+(i+1):'');
+  const lastSeen=devs.map(x=>x.last_seen).filter(Boolean).sort().pop();
+  main.innerHTML=`
+  <p><a class="back" href="#players">&lsaquo; Players</a></p>
+  <div class="card phead">${u?avatar(u.avatar,'big'):'<i class="av big anon"></i>'}
+    <div><h2>${u?esc(u.name):'Anonymous player'}<span class="badge">${u?'Signed in with X':'Never signed in'}</span></h2>
+      <div class="sub">${u?(u.handle?`<a href="https://x.com/${encodeURIComponent(u.handle)}" target="_blank" rel="noopener">@${esc(u.handle)}</a> · `:'')+'Account since '+esc(dayLbl(u.created_at.slice(0,10)))
+        :'Progress is saved on this one device only. Device <code>'+esc(d.install_id)+'</code>'}</div>
+      <div class="sub">${fmtN(devs.length)} ${devs.length===1?'device':'devices'}${lastSeen?' · last seen '+esc(ago(lastSeen)):''} · ${fmtN(p.runs.total)} runs recorded</div></div></div>
+  ${devs.length>1?`<div class="seg" id="devs" role="group" aria-label="Device">${devs.map((x,i)=>`<button data-i="${i}" aria-pressed="${i===st.dev}">${esc(devName(x,i))}</button>`).join('')}</div>
+    <p class="note">Each device keeps its own save until cloud save ships. Showing ${esc(devName(d,st.dev))}${d.last_seen?', last seen '+esc(ago(d.last_seen)):''}.</p>`:''}
+  ${!d?empty('No device has reported in yet. Their save uploads the next time they open the game.')
+    :!s?empty('No save from this device yet. It uploads the next time they open the game.')
+    :`<div class="tiles">
+      ${tile('Gold',fmtN(s.gold),'on hand')}
+      ${tile('Runs',fmtN(s.runs),fmtN(s.wins)+' wins')}
+      ${tile('Kills',fmtC(s.kills),'all time')}
+      ${tile('Best time',fmtDur(s.best_s),'max curse '+s.max_curse)}
+      ${tile('Heroes',s.chars.length+' of '+HEROES.length,'unlocked')}
+      ${tile('Codex',fmtN(s.codex_items)+' items',fmtN(s.codex_enemies)+' enemies seen')}
+      ${tile('Pumpkin Crowns',fmtN(s.pumpkin_crowns),'held')}
+      ${tile('Sessions',fmtN(d.sessions),d.first_seen?'since '+dayLbl(d.first_seen.slice(0,10)):'')}
+    </div>`}
+  <div class="grid" style="margin-top:16px">
+    ${s?`<section class="card"><h2>Shop upgrades</h2><div class="sub">Level bought of each upgrade</div><div class="tw"><table><tbody>${META.map(([k,n,max])=>{const l=s.meta[k]||0;
+      return`<tr><td>${esc(n)}</td><td>${l} / ${max}<span class="meter"><i style="width:${Math.min(100,l/max*100)}%"></i></span></td></tr>`}).join('')}</tbody></table></div></section>
+    <section class="card"><h2>Heroes</h2><div class="sub">Unlocked heroes and classic wins with each</div>
+      <div class="chips">${HEROES.map((h,i)=>`<span class="chip${s.chars.includes(i)?'':' off'}">${esc(h)}${s.wins_by[i]?' · '+fmtN(s.wins_by[i])+(s.wins_by[i]===1?' win':' wins'):''}</span>`).join('')}</div></section>`:''}
+    ${p.boards?`<section class="card"><h2>Leaderboard</h2><div class="sub">Best run on each board</div><div class="tw"><table><thead><tr><th>Board</th><th>Rank</th><th>Best</th><th>Hero</th></tr></thead><tbody>${BOARDS.map(([k,n])=>{const b=p.boards[k];
+      return`<tr><td>${esc(n)}</td><td>${b.rank?'#'+fmtN(b.rank)+' <span class="muted">of '+fmtN(b.total)+'</span>':'<span class="muted">not ranked</span>'}</td><td>${b.rank?esc(k==='kills'?fmtN(b.kills):fmtDur(b.time_s)+(k==='fastest'&&b.curse?' · curse '+b.curse:'')):''}</td><td>${b.hero?esc(heroLbl(b.hero)):''}</td></tr>`}).join('')}</tbody></table></div></section>`:''}
+    ${s?codexCard(s.codex):''}
+    <section class="card wide"><h2>Recent runs</h2><div class="sub">${fmtN(p.runs.total)} runs from ${devs.length===1?'this device':'all devices'}: ${fmtN(p.runs.wins)} wins, ${fmtN(p.runs.halloween)} Halloween, ${fmtN(p.runs.gold_earned)} gold earned${p.runs.crowns?', '+fmtN(p.runs.crowns)+' crowns':''}. Latest ${Math.min(p.runs.recent.length,50)} shown.</div>
+      ${p.runs.recent.length?'<div class="tw"><table><thead><tr><th>When</th><th>Mode</th><th>Hero</th><th>Result</th><th>Time</th><th>Kills</th><th>Level</th><th>Gold</th><th>Detail</th></tr></thead><tbody>'+p.runs.recent.map(x=>
+        `<tr><td>${esc(new Date(x.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZone:TZ}))}</td><td>${x.mode==='halloween'?'Halloween':'Classic'}</td><td>${esc(heroLbl(x.hero))}</td><td>${esc(x.result)}</td><td>${fmtDur(x.time_s)}</td><td>${fmtN(x.kills)}</td><td>${x.level}</td><td>${fmtN(x.gold_earned)}</td><td>${esc(runDetail(x))}</td></tr>`).join('')+'</tbody></table></div>'
+        :empty('No runs recorded yet. Runs are recorded from the telemetry release onwards.')}</section>
+  </div>`;
+  const ds=document.getElementById('devs');if(ds)ds.onclick=e=>{const b=e.target.closest('button');if(b){st.dev=Number(b.dataset.i);renderProfile()}}}
+const runDetail=x=>x.mode==='halloween'?[x.crowns!=null&&x.crowns+' crowns',x.night_rank&&'night '+x.night_rank,x.death_cause&&(CAUSE[x.death_cause]||x.death_cause)].filter(Boolean).join(' · ')
+  :[x.bosses!=null&&x.bosses+'/5 bosses',x.curse&&'curse '+x.curse].filter(Boolean).join(' · ');
+function codexCard(cx){const it=Object.entries(cx.items||{}).filter(([,r])=>r.seen),en=Object.entries(cx.enemies||{}).filter(([,r])=>r.seen);
+  const name=k=>heroLbl(k.replace(/^[a-z]+:/,'').replace(/_/g,'-'));
+  return`<section class="card"><h2>Codex</h2><div class="sub">${fmtN(it.length)} items and ${fmtN(en.length)} enemies discovered</div>
+    ${table(['Entry','Kind','Picked / killed'],it.map(([k,r])=>[name(k),'Item',fmtN(r.taken||0)]).concat(en.map(([k,r])=>[name(k),'Enemy',fmtN(r.kills||0)])))}</section>`}
+
+// ===== views: #players, #player/user/<id>, #player/install/<id>, otherwise the overview =====
+function route(){const m=location.hash.match(/^#player\/(user|install)\/([^/]+)$/);
+  st.view=m?'profile':location.hash==='#players'?'players':'overview';redraw=null;
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===(st.view==='overview'?'overview':'players')));
+  rg.hidden=st.view==='profile';drawRanges();
+  if(m)return loadProfile(m[1],decodeURIComponent(m[2]));
+  return st.view==='players'?loadPlayers():loadStats()}
+const load=route;
 function render(){redraw=layout(st.data);const d=st.data;stamp(dayLbl(d.range.from)+' to '+dayLbl(addDays(d.range.to,-1))+' · updated '+new Date(d.generated_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}
 async function who(){const r=await api('/me'),u=r.j&&r.j.user;const el=document.getElementById('who');
   el.innerHTML=u?`<button class="btn" id="signout">Sign out</button>`:'';if(u)document.getElementById('signout').onclick=signOut}
@@ -342,13 +491,17 @@ async function envBadge(){const r=await api('/health'),e=r.j&&r.j.env;if(!e)retu
 
 // ===== controls =====
 const rg=document.getElementById('ranges');
-function drawRanges(){rg.innerHTML=RANGES.map(r=>`<button aria-pressed="${r.k===st.range}" data-k="${r.k}">${esc(r.n)}</button>`).join('')}
-rg.onclick=e=>{const b=e.target.closest('button');if(!b||b.dataset.k===st.range)return;st.range=b.dataset.k;store.set('cs_admin_range',st.range);drawRanges();load()};
+// A single day picked on the Players view overrides the range until cleared.
+const dayOn=()=>st.view==='players'&&st.day;
+function drawRanges(){rg.innerHTML=RANGES.map(r=>`<button aria-pressed="${!dayOn()&&r.k===st.range}" data-k="${r.k}">${esc(r.n)}</button>`).join('')}
+rg.onclick=e=>{const b=e.target.closest('button');if(!b||(b.dataset.k===st.range&&!dayOn()))return;st.range=b.dataset.k;st.day='';store.set('cs_admin_range',st.range);load()};
+document.getElementById('tabs').onclick=e=>{const b=e.target.closest('button');if(b)location.hash=b.dataset.v==='players'?'players':''};
+addEventListener('hashchange',route);
 document.getElementById('refresh').onclick=load;
 let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(redraw&&st.data)redraw()},120)});
-matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(st.data)render()});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(st.view==='overview'&&st.data)render()});
 
-drawRanges();load();who();envBadge();
+load();who();envBadge();
 })();
 </script>
 </body>
