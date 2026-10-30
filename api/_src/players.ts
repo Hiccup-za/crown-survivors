@@ -1,6 +1,6 @@
 import { pool } from "./db.js";
 import { BOARDS, type Board, getMyRank } from "./scores.js";
-import { TZ } from "./admin.js";
+import { bounds, type Range } from "./admin.js";
 
 // Admin player list and profiles (docs/telemetry.md). Read-only. A player is an X account (every device it ever
 // signed in on) or, for people who never signed in, a single anonymous install.
@@ -42,9 +42,9 @@ export interface PlayerRow {
  * Players active in [from, to): a session, run or leaderboard score in the range. q filters by handle, name or
  * install id prefix. Newest activity first.
  */
-export async function listPlayers(from: string, to: string, q: string | null): Promise<{ rows: PlayerRow[]; truncated: boolean }> {
+export async function listPlayers(range: Range, q: string | null): Promise<{ rows: PlayerRow[]; truncated: boolean }> {
   const { rows } = await pool.query<PlayerRow>(
-    `WITH b AS (SELECT ($1::date)::timestamp AT TIME ZONE '${TZ}' AS lo, ($2::date)::timestamp AT TIME ZONE '${TZ}' AS hi),
+    `WITH ${bounds(range)},
      ${INSTALL_USER},
      act AS (
        SELECT coalesce(s.user_id, iu.user_id) AS user_id, s.install_id, s.started_at AS at, 0 AS run
@@ -79,7 +79,7 @@ export async function listPlayers(from: string, to: string, q: string | null): P
         OR p.install_id::text LIKE lower($3) || '%'
      ORDER BY p.last_active DESC
      LIMIT $4`,
-    [from, to, q ? likeEscape(q) : null, PLAYERS_LIMIT + 1],
+    [range.from, range.to, q ? likeEscape(q) : null, PLAYERS_LIMIT + 1],
   );
   return { rows: rows.slice(0, PLAYERS_LIMIT), truncated: rows.length > PLAYERS_LIMIT };
 }

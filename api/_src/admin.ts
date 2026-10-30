@@ -6,6 +6,14 @@ import { pool } from "./db.js";
 export const TZ = "Africa/Johannesburg";
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const MAX_RANGE_DAYS = 120;
+export const MAX_RANGE_HOURS = 168;
+const HOUR_MS = 3_600_000;
+
+/**
+ * A reporting window. "day": from/to are YYYY-MM-DD in TZ, bucketed by day. "hour": from/to are ISO instants on
+ * hour boundaries, bucketed by hour.
+ */
+export type Range = { from: string; to: string; bucket: "day" | "hour" };
 
 /** Emails (any case) allowed to sign in by magic link and read admin stats. Empty = nobody. */
 export function isAdminEmail(email: string | null | undefined): boolean {
@@ -19,16 +27,27 @@ export function isAdmin(user: { email?: string | null; emailVerified?: boolean |
 }
 
 /** from inclusive, to exclusive, both YYYY-MM-DD in TZ. */
-export function parseRange(from: string | undefined, to: string | undefined): { from: string; to: string } | null {
+export function parseRange(from: string | undefined, to: string | undefined): Range | null {
   if (!from || !to || !DAY_RE.test(from) || !DAY_RE.test(to)) return null;
   const a = Date.parse(from + "T00:00:00Z"), b = Date.parse(to + "T00:00:00Z");
   if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a || (b - a) / 86_400_000 > MAX_RANGE_DAYS) return null;
-  return { from, to };
+  return { from, to, bucket: "day" };
 }
 
-// $1 / $2 are the range days; b.lo / b.hi are the matching instants.
-const BOUNDS = `b AS (SELECT ($1::date)::timestamp AT TIME ZONE '${TZ}' AS lo, ($2::date)::timestamp AT TIME ZONE '${TZ}' AS hi)`;
-const dayOf = (col: string) => `(${col} AT TIME ZONE '${TZ}')::date`;
+/** The last `hours` whole hours, ending at the end of the current hour (so the current hour is the last bucket). */
+export function parseHours(hours: string | undefined, now = Date.now()): Range | null {
+  if (!hours || !/^\d{1,3}$/.test(hours)) return null;
+  const n = Number(hours);
+  if (n < 1 || n > MAX_RANGE_HOURS) return null;
+  const hi = (Math.floor(now / HOUR_MS) + 1) * HOUR_MS;
+  return { from: new Date(hi - n * HOUR_MS).toISOString(), to: new Date(hi).toISOString(), bucket: "hour" };
+}
+
+/** The `b` CTE: $1 / $2 are the range bounds; b.lo / b.hi are the matching instants. */
+export const bounds = (r: Range) =>
+  r.bucket === "hour"
+    ? `b AS (SELECT $1::timestamptz AS lo, $2::timestamptz AS hi)`
+    : `b AS (SELECT ($1::date)::timestamp AT TIME ZONE '${TZ}' AS lo, ($2::date)::timestamp AT TIME ZONE '${TZ}' AS hi)`;
 
 const GOLD_BUCKETS = `CASE
   WHEN gold = 0 THEN 0 WHEN gold < 100 THEN 1 WHEN gold < 500 THEN 2 WHEN gold < 1000 THEN 3
@@ -36,12 +55,13 @@ const GOLD_BUCKETS = `CASE
 const GOLD_LABELS = ["0", "1-99", "100-499", "500-999", "1K-2.5K", "2.5K-5K", "5K-10K", "10K+"];
 
 export interface AdminStats {
-  range: { from: string; to: string; tz: string };
+  range: { from: string; to: string; tz: string; bucket: Range["bucket"] };
   generated_at: string;
   kpis: {
     players: number; new_players: number; sessions: number; avg_session_s: number; runs: number;
     halloween_runs: number; crowns_earned: number; touch_share: number; signed_in_share: number;
   };
+  /** One row per bucket; `day` is YYYY-MM-DD for day ranges, the hour's ISO start instant for hour ranges. */
   daily: { day: string; players: number; new_players: number; sessions: number; runs_classic: number; runs_halloween: number; crowns: number }[];
   deaths: { cause: string; n: number }[];
   heroes: { hero: string; runs: number; wins: number; crowns: number }[];
@@ -55,8 +75,14 @@ export interface AdminStats {
   funnel: { stage: string; n: number }[];
 }
 
-export async function getAdminStats(from: string, to: string): Promise<AdminStats> {
-  const p = [from, to];
+export async function getAdminStats(range: Range): Promise<AdminStats> {
+  const { from, to } = range, p = [from, to], BOUNDS = bounds(range), hourly = range.bucket === "hour";
+  // Hours are the same instants in any whole-hour offset, so date_trunc needs no time zone.
+  const bucketOf = (col: string) => (hourly ? `date_trunc('hour', ${col})` : `(${col} AT TIME ZONE '${TZ}')::date`);
+  const series = hourly
+    ? `SELECT generate_series(b.lo, b.hi - interval '1 hour', interval '1 hour') AS day FROM b`
+    : `SELECT generate_series($1::date, $2::date - 1, interval '1 day')::date AS day`;
+  const label = hourly ? `to_char(d.day AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')` : `d.day::text`;
   const [kpis, daily, deaths, heroes, prog, gold, codex, upgrades, funnel] = await Promise.all([
     pool.query(
       `WITH ${BOUNDS},
@@ -78,11 +104,11 @@ export async function getAdminStats(from: string, to: string): Promise<AdminStat
     ),
     pool.query(
       `WITH ${BOUNDS},
-       days AS (SELECT generate_series($1::date, $2::date - 1, interval '1 day')::date AS day),
-       s AS (SELECT ${dayOf("t.started_at")} AS day, t.install_id FROM telemetry_sessions t, b WHERE t.started_at >= b.lo AND t.started_at < b.hi),
-       f AS (SELECT ${dayOf("min(started_at)")} AS day FROM telemetry_sessions GROUP BY install_id),
-       r AS (SELECT ${dayOf("t.created_at")} AS day, t.mode, t.crowns FROM telemetry_runs t, b WHERE t.created_at >= b.lo AND t.created_at < b.hi)
-       SELECT d.day::text AS day,
+       days AS (${series}),
+       s AS (SELECT ${bucketOf("t.started_at")} AS day, t.install_id FROM telemetry_sessions t, b WHERE t.started_at >= b.lo AND t.started_at < b.hi),
+       f AS (SELECT ${bucketOf("min(started_at)")} AS day FROM telemetry_sessions GROUP BY install_id),
+       r AS (SELECT ${bucketOf("t.created_at")} AS day, t.mode, t.crowns FROM telemetry_runs t, b WHERE t.created_at >= b.lo AND t.created_at < b.hi)
+       SELECT ${label} AS day,
          (SELECT count(DISTINCT install_id) FROM s WHERE s.day = d.day)::int AS players,
          (SELECT count(*) FROM f WHERE f.day = d.day)::int AS new_players,
          (SELECT count(*) FROM s WHERE s.day = d.day)::int AS sessions,
@@ -151,7 +177,7 @@ export async function getAdminStats(from: string, to: string): Promise<AdminStat
   const codexN = new Map(codex.rows.map((r) => [Number(r.i), r.n as number]));
   const f = funnel.rows[0];
   return {
-    range: { from, to, tz: TZ },
+    range: { from, to, tz: TZ, bucket: range.bucket },
     generated_at: new Date().toISOString(),
     kpis: kpis.rows[0],
     daily: daily.rows,

@@ -193,6 +193,22 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       assert.equal(anon.gold, 70);
     });
 
+    test("hour ranges roll with the clock and bucket stats by hour", async () => {
+      await session(ANON, null, new Date().toISOString());
+      await session(OLD, null, new Date(Date.now() - 30 * 3_600_000).toISOString());
+      const players = async (h: number) => (await (await get(`/players?hours=${h}`)).json()).rows.map((r: { install_id: string }) => r.install_id);
+      assert.deepEqual(await players(24), [ANON]);
+      assert.deepEqual((await players(48)).sort(), [ANON, OLD].sort());
+      const s = await (await get("/stats?hours=24")).json();
+      assert.equal(s.range.bucket, "hour");
+      assert.equal(s.daily.length, 24);
+      assert.match(s.daily[0].day, /^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/);
+      assert.equal(s.daily.at(-1).players, 1, "the current hour is the last bucket");
+      assert.equal(s.kpis.players, 1);
+      assert.equal((await get("/stats?hours=0")).status, 400);
+      assert.equal((await get("/stats?hours=169")).status, 400);
+    });
+
     test("filters by handle and by install id prefix", async () => {
       const byHandle = await (await get("/players?from=2026-10-01&to=2026-10-08&q=PLAYER")).json();
       assert.deepEqual(byHandle.rows.map((r: { user_id: string }) => r.user_id), ["u1"]);

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0] - 2026-10-30
+
+### Added
+- The admin dashboard has 24, 48 and 72 hour ranges that roll with the clock and chart players and runs per hour.
+- The Players tab follows the same hour ranges, listing everyone active in the last 24, 48 or 72 hours.
+- The admin stats and players endpoints accept `?hours=N` (1 to 168) for a rolling window bucketed by hour.
+
 ## [0.4.2] - 2026-10-30
 
 ### Changed
