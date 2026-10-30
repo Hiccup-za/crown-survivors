@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Asset Viewer · Crown Survivors</title>
+<style>
+:root{
+  --bg:#120e18;--panel:#1b1624;--panel2:#221c2d;--line:#2f2740;--line2:#3d3352;
+  --text:#ece4d4;--dim:#9a8fae;--faint:#6b6180;
+  --gold:#ffd23f;--pump:#ff8a3d;--ink:#3b2a1a;--ok:#7cc25a;--err:#ff6a5a;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.4 var(--ui);overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+kbd{font:11px var(--mono);padding:1px 5px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;color:var(--dim);background:var(--panel2)}
+
+.app{display:grid;grid-template-rows:46px 1fr;grid-template-columns:272px 1fr 312px;grid-template-areas:"top top top" "browser stage inspector";height:100vh}
+
+/* top bar */
+.top{grid-area:top;display:flex;align-items:center;gap:14px;padding:0 14px;border-bottom:1px solid var(--line);background:linear-gradient(#1d1727,#17121f)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.02em}
+.brand canvas{width:24px;height:24px}
+.brand small{font-weight:500;color:var(--dim)}
+.status{display:flex;align-items:center;gap:8px;font:12px var(--mono);color:var(--dim);padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.dot.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.dot.err{background:var(--err);box-shadow:0 0 8px var(--err)}
+.dot.busy{background:var(--gold);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);font-size:12px}
+.btn:hover{border-color:var(--dim)}
+.btn.on{border-color:var(--gold);color:var(--gold);background:#2a2214}
+.btn:disabled{opacity:.4;cursor:default}
+
+/* browser */
+.browser{grid-area:browser;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--panel);min-height:0}
+.search{padding:10px;border-bottom:1px solid var(--line)}
+.search input{width:100%;height:30px;padding:0 10px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);outline:none}
+.search input:focus{border-color:var(--gold)}
+.tree{flex:1;overflow:auto;padding:4px 0 16px}
+.group>summary{list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);cursor:pointer;user-select:none}
+.group>summary::-webkit-details-marker{display:none}
+.group>summary::before{content:"▸";font-size:10px;transition:transform .15s}
+.group[open]>summary::before{transform:rotate(90deg)}
+.group>summary .n{margin-left:auto;font:11px var(--mono);color:var(--faint)}
+.item{display:flex;align-items:center;gap:10px;width:100%;padding:4px 12px 4px 18px;border:0;border-left:2px solid transparent;background:none;text-align:left}
+.item:hover{background:var(--panel2)}
+.item.sel{background:#2a2214;border-left-color:var(--gold)}
+.item canvas{width:40px;height:40px;flex:none;border-radius:6px;background:#0d0a12}
+.item b{display:block;font-weight:600;font-size:12.5px}
+.item span{display:block;font-size:11px;color:var(--faint)}
+.item.missing{opacity:.45}
+
+/* stage */
+.stage{grid-area:stage;display:grid;grid-template-rows:40px 1fr auto;min-width:0;min-height:0}
+.toolbar{display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+.toolbar .sep{width:1px;height:20px;background:var(--line2);margin:0 4px}
+.toolbar select{height:28px;padding:0 6px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2)}
+.zoomv{font:12px var(--mono);color:var(--dim);min-width:72px;text-align:center}
+.viewport{position:relative;min-height:0;overflow:hidden;cursor:grab}
+.viewport.drag{cursor:grabbing}
+.viewport canvas{position:absolute;inset:0;width:100%;height:100%}
+.hud{position:absolute;left:12px;bottom:10px;font:11px var(--mono);color:var(--dim);text-shadow:0 1px 2px #000;pointer-events:none;white-space:pre}
+.err{position:absolute;inset:auto 12px 12px auto;max-width:60%;padding:10px 12px;border:1px solid var(--err);border-radius:8px;background:#2a1216;color:#ffc9c2;font:12px var(--mono);white-space:pre-wrap;display:none}
+
+/* timeline */
+.timeline{border-top:1px solid var(--line);background:var(--panel);padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
+.clips{display:flex;flex-wrap:wrap;gap:6px}
+.clip{height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:999px;background:var(--panel2);font-size:12px}
+.clip i{font:10px var(--mono);font-style:normal;color:var(--faint);margin-right:6px}
+.clip.on{border-color:var(--pump);background:#2d1c10;color:#ffc999}
+.transport{display:flex;align-items:center;gap:6px}
+.tbtn{width:32px;height:28px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);display:grid;place-items:center;font-size:13px}
+.tbtn.play{width:44px;background:var(--gold);color:#241a08;border-color:var(--gold);font-weight:700}
+.scrub{flex:1;accent-color:var(--pump)}
+.tc{font:12px var(--mono);color:var(--dim);min-width:150px;text-align:right}
+.transport select{height:28px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);padding:0 4px}
+.strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.frame{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;border:1px solid var(--line);border-radius:6px;background:#0d0a12;cursor:pointer}
+.frame canvas{width:64px;height:64px}
+.frame span{font:10px var(--mono);color:var(--faint)}
+.frame.on{border-color:var(--pump)}
+.frame.on span{color:#ffc999}
+
+/* inspector */
+.inspector{grid-area:inspector;border-left:1px solid var(--line);background:var(--panel);overflow:auto;min-height:0}
+.sec{padding:12px 14px;border-bottom:1px solid var(--line)}
+.sec h3{margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.title{font-size:18px;font-weight:700;margin:0}
+.tag{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;font-size:11px;background:var(--panel2);border:1px solid var(--line2);color:var(--dim)}
+.desc{margin:8px 0 0;color:var(--dim)}
+.src{margin-top:8px;font:11.5px var(--mono);color:#c9a0ff;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;word-break:break-all}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:4px 0;border-bottom:1px dashed var(--line)}
+td:first-child{color:var(--dim)}
+td:last-child{text-align:right;font-family:var(--mono)}
+.ctl{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0}
+.ctl label{color:var(--dim)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--panel2);padding:4px 10px;font-size:12px}
+.seg button+button{border-left:1px solid var(--line2)}
+.seg button.on{background:var(--gold);color:#241a08;font-weight:700}
+.seg button:disabled{opacity:.35;cursor:default}
+.ctl.off{opacity:.45}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}
+.sw button{display:flex;flex-direction:column;gap:3px;padding:0;border:0;background:none;text-align:left}
+.sw button i{display:block;height:26px;border-radius:5px;border:1px solid #0006;box-shadow:inset 0 0 0 1px #fff1}
+.sw button span{font:10px var(--mono);color:var(--faint)}
+.sw button:hover span{color:var(--text)}
+.ramp{display:flex;align-items:center;gap:8px;margin:4px 0}
+.ramp b{width:52px;font:11px var(--mono);color:var(--dim);font-weight:400}
+.ramp .sw{flex:1;grid-template-columns:repeat(4,1fr)}
+.ramp .sw i{height:18px}
+.ramp .sw span{display:none}
+.exp{display:flex;flex-wrap:wrap;gap:6px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;padding:8px 14px;border-radius:8px;background:var(--gold);color:#241a08;font-weight:600;transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12px;color:var(--dim)}
+iframe.rt{position:fixed;left:-10000px;top:0;width:360px;height:640px;border:0;visibility:hidden}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><canvas id="logo" width="48" height="48"></canvas>Crown Survivors <small>Asset Viewer</small></div>
+    <div class="status" title="Source: public/index.html, reloaded automatically when it changes"><span class="dot busy" id="dot"></span><span id="status">Loading game source…</span></div>
+    <div class="spacer"></div>
+    <button class="btn" id="lineup" title="Show every asset in this group side by side (L)">Lineup</button>
+    <button class="btn" id="reload" title="Reload the game source (R)">Reload source</button>
+  </header>
+
+  <aside class="browser">
+    <div class="search"><input id="q" placeholder="Search assets  ( / )" autocomplete="off"></div>
+    <div class="tree" id="tree"></div>
+  </aside>
+
+  <section class="stage">
+    <div class="toolbar">
+      <button class="btn" data-zoom="phone" title="Phone scale: what a 390×844 player sees">Phone 1:1</button>
+      <button class="btn" data-zoom="2">2×</button>
+      <button class="btn" data-zoom="4">4×</button>
+      <button class="btn" data-zoom="8">8×</button>
+      <button class="btn" data-zoom="fit" title="Fit to view (0)">Fit</button>
+      <span class="zoomv" id="zoomv">4.00×</span>
+      <span class="sep"></span>
+      <select id="bg" title="Backdrop"></select>
+      <span class="sep"></span>
+      <button class="btn" data-ov="hitbox" title="Collision radius from the game data (H)">Hitbox</button>
+      <button class="btn" data-ov="grid" title="World grid: 8u cells, 48u arena tiles (G)">Grid</button>
+      <button class="btn" data-ov="origin" title="Sprite origin (the entity position)">Origin</button>
+      <button class="btn" data-ov="onion" title="Onion skin: previous frame red, next frame green (O)">Onion</button>
+    </div>
+    <div class="viewport" id="vp">
+      <canvas id="view"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="err" id="err"></div>
+    </div>
+    <div class="timeline">
+      <div class="clips" id="clips"></div>
+      <div class="transport">
+        <button class="tbtn" id="first" title="Restart">⏮</button>
+        <button class="tbtn" id="prev" title="Step back (←)">◀︎</button>
+        <button class="tbtn play" id="play" title="Play / pause (Space)">❚❚</button>
+        <button class="tbtn" id="next" title="Step forward (→)">▶︎</button>
+        <input type="range" class="scrub" id="scrub" min="0" max="1000" value="0">
+        <select id="speed" title="Playback speed">
+          <option value=".1">0.1×</option><option value=".25">0.25×</option><option value=".5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option>
+        </select>
+        <span class="tc" id="tc">0.00s</span>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+  </section>
+
+  <aside class="inspector" id="insp"></aside>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/app.js"></script>
+</body>
+</html>

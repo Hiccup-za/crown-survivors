@@ -1,12 +1,13 @@
 {
   "name": "crown-survivors",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "scripts": {
     "typecheck": "npm run typecheck --prefix api",
     "test": "npm run test --prefix api",
     "migrate": "npm run migrate --prefix api",
-    "dev": "npm run dev --prefix api"
+    "dev": "npm run dev --prefix api",
+    "assets": "node tools/asset-viewer/serve.mjs"
   },
   "engines": {
     "node": ">=20"

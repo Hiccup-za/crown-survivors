@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0] - 2026-10-30
+
+### Added
+- An asset viewer for developers (`npm run assets`) that browses every hero, enemy, boss, pickup, icon and emblem, drawn by the live game code.
+- Each asset's animations can be played, paused, stepped frame by frame and scrubbed, including attack tells, boss phases, hit flashes and silhouettes.
+- The viewer has zoom with a phone 1:1 preset, arena backdrops, hitbox, grid and onion skin overlays, a lineup mode for comparing sizes, and PNG frame and sprite sheet export.
+- The viewer reloads by itself when `public/index.html` changes, runs offline without touching saves, and is never deployed.
+
 ## [0.5.0] - 2026-10-30
 
 ### Added

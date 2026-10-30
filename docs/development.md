@@ -7,6 +7,7 @@ Everything needed to configure, run, test and deploy Crown Survivors Classic and
 - [Environment variables](#environment-variables-vercel--local)
 - [X developer app (OAuth 2.0)](#x-developer-app-oauth-20)
 - [Local development](#local-development)
+- [Asset viewer](#asset-viewer)
 - [Deploy (Vercel)](#deploy-vercel)
 - [API routes](#api-routes-summary)
 - [Seasonal events](#seasonal-events)
@@ -60,6 +61,12 @@ Tests: `DATABASE_URL=postgresql://localhost:5432/crown_test npm test` runs the u
 Ad-hoc SQL: use `npm run db --prefix api -- "<sql>"` instead of raw `psql`. It refuses an empty or host-less URL (`psql ""` silently connects to your local default database), prints the host, database and applied migrations before running, runs read-only unless `--write`, and remote writes also need `--confirm-host <host>`. `--url-env NAME` reads a different variable and `-f file.sql` reads SQL from a file. Vercel will not return sensitive variables with `vercel env pull`, so get production URLs from Neon by branch name (`neonctl connection-string production`).
 
 Serve the game locally (optional): `npx serve public -p 8799`, then add that origin via `EXTRA_ORIGINS` if you point the game at a separate API URL.
+
+## Asset viewer
+
+`npm run assets`, then open http://localhost:8790. It lists every hero, enemy, boss, pickup, icon and emblem, drawn by the live code in `public/index.html`, and plays each one's animations (cycles, tells, boss phases, hit flash, silhouette) with frame stepping, scrubbing, zoom, hitbox, grid and onion skin overlays, a lineup mode and PNG or sprite sheet export.
+
+It runs the game script in a hidden iframe with storage, network and the main loop switched off, so it never touches saves or sends telemetry, and it reloads when `public/index.html` changes. It lives in `tools/asset-viewer/` and is not deployed. Projectiles and effects drawn inline in `drawWorld` are not listed; they need their own drawer functions first.
 
 ## Deploy (Vercel)
 
