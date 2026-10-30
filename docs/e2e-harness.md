@@ -111,7 +111,9 @@ Each device is its own Playwright browser context, so each gets its own `localSt
 phones. A device is prepared by writing a save and a session into `localStorage` and reloading; the game then boots
 signed in and syncs.
 
-Hooks the game already exposes on `window.__cs`, used here:
+**Out of date (2026-10-30):** the game no longer exposes `window.__cs`; those console hooks were removed so players
+cannot cheat from the console. Rebuilding this harness needs another way in: seed `localStorage` and reload (as above),
+read state back from `localStorage`, and play runs through the UI. The script below still shows the old hooks:
 - `S`: the live save; `G`: the current run
 - `addGold(n)`: adds gold and calls `save()`, which schedules a push after 2 s
 - `start()`, `god(on)`, `setHp(f)`: start a run and end it by dying

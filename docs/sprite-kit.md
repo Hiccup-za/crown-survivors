@@ -121,8 +121,9 @@ Measured on 25 Oct 2026: draw-only frame rate with 320 Halloween enemies, 390×8
 | CPU raster (headless shell, DPR 2, 4× throttle) | 14–15 fps | 23–26 fps |
 
 Review exports: `art/halloween/halloween-v1-enemies.png` (the `?sheet=halloween` scene) and `art/halloween/halloween-v1-in-game.png`.
-Per-character model sheets with before/after renders: `__cs.art(id, opts)` returns a transparent PNG of any character, frame or pose
-(used to build the Halloween Bestiary review page).
+Per-character model sheets with before/after renders were built with a console helper that rendered any character, frame or pose
+to a transparent PNG (used for the Halloween Bestiary review page). It was removed on 2026-10-30 with the rest of the
+`window.__cs` console hooks; use the `?sheet=halloween` scene instead.
 
 ## 9. Upgrading Classic later (not in this PR)
 

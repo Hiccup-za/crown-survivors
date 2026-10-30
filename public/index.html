@@ -70,11 +70,11 @@ const nightUnlock=n=>CH.map((c,i)=>i).filter(i=>CH[i].night&&CH[i].night<=n&&!S.
 const nightBackfill=()=>{const u=S.pumpkinCrowns>0?nightUnlock(1):[];S.chars.push(...u);return u.length};if(nightBackfill())rawSave();
 // Limited-time events, keyed by the id heroes use (CH[].ev). Event heroes can only be bought while their event is live; owned ones stay playable.
 // While live the title wears the theme's skin and offers its Endless mode. id/startAt/endAt/theme must match api/src/events.ts. SAST; endAt exclusive.
-const EVENTS={harvest:{n:'Harvest Moon',ic:'🎃',c:'#e87820',id:'harvest-2026',startAt:'2026-10-31T00:00:00+02:00',endAt:'2026-11-08T00:00:00+02:00',theme:'halloween'}},evForce={};
+const EVENTS={harvest:{n:'Harvest Moon',ic:'🎃',c:'#e87820',id:'harvest-2026',startAt:'2026-10-31T00:00:00+02:00',endAt:'2026-11-08T00:00:00+02:00',theme:'halloween'}};
 const EVL=Object.keys(EVENTS).map(k=>Object.assign(EVENTS[k],{key:k}));
-// QA overrides: __cs.event(key,on) forces one event on/off; ?event=<id> forces it live and ?event=ended forces every event over (URL ignored on production)
+// QA overrides: ?event=<id> forces it live and ?event=ended forces every event over (URL ignored on production)
 const EVQ=location.hostname==='crown-survivors.vercel.app'?null:new URLSearchParams(location.search).get('event');
-const evState=e=>e.key in evForce?(evForce[e.key]?'live':'soon'):EVQ===e.id?'live':EVQ==='ended'?'ended':Date.now()<Date.parse(e.startAt)?'soon':Date.now()<Date.parse(e.endAt)?'live':'ended';
+const evState=e=>EVQ===e.id?'live':EVQ==='ended'?'ended':Date.now()<Date.parse(e.startAt)?'soon':Date.now()<Date.parse(e.endAt)?'live':'ended';
 const evLive=()=>EVL.find(e=>evState(e)==='live')||null,evPast=()=>EVL.filter(e=>evState(e)!=='soon').reverse(),evEnded=()=>EVL.some(e=>evState(e)==='ended');
 const eventOn=key=>!!EVENTS[key]&&evState(EVENTS[key])==='live';
 const WP={bolt:{n:'Scepter Bolt',e:'Royal Barrage',d:'Shoots nearest foe',ev:'tome',c:'#ffd23f'},orb:{n:'Orbit Coins',e:'Golden Halo',d:'Coins circle you',ev:'magnet',c:'#e0a526'},
@@ -148,7 +148,7 @@ function rs(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.
 addEventListener('resize',rs);rs();
 ['touchmove','gesturestart','dblclick','contextmenu'].forEach(e=>document.addEventListener(e,ev=>ev.preventDefault(),{passive:false}));
 // ===== state =====
-let scene='title',G=null,btns=[],t0=performance.now(),clock=0,toast=null,trans=null,pressed=null,speedMul=1,shake=0,uiParts=[];
+let scene='title',G=null,btns=[],t0=performance.now(),clock=0,toast=null,trans=null,pressed=null,shake=0,uiParts=[];
 const joy={on:false,ox:0,oy:0,x:0,y:0,id:null},keys={},mt={on:false,id:null,wx:0,wy:0};
 const mtSet=(X,Y)=>{if(G&&G.p){mt.wx=G.p.x+(X-W/2)/Z;mt.wy=G.p.y+(Y-H/2)/Z}};
 function go(s,fn){if(trans)return;trans={t:0,to:s,fn};tone(900,.2,'triangle',.04,-600)}
@@ -1056,7 +1056,7 @@ function itemCard(ent,X,Y,w,h,rec){const seen=!!rec.seen,taken=rec.taken|0,[kl,k
 function draw(){btns=[];if(scene==='play'&&G){SC=SC||st();drawWorld();drawHud()}else if(scene==='title')drawTitle();else if(scene==='chars')drawChars();else if(scene==='shop')drawShop();else if(scene==='codex')drawCodex();else if(scene==='lb')drawLB();else if(scene==='events')drawEvents();else if(scene==='sheet')drawSheet();else if(scene==='settings'){menuBg();settingsPanel(()=>go('title'))}
  for(const q of uiParts){x.globalAlpha=Math.min(1,q.l*2);x.fillStyle=q.c;x.fillRect(q.x,q.y,5*U,5*U)}x.globalAlpha=1;
  if(toast)txt(toast.t,W/2,H*.5,16,pal.paper);if(trans){const a=trans.t<.22?trans.t/.22:1-(trans.t-.22)/.22;x.fillStyle='rgba(30,20,10,'+Math.max(0,a)+')';x.fillRect(0,0,W,H)}}
-function loop(t){const dt=Math.max(0,Math.min(.05,(t-t0)/1000));t0=t;for(let i=0;i<speedMul;i++)update(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
+function loop(t){const dt=Math.max(0,Math.min(.05,(t-t0)/1000));t0=t;update(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
 // ===== leaderboard (hidden when LB_API is empty) =====
 FONT['#']=[10,31,10,31,10];
 const LBK='crownsurv_classic_lb',HERO_ID=CH.map(c=>c.n.toLowerCase().replace(/ /g,'-'));
@@ -1288,11 +1288,5 @@ onSave=sySoon;
 const _endRunSy=endRun;endRun=function(win){const was=G&&G.over;_endRunSy(win);if(!was&&G&&G.over)sySync()};
 addEventListener('visibilitychange',()=>{if(document.hidden)sySync(true);else sySync()});addEventListener('online',()=>sySync());
 if(SHEETQ==='halloween')scene='sheet';
-window.__cs={get joy(){return joy},get mt(){return mt},setHp:f=>{G.p.hp=G.p.mhp*f},cards:()=>cards(),INF,WP,PS,CH,get btns(){return btns},BOSS,spawnBoss:i=>{G.bossI=i+1;spawnBoss(i)},setPhase:n=>{G.phase=n},setT:t=>{G.t=t},get G(){return G},get S(){return S},get scene(){return scene},start:()=>{scene='play';startRun()},auto:(on=true)=>{G.auto=on},god:(on=true)=>{G.god=on},speed:n=>speedMul=n,go:s=>{scene=s},
- pickAuto:()=>{if(G&&G.choice){const c=G.choice;c.t=1;const cs=c.cards;const e=cs.find(q=>q.kind==='e')||cs.find(q=>q.kind==='w'&&q.lv>1)||cs[Math.random()*cs.length|0];choose(e);return true}return false},addGold:n=>{S.gold+=n;save()},event:(id,on)=>{if(on==null)delete evForce[id];else evForce[id]=!!on},
- startHw:()=>{scene='play';startRun(1)},embers:n=>{G.hw.embers+=n},summon:()=>hwSummon(),killRitual:()=>{SC=st();for(const e of G.hw.live.slice())hurtEnemy(e,1e9)},spriteCache:()=>SPR.size,
- // review renders for the asset sheet: one character alone on a transparent canvas → PNG data URL. o: f, st, fl (1 flash, 2 silhouette), scale, e (boss pose fields)
- art:(id,o={})=>{const B=!!HB[id],r=o.r||(B?HB[id].r:id==='hero'?10:ETYPE[id].r),s=o.scale||6,c=document.createElement('canvas');c.width=c.height=Math.ceil(r*(B?1.8:SPRR[id]||1.6)*2*s);const ox=x;x=c.getContext('2d');
-  try{x.setTransform(s,0,0,s,c.width/2,c.height/2);FL=o.fl||0;if(id==='hero')heroS(0,2,o.ci||0,1,0,1,false);else if(B)hwBossS(Object.assign({hb:id,r,ph:0,flash:0,fc:1},o.e||{}));else SPRK[id](r,o.f||0,o.st||'n')}finally{FL=0;x=ox}return c.toDataURL()},ev:()=>evLive(),get runMode(){return runMode}};
 })();
 </script></body></html>
