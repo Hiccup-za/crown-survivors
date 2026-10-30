@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workshop · Crown Survivors</title>
+<style>
+:root{
+  --bg:#120e18;--panel:#1b1624;--panel2:#221c2d;--line:#2f2740;--line2:#3d3352;
+  --text:#ece4d4;--dim:#9a8fae;--faint:#6b6180;
+  --gold:#ffd23f;--pump:#ff8a3d;--ink:#3b2a1a;--ok:#7cc25a;--err:#ff6a5a;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.4 var(--ui);overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+kbd{font:11px var(--mono);padding:1px 5px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;color:var(--dim);background:var(--panel2)}
+
+.app{display:grid;grid-template-rows:46px 1fr;height:100vh}
+.view{min-height:0;min-width:0}
+.view[hidden]{display:none!important}
+.assets{display:grid;grid-template-columns:272px 1fr 312px;grid-template-areas:"browser stage inspector"}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:14px;padding:0 14px;border-bottom:1px solid var(--line);background:linear-gradient(#1d1727,#17121f)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.02em}
+.brand canvas{width:24px;height:24px}
+.brand small{font-weight:500;color:var(--dim)}
+.status{display:flex;align-items:center;gap:8px;font:12px var(--mono);color:var(--dim);padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.dot.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.dot.err{background:var(--err);box-shadow:0 0 8px var(--err)}
+.dot.busy{background:var(--gold);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);font-size:12px}
+.btn:hover{border-color:var(--dim)}
+.btn.on{border-color:var(--gold);color:var(--gold);background:#2a2214}
+.btn:disabled{opacity:.4;cursor:default}
+
+/* browser */
+.browser{grid-area:browser;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--panel);min-height:0}
+.search{padding:10px;border-bottom:1px solid var(--line)}
+.search input{width:100%;height:30px;padding:0 10px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);outline:none}
+.search input:focus{border-color:var(--gold)}
+.tree{flex:1;overflow:auto;padding:4px 0 16px}
+.group>summary{list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);cursor:pointer;user-select:none}
+.group>summary::-webkit-details-marker{display:none}
+.group>summary::before{content:"▸";font-size:10px;transition:transform .15s}
+.group[open]>summary::before{transform:rotate(90deg)}
+.group>summary .n{margin-left:auto;font:11px var(--mono);color:var(--faint)}
+.item{display:flex;align-items:center;gap:10px;width:100%;padding:4px 12px 4px 18px;border:0;border-left:2px solid transparent;background:none;text-align:left}
+.item:hover{background:var(--panel2)}
+.item.sel{background:#2a2214;border-left-color:var(--gold)}
+.item canvas{width:40px;height:40px;flex:none;border-radius:6px;background:#0d0a12}
+.item b{display:block;font-weight:600;font-size:12.5px}
+.item span{display:block;font-size:11px;color:var(--faint)}
+.item.missing{opacity:.45}
+
+/* stage */
+.stage{grid-area:stage;display:grid;grid-template-rows:40px 1fr auto;min-width:0;min-height:0}
+.toolbar{display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+.toolbar .sep{width:1px;height:20px;background:var(--line2);margin:0 4px}
+.toolbar select{height:28px;padding:0 6px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2)}
+.zoomv{font:12px var(--mono);color:var(--dim);min-width:72px;text-align:center}
+.viewport{position:relative;min-height:0;overflow:hidden;cursor:grab}
+.viewport.drag{cursor:grabbing}
+.viewport canvas{position:absolute;inset:0;width:100%;height:100%}
+.hud{position:absolute;left:12px;bottom:10px;font:11px var(--mono);color:var(--dim);text-shadow:0 1px 2px #000;pointer-events:none;white-space:pre}
+.err{position:absolute;inset:auto 12px 12px auto;max-width:60%;padding:10px 12px;border:1px solid var(--err);border-radius:8px;background:#2a1216;color:#ffc9c2;font:12px var(--mono);white-space:pre-wrap;display:none}
+
+/* timeline */
+.timeline{border-top:1px solid var(--line);background:var(--panel);padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
+.clips{display:flex;flex-wrap:wrap;gap:6px}
+.clip{height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:999px;background:var(--panel2);font-size:12px}
+.clip i{font:10px var(--mono);font-style:normal;color:var(--faint);margin-right:6px}
+.clip.on{border-color:var(--pump);background:#2d1c10;color:#ffc999}
+.clipsep{align-self:center;margin:0 2px 0 10px;padding-left:12px;border-left:1px solid var(--line2);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.clip.atk{border-color:#6a2e2e;background:#2a1418;color:#ffb3a8}
+.clip.atk:hover{border-color:var(--err)}
+.clip.back{margin-left:auto;color:var(--dim)}
+.atkbtn{border-color:#6a2e2e;background:#2a1418;color:#ffb3a8}
+.transport{display:flex;align-items:center;gap:6px}
+.tbtn{width:32px;height:28px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);display:grid;place-items:center;font-size:13px}
+.tbtn.play{width:44px;background:var(--gold);color:#241a08;border-color:var(--gold);font-weight:700}
+.scrub{flex:1;accent-color:var(--pump)}
+.tc{font:12px var(--mono);color:var(--dim);min-width:150px;text-align:right}
+.transport select{height:28px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);padding:0 4px}
+.strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.frame{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;border:1px solid var(--line);border-radius:6px;background:#0d0a12;cursor:pointer}
+.frame canvas{width:64px;height:64px}
+.frame span{font:10px var(--mono);color:var(--faint)}
+.frame.on{border-color:var(--pump)}
+.frame.on span{color:#ffc999}
+.simnote{margin:0;color:var(--dim);font-size:12px}
+.simnote code{font:11.5px var(--mono);color:#c9a0ff}
+.scrub:disabled{opacity:.5}
+
+/* inspector */
+.inspector{grid-area:inspector;border-left:1px solid var(--line);background:var(--panel);overflow:auto;min-height:0}
+.sec{padding:12px 14px;border-bottom:1px solid var(--line)}
+.sec h3{margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.title{font-size:18px;font-weight:700;margin:0}
+.tag{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;font-size:11px;background:var(--panel2);border:1px solid var(--line2);color:var(--dim)}
+.desc{margin:8px 0 0;color:var(--dim)}
+.src{margin-top:8px;font:11.5px var(--mono);color:#c9a0ff;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;word-break:break-all}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:4px 0;border-bottom:1px dashed var(--line)}
+td:first-child{color:var(--dim)}
+td:last-child{text-align:right;font-family:var(--mono)}
+.ctl{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0}
+.ctl label{color:var(--dim)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--panel2);padding:4px 10px;font-size:12px}
+.seg button+button{border-left:1px solid var(--line2)}
+.seg button.on{background:var(--gold);color:#241a08;font-weight:700}
+.seg button:disabled{opacity:.35;cursor:default}
+.ctl.off{opacity:.45}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}
+.sw button{display:flex;flex-direction:column;gap:3px;padding:0;border:0;background:none;text-align:left}
+.sw button i{display:block;height:26px;border-radius:5px;border:1px solid #0006;box-shadow:inset 0 0 0 1px #fff1}
+.sw button span{font:10px var(--mono);color:var(--faint)}
+.sw button:hover span{color:var(--text)}
+.ramp{display:flex;align-items:center;gap:8px;margin:4px 0}
+.ramp b{width:52px;font:11px var(--mono);color:var(--dim);font-weight:400}
+.ramp .sw{flex:1;grid-template-columns:repeat(4,1fr)}
+.ramp .sw i{height:18px}
+.ramp .sw span{display:none}
+.exp{display:flex;flex-wrap:wrap;gap:6px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;padding:8px 14px;border-radius:8px;background:var(--gold);color:#241a08;font-weight:600;transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12px;color:var(--dim)}
+/* workshop: tabs */
+.tabs{display:flex;gap:2px;margin-left:8px;padding:3px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.tabs button{height:28px;padding:0 12px;border:0;border-radius:6px;background:none;color:var(--dim);font-weight:600}
+.tabs button:hover{color:var(--text)}
+.tabs button.on{background:var(--panel2);color:var(--gold);box-shadow:inset 0 0 0 1px var(--line2)}
+.badge[hidden]{display:none}
+.badge{display:inline-block;min-width:16px;padding:0 4px;margin-left:4px;border-radius:999px;background:var(--err);color:#fff;font:10px/16px var(--mono)}
+a.btn{text-decoration:none;color:inherit}
+a.btn.play{border-color:var(--gold);color:var(--gold)}
+body.t-playground #lineup,body.t-balance #lineup,body.t-reports #lineup{display:none}
+
+/* playground */
+.pg{display:grid;grid-template-columns:300px 1fr 312px;grid-template-areas:"cfg stage inspector"}
+.pgcfg{grid-area:cfg;border-right:1px solid var(--line);background:var(--panel);overflow:auto;min-height:0}
+.pgstage{grid-area:stage;display:grid;grid-template-rows:40px 1fr;min-width:0;min-height:0}
+.pgstage .viewport{cursor:default;outline:none}
+.pgstage .viewport:focus{box-shadow:inset 0 0 0 2px #ffd23f55}
+.pgcfg select,.pgcfg input[type=number]{height:26px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);padding:0 6px;max-width:150px}
+.pgcfg input[type=number]{width:80px}
+.lv{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px;padding:3px 0}
+.lv span{color:var(--text)}
+.lv small{color:var(--faint)}
+.lv .seg button{padding:3px 7px;font:11px var(--mono)}
+.chk{display:flex;align-items:center;gap:6px;padding:4px 0;color:var(--dim);cursor:pointer}
+.big{font:22px/1.1 var(--mono);color:var(--gold)}
+.preset{display:flex;gap:6px;margin-top:6px}
+.preset input{flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid var(--line2);border-radius:6px;background:var(--bg)}
+.plist{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.plist div{display:flex;align-items:center;gap:6px}
+.plist div button:first-child{flex:1;text-align:left}
+
+/* balance */
+.bal{display:grid;grid-template-rows:auto 1fr}
+.bal .toolbar{gap:10px;height:auto;padding:6px 10px}
+.bal .search,.replist .search{padding:0;border:0;width:340px}
+.balbody{overflow:auto;padding:12px 16px 40px;min-height:0}
+.tbl{margin-bottom:22px}
+.tbl header{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.tbl h2{margin:0;font-size:14px}
+.tbl h2 code{font:12px var(--mono);color:var(--dim);margin-left:6px}
+.tbl .loc{font:11.5px var(--mono);color:#c9a0ff;cursor:pointer}
+.tbl .n{font:11px var(--mono);color:var(--faint)}
+.tbl header .btn{margin-left:auto;height:24px}
+.tbl .wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+.tbl table{font:12px var(--mono);width:auto;min-width:100%}
+.tbl th{position:sticky;top:0;background:var(--panel2);text-align:left;padding:5px 10px;color:var(--dim);font-weight:600;white-space:nowrap;border-bottom:1px solid var(--line2)}
+.tbl td,.tbl td:last-child{padding:4px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;color:var(--text);max-width:520px;overflow:hidden;text-overflow:ellipsis}
+.tbl td:first-child{color:var(--gold)}
+.tbl tr:hover td{background:#ffffff06}
+.tbl td.num{text-align:right;color:#9fd3ff}
+.tbl td i.c{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid #0008}
+.tbl mark{background:#ffd23f44;color:inherit}
+
+/* reports */
+.rep{display:grid;grid-template-columns:380px 1fr}
+.replist{display:grid;grid-template-rows:auto 1fr;border-right:1px solid var(--line);background:var(--panel);min-height:0}
+.replist .toolbar{height:auto;padding:8px;flex-wrap:wrap;gap:8px}
+.replist .search{width:100%}
+.cards{overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.card{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);text-align:left;width:100%}
+.card:hover{border-color:var(--line2)}
+.card.sel{border-color:var(--gold)}
+.card img{width:96px;height:72px;object-fit:cover;border-radius:5px;background:#000}
+.card b{display:block;font-size:12.5px;line-height:1.3;max-height:2.6em;overflow:hidden}
+.card span{display:block;font:11px var(--mono);color:var(--faint);margin-top:3px}
+.card .er{color:var(--err)}
+.card span .pill,.card span .er{display:inline-block;margin:0}
+.card.resolved{opacity:.6}
+.empty{padding:30px;color:var(--dim);text-align:center}
+.empty code{font:12px var(--mono);color:#c9a0ff}
+.repdetail{overflow:auto;padding:16px 20px 40px;min-height:0}
+.repdetail h2{margin:0 0 4px;font-size:18px}
+.repdetail .meta{font:12px var(--mono);color:var(--dim);margin-bottom:12px}
+.repdetail .acts{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.repdetail img.shot{max-width:100%;max-height:60vh;border:1px solid var(--line);border-radius:8px;background:#000}
+.repdetail blockquote{margin:12px 0;padding:10px 14px;border-left:3px solid var(--pump);background:var(--panel);border-radius:0 8px 8px 0;white-space:pre-wrap;font-size:14px}
+.repdetail h3{margin:20px 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.repdetail table{max-width:640px}
+.errs details{margin:6px 0;padding:6px 10px;border:1px solid #5a2a2a;border-radius:6px;background:#1f1216}
+.errs summary{cursor:pointer;font:12px var(--mono);color:#ffc9c2}
+.errs pre,.state pre{margin:6px 0 0;font:11.5px/1.45 var(--mono);color:var(--dim);white-space:pre-wrap;word-break:break-all}
+.state{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--panel)}
+.state summary{cursor:pointer;color:var(--dim)}
+.state pre{max-height:60vh;overflow:auto}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font:11px var(--mono);border:1px solid var(--line2)}
+.pill.open{color:var(--gold);border-color:#6a5a2a}
+.pill.resolved{color:var(--ok);border-color:#3a5a2a}
+iframe.rt{position:fixed;left:-10000px;top:0;width:360px;height:640px;border:0;visibility:hidden}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><canvas id="logo" width="48" height="48"></canvas>Crown Survivors <small>Workshop</small></div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="assets" class="on" title="Sprites, animations and attacks (Alt+1)">Assets</button>
+      <button data-tab="playground" title="A configurable live run for testing mechanics (Alt+2)">Playground</button>
+      <button data-tab="balance" title="Every data table, read from the live code (Alt+3)">Balance</button>
+      <button data-tab="reports" title="F8 bug reports from dev/reports (Alt+4)">Reports <span class="badge" id="rbadge" hidden></span></button>
+    </nav>
+    <div class="status" title="Source: public/index.html, reloaded automatically when it changes"><span class="dot busy" id="dot"></span><span id="status">Loading game source…</span></div>
+    <div class="spacer"></div>
+    <button class="btn" id="lineup" title="Show every asset in this group side by side (L)">Lineup</button>
+    <button class="btn" id="reload" title="Reload the game source (R)">Reload source</button>
+    <a class="btn play" href="/play" target="_blank" rel="noopener" title="The game with the debug menu ( ` ) and F8 bug reports">Play (debug) ↗</a>
+  </header>
+
+  <div class="view assets" id="tab-assets">
+  <aside class="browser">
+    <div class="search"><input id="q" placeholder="Search assets  ( / )" autocomplete="off"></div>
+    <div class="tree" id="tree"></div>
+  </aside>
+
+  <section class="stage">
+    <div class="toolbar">
+      <button class="btn" data-zoom="phone" title="Phone scale: what a 390×844 player sees">Phone 1:1</button>
+      <button class="btn" data-zoom="2">2×</button>
+      <button class="btn" data-zoom="4">4×</button>
+      <button class="btn" data-zoom="8">8×</button>
+      <button class="btn" data-zoom="fit" title="Fit to view (0)">Fit</button>
+      <span class="zoomv" id="zoomv">4.00×</span>
+      <span class="sep"></span>
+      <select id="bg" title="Backdrop"></select>
+      <span class="sep"></span>
+      <button class="btn" data-ov="hitbox" title="Collision radius from the game data (H)">Hitbox</button>
+      <button class="btn" data-ov="grid" title="World grid: 8u cells, 48u arena tiles (G)">Grid</button>
+      <button class="btn" data-ov="origin" title="Sprite origin (the entity position)">Origin</button>
+      <button class="btn" data-ov="onion" title="Onion skin: previous frame red, next frame green (O)">Onion</button>
+    </div>
+    <div class="viewport" id="vp">
+      <canvas id="view"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="err" id="err"></div>
+    </div>
+    <div class="timeline">
+      <div class="clips" id="clips"></div>
+      <div class="transport">
+        <button class="tbtn" id="first" title="Restart">⏮</button>
+        <button class="tbtn" id="prev" title="Step back (←)">◀︎</button>
+        <button class="tbtn play" id="play" title="Play / pause (Space)">❚❚</button>
+        <button class="tbtn" id="next" title="Step forward (→)">▶︎</button>
+        <input type="range" class="scrub" id="scrub" min="0" max="1000" value="0">
+        <select id="speed" title="Playback speed">
+          <option value=".1">0.1×</option><option value=".25">0.25×</option><option value=".5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option>
+        </select>
+        <span class="tc" id="tc">0.00s</span>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+  </section>
+
+  <aside class="inspector" id="insp"></aside>
+  </div>
+
+  <div class="view pg" id="tab-playground" hidden>
+    <aside class="pgcfg" id="pgcfg"></aside>
+    <section class="pgstage">
+      <div class="toolbar">
+        <button class="btn" id="pgApply" title="Apply the config: restarts the run">Apply</button>
+        <button class="btn" id="pgRestart" title="Restart the run with the current config">Restart</button>
+        <span class="sep"></span>
+        <button class="tbtn play" id="pgPlay" title="Play / pause (Space)">❚❚</button>
+        <button class="tbtn" id="pgStep" title="Step one tick (→)">▶︎</button>
+        <select id="pgSpeed" title="Speed"><option value=".25">0.25×</option><option value=".5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+        <span class="sep"></span>
+        <label class="zoomv">zoom <input type="range" id="pgZoom" min="0.6" max="4" step="0.05" value="1.6"></label>
+        <div class="spacer"></div>
+        <span class="zoomv" id="pgMove"></span>
+      </div>
+      <div class="viewport" id="pgvp" tabindex="0"><canvas id="pgview"></canvas><div class="hud" id="pghud"></div><div class="err" id="pgerr"></div></div>
+    </section>
+    <aside class="inspector" id="pgstats"></aside>
+  </div>
+
+  <div class="view bal" id="tab-balance" hidden>
+    <div class="toolbar">
+      <div class="search"><input id="balq" placeholder="Search every table  ( / )" autocomplete="off"></div>
+      <div class="spacer"></div>
+      <span class="zoomv" id="balinfo"></span>
+      <button class="btn" id="balDl" title="Every table, raw and derived, as one JSON file">Download config.json</button>
+    </div>
+    <div class="balbody" id="balbody"></div>
+  </div>
+
+  <div class="view rep" id="tab-reports" hidden>
+    <aside class="replist">
+      <div class="toolbar"><div class="search"><input id="repq" placeholder="Search notes" autocomplete="off"></div>
+        <span class="seg" id="repf"><button data-f="open" class="on">Open</button><button data-f="resolved">Resolved</button><button data-f="all">All</button></span></div>
+      <div class="cards" id="repcards"></div>
+    </aside>
+    <section class="repdetail" id="repdetail"></section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/app.js"></script>
+<script src="/workshop.js"></script>
+</body>
+</html>

@@ -23,7 +23,10 @@ const LB_API='/api';// same-origin leaderboard API; empty = leaderboard hidden
 const KEY='crownsurv_classic_v1';
 const DEF={gold:0,meta:{might:0,hp:0,speed:0,magnet:0,greed:0,revive:0,reroll:0,choice:0,armor:0},chars:[0],char:0,curse:0,maxCurse:0,best:0,wins:0,runs:0,kills:0,tut:false,muted:false,gore:false,winsBy:{},codex:{items:{},enemies:{}},pumpkinCrowns:0,pumpkinBy:{},lastEvent:null};
 let S;try{const L=JSON.parse(localStorage.getItem(KEY)||'{}');S=Object.assign({},DEF,L);S.meta=Object.assign({},DEF.meta,L.meta);S.winsBy=Object.assign({},L.winsBy);S.pumpkinBy=Object.assign({},L.pumpkinBy);S.codex=Object.assign({},DEF.codex,L.codex||{});S.codex.items=Object.assign({},DEF.codex.items,(L.codex&&L.codex.items)||{});S.codex.enemies=Object.assign({},DEF.codex.enemies,(L.codex&&L.codex.enemies)||{})}catch(e){S=JSON.parse(JSON.stringify(DEF))}
-const rawSave=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};let onSave=null;const save=()=>{rawSave();if(onSave)onSave()};
+// dev mode, never on production: localhost / 127.0.0.1 or ?debug. A bug report replay (?report=<id>) writes no storage at all; a debug run sets NOSAVE until it ends (dev tools section)
+const DEVQ=location.hostname!=='crown-survivors.vercel.app'&&(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)||new URLSearchParams(location.search).has('debug')),RPQ=DEVQ&&new URLSearchParams(location.search).get('report')||null;let NOSAVE=!!RPQ;
+if(NOSAVE)try{Storage.prototype.setItem=Storage.prototype.removeItem=Storage.prototype.clear=function(){}}catch(e){}
+const rawSave=()=>{if(NOSAVE)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};let onSave=null;const save=()=>{rawSave();if(onSave)onSave()};
 const codexEnsure=()=>{if(!S.codex)S.codex={items:{},enemies:{}};if(!S.codex.items)S.codex.items={};if(!S.codex.enemies)S.codex.enemies={}};
 const codexItemKey=(kind,k)=>kind+':'+k;
 const codexItemRec=(kind,k)=>{codexEnsure();const id=codexItemKey(kind,k);return S.codex.items[id]||(S.codex.items[id]={seen:0,taken:0})};
@@ -1100,7 +1103,7 @@ function hwPost(){const g=G,h=g.hw,E=evById(h.ev)||{},o=g.over,sc={ev:h.ev,theme
  const b=hwBetter(sc);hwRecord(sc);if(lbIn())lbSubmit(sc,b).then(res=>{if(res&&(res.from==null||res.n<res.from))o.lb=res});else if(b&&sc.time_s>=60&&evState(E)==='live')o.pend=Object.assign({board:b},sc)}
 function lbShowRank(res){lb.data={};lb.me={};lb.ev=res.ev||null;lb.board=res.board;lbLoad(res.board);lb.back='title';lb.scroll=0;lb.want=Math.max(0,res.n-5)*RH;lb.t0=clock;
  lb.rank=(res.from==null||res.n<res.from)?{n:res.n,from:res.from,row:res.row,t0:clock+.5,burst:0}:null;if(scene!=='lb')go('lb')}
-const _endRun=endRun;endRun=function(win){const was=G&&G.over;_endRun(win);if(was||!LB_API||!G||!G.over)return;if(G.hw)return hwPost();
+const _endRun=endRun;endRun=function(win){const was=G&&G.over;_endRun(win);if(was||!LB_API||!G||!G.over||G.dbg)return;if(G.hw)return hwPost();
  const sc={hero:HERO_ID[G.char!=null?G.char:S.char]||'king-cube',ci:G.char!=null?G.char:S.char,curse:G.curse||0,won:!!win,time_s:Math.min(1200,Math.floor(G.t)),kills:Math.min(50000,G.kills|0),bosses:Math.min(5,G.bb|0)};
  if(sc.won)sc.bosses=5;const b=lbBetter(sc),prev=JSON.parse(JSON.stringify(LBS.best));lbRecord(sc);const o=G.over;
  if(lbIn()){lbSubmit(sc,b).then(res=>{if(res&&(res.from==null||res.n<res.from))o.lb=res})}
@@ -1251,7 +1254,7 @@ let TID;try{TID=localStorage.getItem(TK);if(!TID){TID=tUuid();localStorage.setIt
 const TSID=tUuid(),TTOUCH=typeof matchMedia!=='undefined'&&matchMedia('(pointer:coarse)').matches;let tLast='';
 const tSnap=()=>({gold:Math.max(0,Math.round(S.gold)),pumpkin_crowns:S.pumpkinCrowns|0,runs:S.runs|0,wins:S.wins|0,kills:Math.max(0,Math.round(S.kills)),best_s:S.best|0,max_curse:S.maxCurse|0,meta:S.meta,chars:S.chars,wins_by:S.winsBy,pumpkin_by:S.pumpkinBy,codex:S.codex});
 // one POST = session ping + latest save (+ the finished run). Snapshot-only pings are skipped when nothing changed
-function tSend(run){if(!LB_API)return;const snap=tSnap(),k=JSON.stringify(snap);if(!run&&k===tLast)return;tLast=k;const h={'Content-Type':'application/json'};if(LBS.tok)h.Authorization='Bearer '+LBS.tok;
+function tSend(run){if(!LB_API||NOSAVE)return;const snap=tSnap(),k=JSON.stringify(snap);if(!run&&k===tLast)return;tLast=k;const h={'Content-Type':'application/json'};if(LBS.tok)h.Authorization='Bearer '+LBS.tok;
  try{fetch(LB_API+'/t',{method:'POST',headers:h,credentials:'include',keepalive:true,body:JSON.stringify({v:1,install_id:TID,session_id:TSID,touch:TTOUCH,snap,run:run||null})}).catch(()=>{})}catch(e){}}
 function tRun(r){const g=G;tSend(Object.assign({time_s:Math.floor(g.t),kills:g.kills|0,level:g.lvl|0||1,build:{w:g.w,ps:g.ps,evo:g.evo,inf:g.inf||{}}},r))}
 tSend();addEventListener('visibilitychange',()=>{if(document.hidden)tSend()});
@@ -1271,7 +1274,7 @@ function applyCloud(c){Object.assign(S,{gold:c.gold,pumpkinCrowns:c.pumpkin_crow
 let syBusy=false,syAgain=false,syT=0;
 function sySoon(){if(!lbIn())return;clearTimeout(syT);syT=setTimeout(sySync,2000)}
 // keep: also send if the page is closing. Failures keep the changes for the next try (next save, back online, next visit)
-async function sySync(keep){clearTimeout(syT);if(!lbIn())return;if(syBusy){syAgain=true;return}syBusy=true;
+async function sySync(keep){clearTimeout(syT);if(!lbIn()||NOSAVE)return;if(syBusy){syAgain=true;return}syBusy=true;
  try{const u=LBS.user.id;
   if(SY.owner!==u){// local save belongs to another account: set its unsynced progress aside, then load this account's
    if(SY.owner){const cur=toCloud();if(!SY.base||syKey(cur)!==syKey(SY.base))SY.stash[SY.owner]={save:cur,base:SY.base,ver:SY.ver};
@@ -1288,5 +1291,135 @@ onSave=sySoon;
 const _endRunSy=endRun;endRun=function(win){const was=G&&G.over;_endRunSy(win);if(!was&&G&&G.over)sySync()};
 addEventListener('visibilitychange',()=>{if(document.hidden)sySync(true);else sySync()});addEventListener('online',()=>sySync());
 if(SHEETQ==='halloween')scene='sheet';
+// ===== dev tools ===== dev mode only (DEVQ, save section), so none of this exists on production. Workshop: npm run workshop (docs/development.md)
+// ` (or the DBG button) opens the debug menu, F8 files a bug report to dev/reports/ through the Workshop server, ?report=<id> replays one.
+// Debug actions mark the run (G.dbg): it never reaches the leaderboard or the save, and once one is used this page sends no telemetry or Databuddy events
+if(DEVQ){
+const DV={ts:1,step:0,hit:0,hud:0,used:0,open:0,modal:0,fr:[],upd:0,drw:0,errs:[],type:'blob',elite:0,bi:0,hb:'patch'};
+// error ring buffer: the last 50 errors, rejections, console.error and console.warn
+const dvErr=(kind,msg,stack)=>{DV.errs.push({kind,msg:String(msg).slice(0,2000),stack:stack?String(stack).slice(0,4000):null,t:+clock.toFixed(2),at:new Date().toISOString()});if(DV.errs.length>50)DV.errs.shift()};
+addEventListener('error',e=>dvErr('error',e.message,e.error&&e.error.stack));
+addEventListener('unhandledrejection',e=>{const r=e.reason;dvErr('rejection',r&&r.message||r,r&&r.stack)});
+for(const k of['error','warn']){const o=console[k].bind(console);console[k]=(...a)=>{const er=a.find(v=>v instanceof Error);dvErr('console.'+k,a.map(v=>v instanceof Error?v.message:typeof v==='string'?v:(()=>{try{return JSON.stringify(v)}catch(e){return String(v)}})()).join(' '),er?er.stack:(new Error().stack||'').split('\n').slice(2).join('\n'));o(...a)}}
+// a debug run banks nothing: the first debug action snapshots the save and pauses writes, and the run's end (or the next run) puts it back
+const dvMark=()=>{DV.used=1;if(G&&!G.dbg){G.dbg=1;if(!NOSAVE){DV.S0=JSON.stringify(S);NOSAVE=1;DV.own=1}}};
+const dvBank=()=>{if(!DV.own)return;S=JSON.parse(DV.S0);M=S.meta;NOSAVE=0;DV.own=0};
+const _er=endRun;endRun=function(w){_er(w);if(G&&G.over)dvBank()};const _sr=startRun;startRun=function(hw){dvBank();_sr(hw)};
+const _tSend=tSend;tSend=r=>{if(!DV.used&&!(G&&G.dbg))_tSend(r)};
+const _dbt=window.dbTrack;window.dbTrack=(n,p)=>{if(!DV.used&&!NOSAVE&&!(G&&G.dbg)&&_dbt)_dbt(n,p)};
+// time scale (0 = frozen, the view stays visible), single-frame step, update/draw timing
+const _upd=update;update=dt=>{const t0_=performance.now(),live=scene==='play'&&G&&!G.over&&!G.choice;
+ if(!live||DV.ts===1)_upd(dt);else if(DV.ts===0){if(DV.step){DV.step=0;_upd(1/60)}else{const p=G.paused;G.paused=true;_upd(dt);G.paused=p}}
+ else{const n=Math.max(1,Math.ceil(DV.ts));for(let i=0;i<n;i++)_upd(dt*DV.ts/n)}
+ DV.upd=performance.now()-t0_}
+const _draw=draw;draw=()=>{const t=performance.now();_draw();DV.drw=performance.now()-t;DV.fr.push(t);while(DV.fr.length&&t-DV.fr[0]>1000)DV.fr.shift()};
+// hitboxes, in world space like drawWorld: enemies (boss pink), player contact r 8 and bullet r 7, enemy bullets, our projectiles, hazard circles
+const _dw=drawWorld;drawWorld=()=>{_dw();if(!DV.hit||!G)return;const g=G,p=g.p;x.save();x.translate(W/2,H/2);x.scale(Z,Z);x.translate(-p.x,-p.y);x.lineWidth=1.5/Z;
+ const o=(q,r,c)=>{x.strokeStyle=c;x.beginPath();x.arc(q.x,q.y,Math.max(.5,r),0,7);x.stroke()};
+ for(const e of g.en)o(e,e.r,e.boss?'#ff4af0':e.elite?'#ffb13d':'#ff4a4a');o(p,8,'#4aff7a');o(p,7,'#4aff7a');
+ for(const b of g.eb)o(b,b.r,'#ffe24a');for(const b of g.pr)o(b,b.r,'#4ad2ff');for(const q of g.tele||[])if(q.k==='c')o(q,q.r,'#fff');x.restore()};
+// two-pass serializer: objects reachable twice get $id where first written and {$r:id} after; Set/Map become $set/$map, non-finite numbers $n.
+// Functions, canvases and ImageData are dropped. dvDec inverts it
+const dvSkip=v=>typeof v==='function'||v instanceof HTMLCanvasElement||v instanceof HTMLImageElement||(typeof OffscreenCanvas!=='undefined'&&v instanceof OffscreenCanvas)||v instanceof ImageData||v instanceof CanvasRenderingContext2D;
+function dvEnc(root){const seen=new Map(),ids=new Map();let n=0;
+ const walk=v=>{if(!v||typeof v!=='object'||dvSkip(v))return;const c=seen.get(v)||0;seen.set(v,c+1);if(c)return;if(v instanceof Map)for(const[k,q]of v){walk(k);walk(q)}else if(v instanceof Set)for(const q of v)walk(q);else for(const k in v)walk(v[k])};
+ const enc=v=>{if(typeof v==='number')return Number.isFinite(v)?v:{$n:String(v)};if(!v||typeof v!=='object')return typeof v==='symbol'||typeof v==='bigint'?undefined:v;
+  if(ids.has(v))return{$r:ids.get(v)};const o={};if(seen.get(v)>1){ids.set(v,++n);o.$id=n}
+  if(v instanceof Set){o.$set=[...v].filter(q=>!dvSkip(q)).map(enc);return o}if(v instanceof Map){o.$map=[...v].filter(e=>!dvSkip(e[1])).map(([k,q])=>[enc(k),enc(q)]);return o}
+  if(Array.isArray(v)){const a=v.map(q=>dvSkip(q)?null:enc(q)??null);if(!o.$id)return a;o.$a=a;return o}
+  for(const k in v){if(dvSkip(v[k]))continue;const e=enc(v[k]);if(e!==undefined)o[k]=e}return o};
+ walk(root);return enc(root)}
+function dvDec(root){const ids=new Map(),dec=v=>{if(!v||typeof v!=='object')return v;if(Array.isArray(v))return v.map(dec);if('$r'in v)return ids.get(v.$r);if('$n'in v)return Number(v.$n);
+  if('$set'in v){const s=new Set();if(v.$id)ids.set(v.$id,s);for(const q of v.$set)s.add(dec(q));return s}if('$map'in v){const m=new Map();if(v.$id)ids.set(v.$id,m);for(const[k,q]of v.$map)m.set(dec(k),dec(q));return m}
+  if('$a'in v){const a=[];ids.set(v.$id,a);for(const q of v.$a)a.push(dec(q));return a}const o={};if(v.$id)ids.set(v.$id,o);for(const k in v)if(k!=='$id')o[k]=dec(v[k]);return o};return dec(root)}
+// ---- DOM: debug menu, stats HUD, report modal, replay banner (keys stop here so typing never moves the hero) ----
+const dvSt=document.createElement('style');dvSt.textContent=`.dv{position:fixed;z-index:20;font:12px/1.35 ui-monospace,Menlo,monospace;color:#ece4d4;-webkit-user-select:text;user-select:text;touch-action:auto}
+.dv button,.dv select,.dv textarea{font:inherit;color:inherit;background:#2a2234;border:1px solid #4a3e5e;border-radius:5px;padding:3px 7px;cursor:pointer}.dv button:hover{border-color:#9a8fae}.dv button.on{background:#ffd23f;color:#241a08;border-color:#ffd23f}.dv button:disabled{opacity:.35;cursor:default}
+#dvP{right:8px;top:8px;width:310px;max-height:calc(100vh - 16px);overflow:auto;background:rgba(18,14,24,.95);border:1px solid #3d3352;border-radius:10px;box-shadow:0 8px 30px #000a}
+#dvP h4{margin:0;padding:8px 10px 4px;font-size:10px;letter-spacing:.1em;color:#9a8fae;border-top:1px solid #2f2740}#dvP .r{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:2px 10px}#dvP .r>span{flex:1;min-width:90px}
+#dvP .hd{display:flex;align-items:center;gap:6px;padding:8px 10px;font-weight:700}#dvP .hd i{flex:1;font-style:normal;font-weight:400;color:#9a8fae;font-size:11px}#dvP label{display:flex;align-items:center;gap:4px;cursor:pointer}
+#dvB{left:0;top:42%;padding:6px 6px 6px 4px;border-radius:0 6px 6px 0;border-left:0!important;background:rgba(18,14,24,.7);border:1px solid #4a3e5e;color:#ffd23f;font-weight:700;opacity:.75}
+#dvH{left:8px;top:calc(8px + env(safe-area-inset-top));padding:6px 8px;background:rgba(18,14,24,.8);border-radius:6px;white-space:pre;pointer-events:none}
+#dvM{inset:0;display:grid;place-items:center;background:rgba(10,6,14,.7)}#dvM>div{width:min(560px,94vw);background:#1b1624;border:1px solid #3d3352;border-radius:12px;padding:14px;display:grid;gap:10px}
+#dvM img{width:100%;max-height:40vh;object-fit:contain;background:#000;border-radius:6px}#dvM textarea{min-height:90px;resize:vertical;cursor:text;background:#120e18}#dvM .r{display:flex;gap:8px;justify-content:flex-end;align-items:center}#dvM .r i{flex:1;color:#9a8fae;font-style:normal}
+#dvR{left:50%;top:calc(8px + env(safe-area-inset-top));transform:translateX(-50%);max-width:min(560px,80vw);padding:6px 10px;border:1px solid #ff8a3d;border-radius:8px;background:rgba(42,20,12,.92);display:flex;gap:8px;align-items:center}#dvR b{color:#ff8a3d}#dvR span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#dvT{left:50%;bottom:24px;transform:translateX(-50%);padding:7px 12px;border-radius:8px;background:#ffd23f;color:#241a08;font-weight:700;pointer-events:none;transition:opacity .2s}`;
+document.head.append(dvSt);
+const dvEl=(id,html)=>{const e=document.createElement('div');e.id=id;e.className='dv';e.innerHTML=html||'';for(const k of['keydown','keyup','touchmove','pointerdown'])e.addEventListener(k,ev=>{if(k==='keydown')dvKey(ev);ev.stopPropagation()});document.body.append(e);return e};
+const dvMsg=m=>{let t=document.getElementById('dvT');if(!t)t=dvEl('dvT');t.textContent=m;t.style.opacity=1;clearTimeout(dvMsg.h);dvMsg.h=setTimeout(()=>t.style.opacity=0,1800)};
+const dvBtn=dvEl('dvB');dvBtn.textContent='DBG';dvBtn.setAttribute('role','button');dvBtn.style.cursor='pointer';dvBtn.onclick=()=>dvToggle();
+const dvHud=dvEl('dvH');dvHud.style.display='none';
+setInterval(()=>{if(!DV.hud){dvHud.style.display='none';return}const g=G;dvHud.style.display='block';
+ dvHud.textContent=`${DV.fr.length} fps · update ${DV.upd.toFixed(2)} ms · draw ${DV.drw.toFixed(2)} ms\n`+(g?`enemies ${g.en.length} · shots ${g.pr.length} · bullets ${g.eb.length}\nfx ${g.fx.length} · gems ${g.gems.length} · pools ${g.pools.length} · hazards ${(g.tele||[]).length}\nt ${g.t.toFixed(1)}s · x${DV.ts}${DV.ts===0?' (frozen)':''}`:'no run')},250);
+const dvRun=()=>scene==='play'&&G;
+const dvName=e=>e.hb?HB[e.hb].n:BOSS[e.bi].n;
+const dvA={close:()=>dvToggle(0),report:()=>dvReport(),run:v=>{runMode=+v?'halloween':'classic';go('play',+v?startHw:startRun);setTimeout(()=>DV.open&&dvMenu(),600)},hit:()=>{DV.hit^=1},hud:()=>{DV.hud^=1},
+ god:()=>{G.god=!G.god},ts:v=>{DV.ts=+v},step:()=>{DV.ts=0;DV.step=1},t:v=>{G.t+=+v},phase:v=>{G.phase=+v},
+ heal:()=>{G.p.hp=G.p.mhp},lvl:()=>{G.lvl++;G.queue++},xp:()=>{G.xp+=need(G.lvl)*.6;while(G.xp>=need(G.lvl)){G.xp-=need(G.lvl);G.lvl++;G.queue++}},gold:()=>{G.gold+=100},
+ revive:()=>{if(G.over&&!G.over.win){G.over=null;lbCard=null;G.p.hp=G.p.mhp;G.p.inv=2;ringFx(G.p.x,G.p.y,'#9fd3ff',160)}else G.revive++},
+ w:(k,d)=>{const l=Math.max(0,Math.min(5,(G.w[k]||0)+ +d));if(l)G.w[k]=l;else{delete G.w[k];delete G.evo[k]}if(l<5)delete G.evo[k]},evo:k=>{G.w[k]=5;G.evo[k]=G.evo[k]?0:1;if(!G.evo[k])delete G.evo[k]},
+ p:(k,d)=>{const o=G.ps[k]||0,l=Math.max(0,Math.min(5,o+ +d));if(l)G.ps[k]=l;else delete G.ps[k];if(k==='heart'){G.p.mhp+=20*(l-o);G.p.hp=Math.min(G.p.mhp,Math.max(1,G.p.hp+20*(l-o)))}},
+ max:()=>{for(const k in WP)if(heroOk(WP[k])){G.w[k]=5;G.evo[k]=1}for(const k in PS)if(heroOk(PS[k]))dvA.p(k,5)},
+ type:v=>{DV.type=v},elite:()=>{DV.elite^=1},en:n=>{for(let i=0;i<+n;i++)spawnEnemy(DV.type,!!DV.elite)},bi:v=>{DV.bi=+v},boss:()=>{spawnBoss(DV.bi)},hb:v=>{DV.hb=v},
+ rb:()=>{const k=DV.hb,B=HB[k],N=G.hw.rank,a=Math.random()*6.28,hp=B.hp*(1+HW.bossHp*(N-1));
+  const e={type:'boss',hb:k,boss:1,x:G.p.x+Math.cos(a)*220,y:G.p.y+Math.sin(a)*220,hp,mhp:hp,r:B.r,spd:B.spd,dmg:B.dmg*(1+HW.bossDmg*(N-1)),xp:60,flash:0,kx:0,ky:0,ph:Math.random()*6,atk:2.2,seq:0,hitT:{}};
+  G.en.push(e);G.hw.live.push(e);sfx.boss();banner(B.n+' RISES!','#ff8a3d')},
+ killm:()=>{for(const e of G.en.slice())if(!e.boss&&!e.dead)killEnemy(e)},killa:()=>{for(const e of G.en.slice())if(!e.dead)killEnemy(e)},clr:()=>{G.eb=[];G.tele=[]},
+ emb:()=>{G.hw.embers+=100;G.hw.got+=100},ritual:()=>{const h=G.hw;if(h.live.length)return dvMsg('A ritual is already live');h.embers=Math.max(h.embers,hwCost());h.cd=0;hwSummon()},rank:()=>{G.hw.rank++}};
+const DV_FREE={close:1,report:1,run:1,hit:1,hud:1,type:1,elite:1,bi:1,hb:1};// UI-only: these don't mark the run
+function dvDo(a,v,w){if(!dvA[a])return;if(a==='run'&&dvRun())return;if(!DV_FREE[a]){if(!dvRun())return dvMsg('Start a run first');dvMark()}try{dvA[a](v,w);SC=G?st():SC}catch(e){dvMsg('Failed: '+e.message);console.error(e)}if(DV.open&&a!=='close')dvMenu()}
+let dvP=null;
+function dvToggle(on){DV.open=on==null?!DV.open:on;if(DV.open)dvMenu();else if(dvP){dvP.remove();dvP=null}}
+function dvMenu(){const g=dvRun()?G:null,hw=g&&g.hw,dis=g?'':'disabled',b=(a,l,v,on,ex)=>`<button data-a="${a}"${v!=null?` data-v="${v}"`:''}${ex!=null?` data-w="${ex}"`:''}${on?' class="on"':''} ${(ex==='any'?'':dis)}>${l}</button>`;
+ const sel=(a,cur,opts,off)=>`<select data-a="${a}" ${off||''}>${opts.map(([v,n])=>`<option value="${v}"${String(v)===String(cur)?' selected':''}>${n}</option>`).join('')}</select>`;
+ const items=(kind,T,lv)=>Object.keys(T).filter(k=>heroOk(T[k])).map(k=>`<div class="r"><span>${T[k].n}</span><b>${g?(kind==='w'&&g.evo[k]?'EVO':lv[k]||0):'-'}</b>${b(kind,'−',k,0,-1)}${b(kind,'+',k,0,1)}${kind==='w'?b('evo','Evo',k,g&&g.evo[k]):''}</div>`).join('');
+ const st_=g?`${CH[g.char].n} · Lv ${g.lvl} · ${Math.round(g.p.hp)}/${Math.round(g.p.mhp)} HP${g.dbg?' · DEBUG RUN':''}`:'no run: start one';
+ const html=`<div class="hd">DEBUG<i>${st_}</i>${b('close','✕',null,0,'any')}</div>${g?'':`<div class="r"><span>Start a run</span>${b('run','Classic',0,0,'any')}${b('run','Halloween',1,0,'any')}</div>`}
+ <h4>RUN</h4><div class="r"><label><input type="checkbox" data-a="god" ${g&&g.god?'checked':''} ${dis}> God mode</label></div>
+ <div class="r"><span>Time scale</span>${[0,.25,.5,1,2,4].map(v=>b('ts',v===0?'❚❚':v+'×',v,DV.ts===v)).join('')}</div>
+ <div class="r">${b('step','Step 1 frame')}${b('t','+30s',30)}${b('t','+60s',60)}${hw?'':`<span></span>Phase ${sel('phase',g?g.phase:0,PHASE.map((_,i)=>[i,i+1]),dis)}`}</div>
+ <h4>OVERLAYS</h4><div class="r"><label><input type="checkbox" data-a="hit" ${DV.hit?'checked':''}> Hitboxes</label><label><input type="checkbox" data-a="hud" ${DV.hud?'checked':''}> FPS + counts</label></div>
+ <h4>PLAYER</h4><div class="r">${b('heal','Heal')}${b('lvl','+1 level')}${b('xp','+XP')}${b('gold','+100 gold')}${b('revive',g&&g.over&&!g.over.win?'Revive':'+1 revive')}</div>
+ <h4>WEAPONS</h4>${items('w',WP,g?g.w:{})}<h4>PASSIVES</h4>${items('p',PS,g?g.ps:{})}<div class="r">${b('max','Max everything')}</div>
+ <h4>SPAWN</h4><div class="r">${sel('type',DV.type,Object.keys(ETYPE).map(k=>[k,ENAME[k]||k]))}${[1,10,50].map(n=>b('en','×'+n,n)).join('')}<label><input type="checkbox" data-a="elite" ${DV.elite?'checked':''}> Elite</label></div>
+ <div class="r">${sel('bi',DV.bi,BOSS.map((B,i)=>[i,(i+1)+'. '+B.n]))}${b('boss','Spawn boss')}</div>
+ <div class="r">${sel('hb',DV.hb,Object.keys(HB).map(k=>[k,HB[k].n]))}${hw?b('rb','Summon'):'<span>ritual bosses: Halloween only</span>'}</div>
+ <div class="r">${b('killm','Kill non-boss')}${b('killa','Kill everything')}${b('clr','Clear bullets')}</div>
+ ${hw?`<h4>HALLOWEEN · ${hw.embers} embers · rank ${hw.rank} · ritual ${hw.step+1}</h4><div class="r">${b('emb','+100 embers')}${b('ritual','Next ritual now')}${b('rank','Night Rank +1')}</div>`:''}
+ <h4>REPORT</h4><div class="r">${b('report','Report bug (F8)',null,0,'any')}<span>${DV.errs.length} error(s) logged</span></div>`;
+ if(!dvP){dvP=dvEl('dvP');dvP.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.tagName==='SELECT'||t.disabled)return;if(t.tagName==='INPUT')return dvDo(t.dataset.a);dvDo(t.dataset.a,t.dataset.v,t.dataset.w)});
+  dvP.addEventListener('change',e=>{if(e.target.tagName==='SELECT')dvDo(e.target.dataset.a,e.target.value)})}
+ const sc=dvP.scrollTop;dvP.innerHTML=html;dvP.scrollTop=sc}
+// ---- F8 bug report ----
+const dvSum=()=>{const g=G;if(!g)return{scene};const b=g.boss||g.hw&&g.hw.live[0];
+ return{mode:g.hw?'halloween':'classic',hero:CH[g.char].n,weapons:Object.keys(g.w).map(k=>WP[k].n+' '+(g.evo[k]?'EVO':g.w[k])).join(', '),passives:Object.keys(g.ps).map(k=>PS[k].n+' '+g.ps[k]).join(', '),
+  t:+g.t.toFixed(2),level:g.lvl,hp:Math.round(g.p.hp)+'/'+Math.round(g.p.mhp),enemies:g.en.length,boss:b?dvName(b)+' '+Math.round(b.hp)+'/'+Math.round(b.mhp)+(b.bph?' P'+b.bph:''):null,
+  phase:g.hw?'ritual '+(g.hw.step+1):g.phase+1,rank:g.hw?g.hw.rank:null,dbg:!!g.dbg,paused:!!g.paused,over:g.over?g.over.win?'won':'dead':null}};
+function dvReport(){if(DV.modal)return;DV.modal=1;const ts=DV.ts;if(dvRun())DV.ts=0;let shot='';try{shot=cv.toDataURL('image/png')}catch(e){}
+ const m=dvEl('dvM',`<div><b>Report a bug</b><img alt="screenshot"><textarea placeholder="What went wrong? What did you expect?"></textarea><div class="r"><i>${DV.errs.length} error(s) · ${G?'run state':'no run'} included</i><button data-k="c">Cancel</button><button data-k="s" class="on">Save (${/Mac/.test(navigator.platform)?'⌘':'Ctrl'}+Enter)</button></div></div>`);
+ m.querySelector('img').src=shot;const ta=m.querySelector('textarea');setTimeout(()=>ta.focus(),0);
+ const close=()=>{m.remove();DV.modal=0;DV.ts=ts},go_=async()=>{const r=dvBuild(ta.value.trim(),shot);close();await dvSend(r)};
+ m.querySelector('[data-k=c]').onclick=close;m.querySelector('[data-k=s]').onclick=go_;
+ ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();go_()}else if(e.key==='Escape')close()})}
+function dvBuild(note,shot){const at=new Date(),slug=note.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
+ return{id:at.toISOString().slice(0,19).replace(/:/g,'-')+(slug?'-'+slug:''),at:at.toISOString(),note,url:location.href,ua:navigator.userAgent,viewport:{W,H,DPR},scene,runMode,clock,
+  version:document.documentElement.dataset.version||null,game:document.documentElement.dataset.game||null,replayOf:RPQ,summary:dvSum(),errors:DV.errs.slice(),
+  state:{S:dvEnc(S),G:G?dvEnc(Object.assign({},G,{blood:null})):null},screenshot:shot}}
+async function dvSend(r){try{const res=await fetch('/__dev/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(r)});if(!res.ok)throw new Error(res.status);const j=await res.json();dvMsg('Saved '+j.path)}
+ catch(e){// no Workshop server here (vercel dev, a static server): download the whole report, screenshot inline
+  const u=URL.createObjectURL(new Blob([JSON.stringify(r)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='report-'+r.id+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);dvMsg('No report server: downloaded report-'+r.id+'.json')}}
+function dvKey(e){if(DV.modal&&e.target.tagName==='TEXTAREA')return;if(e.key==='`'||e.code==='Backquote'){e.preventDefault();dvToggle()}else if(e.key==='F8'){e.preventDefault();dvReport()}}
+addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey)return;dvKey(e)});
+// ---- replay: ?report=<id> loads that moment frozen; storage, cloud sync and telemetry are off (NOSAVE) ----
+async function dvReplay(id){const bn=dvEl('dvR');bn.innerHTML=`<b>REPLAY</b><span>${id} · loading…</span>`;
+ try{if(!/^[\w-]+$/.test(id))throw new Error('bad report id');const res=await fetch('/__dev/reports/'+id+'/report.json',{cache:'no-store'});if(!res.ok)throw new Error('report.json: HTTP '+res.status);const j=await res.json();
+  S=dvDec(j.state.S);M=S.meta;G=j.state.G?dvDec(j.state.G):null;runMode=j.runMode||'classic';clock=j.clock||0;SC=null;trans=null;
+  if(G){G.blood={t:new Map(),old:null,fade:0};G.dbg=1}scene=G||j.scene!=='play'?j.scene:'title';DV.ts=0;DV.used=1;
+  bn.innerHTML='<b></b><span></span><button data-k="p">▶ Resume</button><button data-k="s">Step</button>';bn.querySelector('b').textContent='REPLAY '+j.id;bn.querySelector('span').textContent=j.note||'(no note)';bn.title=j.note||'';
+  bn.querySelector('[data-k=p]').onclick=()=>{DV.ts=DV.ts?0:1;bn.querySelector('[data-k=p]').textContent=DV.ts?'❚❚ Freeze':'▶ Resume';if(DV.open)dvMenu()};bn.querySelector('[data-k=s]').onclick=()=>{DV.ts=0;DV.step=1;bn.querySelector('[data-k=p]').textContent='▶ Resume'}}
+ catch(e){bn.querySelector('span').textContent=id+' · could not load: '+e.message;console.error(e)}}
+if(RPQ)dvReplay(RPQ);
+window.__dev={enc:dvEnc,dec:dvDec,report:dvReport,build:dvBuild,menu:dvToggle,do:dvDo,state:DV};
+}
 })();
 </script></body></html>
