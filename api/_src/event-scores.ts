@@ -38,16 +38,29 @@ export function validateEventScore(body: unknown): { ok: true; value: EventScore
   };
 }
 
-/** Inserts the run unless this user posted an event score in the last 30s. Returns the id, or null when rate limited. */
+/**
+ * Inserts the run unless this user posted an event score in the last 30s. Returns the id, or null when rate limited.
+ * The game retries runs whose post failed, so a run identical to one already stored returns that row's id instead
+ * of inserting again; crowns are a running total and must not count twice.
+ */
 export async function insertEventScore(eventId: string, userId: string, s: EventScoreInput): Promise<number | null> {
   const { rows } = await pool.query<{ id: number }>(
-    `INSERT INTO event_scores (event_id, user_id, hero, time_s, kills, crowns, rituals, first_crown_s)
-     SELECT $1, $2, $3, $4, $5, $6, $7, $8
-     WHERE NOT EXISTS (
-       SELECT 1 FROM event_scores
-       WHERE user_id = $2 AND created_at > now() - make_interval(secs => $9)
+    `WITH dup AS (
+       SELECT id FROM event_scores
+       WHERE event_id = $1 AND user_id = $2 AND hero = $3 AND time_s = $4 AND kills = $5 AND crowns = $6
+         AND rituals = $7 AND first_crown_s IS NOT DISTINCT FROM $8
+       LIMIT 1
+     ),
+     ins AS (
+       INSERT INTO event_scores (event_id, user_id, hero, time_s, kills, crowns, rituals, first_crown_s)
+       SELECT $1, $2, $3, $4, $5, $6, $7, $8
+       WHERE NOT EXISTS (SELECT 1 FROM dup) AND NOT EXISTS (
+         SELECT 1 FROM event_scores
+         WHERE user_id = $2 AND created_at > now() - make_interval(secs => $9)
+       )
+       RETURNING id
      )
-     RETURNING id`,
+     SELECT id FROM ins UNION ALL SELECT id FROM dup`,
     [eventId, userId, s.hero, s.time_s, s.kills, s.crowns, s.rituals, s.first_crown_s, RATE_LIMIT_SECONDS],
   );
   return rows[0]?.id ?? null;

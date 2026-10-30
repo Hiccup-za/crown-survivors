@@ -1093,7 +1093,7 @@ function lbRecord(sc){const B=LBS.best;if(sc.won&&(!B.f||sc.curse>B.f[0]||(sc.cu
 // event runs (sc.ev) post to that event's boards only; Classic posts are unchanged
 async function lbSubmit(sc,b){const P=lbP(sc.ev),old=b?await api(P+'/me/rank?board='+b):null;
  const r=await api(P+'/scores',{method:'POST',body:JSON.stringify(sc.ev?{hero:sc.hero,time_s:sc.time_s,kills:sc.kills,crowns:sc.crowns,rituals:sc.rituals,first_crown_s:sc.first_crown_s}:{hero:sc.hero,curse:sc.curse,won:sc.won,time_s:sc.time_s,kills:sc.kills,bosses:sc.bosses})});
- if(r&&r.ok)dbTrack('score_submit',{board:sc.ev?sc.theme:b||'none'});if(!r||!r.ok||!b)return null;const nw=await api(P+'/me/rank?board='+b);if(!nw||!nw.ok||!nw.j||!nw.j.rank)return null;LBS.ranks[lbK(b,sc.ev)]=nw.j.rank;lbSave();
+ if(r&&r.ok)dbTrack('score_submit',{board:sc.ev?sc.theme:b||'none'});if(sc.ev&&evRetry(r&&r.status))evQueue(sc);if(!r||!r.ok||!b)return null;const nw=await api(P+'/me/rank?board='+b);if(!nw||!nw.ok||!nw.j||!nw.j.rank)return null;LBS.ranks[lbK(b,sc.ev)]=nw.j.rank;lbSave();
  const from=old&&old.ok&&old.j?old.j.rank:null;return{board:b,ev:sc.ev||null,n:nw.j.rank,from,row:nw.j.row}}
 // event best-tracking (LBS.evb[event]): c = [crowns, rituals, kills], f = first crown s, k = kills
 const hwC=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
@@ -1101,7 +1101,16 @@ const hwC=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
 function hwBetter(sc){const B=(LBS.evb||{})[sc.ev]||{};if(sc.crowns>0||!B.c||hwC([sc.crowns,sc.rituals,sc.kills],B.c)>0)return'crowns';if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))return'fastest';if(sc.kills>(B.k||0))return'kills';return null}
 function hwRecord(sc){const A=LBS.evb=LBS.evb||{},B=A[sc.ev]=A[sc.ev]||{},c=[sc.crowns,sc.rituals,sc.kills];if(!B.c||hwC(c,B.c)>0)B.c=c;if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))B.f=sc.first_crown_s;B.k=Math.max(B.k||0,sc.kills);lbSave()}
 function hwPost(){const g=G,h=g.hw,E=evById(h.ev)||{},o=g.over,sc={ev:h.ev,theme:E.theme,hero:HERO_ID[g.char],ci:g.char,time_s:Math.min(86400,Math.floor(g.t)),kills:Math.min(1e6,g.kills|0),crowns:h.crowns,rituals:h.cleared,first_crown_s:h.first};
- const b=hwBetter(sc);hwRecord(sc);if(lbIn())lbSubmit(sc,b).then(res=>{if(res&&(res.from==null||res.n<res.from))o.lb=res});else if(b&&sc.time_s>=60&&evState(E)==='live')o.pend=Object.assign({board:b},sc)}
+ const b=hwBetter(sc);hwRecord(sc);if(lbIn())lbSubmit(sc,b).then(res=>{if(res&&(res.from==null||res.n<res.from))o.lb=res;setTimeout(evFlush,31000)});
+ else{if(sc.crowns>0&&evState(E)==='live')evQueue(sc);if(b&&sc.time_s>=60&&evState(E)==='live')o.pend=Object.assign({board:b},sc)}}
+// event runs whose post failed (offline, timeout, server error, signed out, rate limit) wait in LBS.evq and post one per 31s once signed in.
+// Every crown must reach the board; the server ignores a run it already has, so a retry never counts twice
+const evRetry=st=>!st||st===401||st===429||st>=500,EVQ_MAX=50;
+function evQueue(sc){const q=LBS.evq=LBS.evq||[],r={ev:sc.ev,theme:sc.theme,hero:sc.hero,time_s:sc.time_s,kills:sc.kills,crowns:sc.crowns,rituals:sc.rituals,first_crown_s:sc.first_crown_s};
+ if(!q.some(o=>JSON.stringify(o)===JSON.stringify(r))){q.push(r);if(q.length>EVQ_MAX)q.splice(q.findIndex(o=>!o.crowns)>=0?q.findIndex(o=>!o.crowns):0,1)}lbSave()}
+async function evFlush(){if(evFlush.busy||!lbIn()||!(LBS.evq||[]).length)return;evFlush.busy=1;const sc=LBS.evq[0];
+ const r=await api(lbP(sc.ev)+'/scores',{method:'POST',body:JSON.stringify({hero:sc.hero,time_s:sc.time_s,kills:sc.kills,crowns:sc.crowns,rituals:sc.rituals,first_crown_s:sc.first_crown_s})});evFlush.busy=0;
+ if(r&&!evRetry(r.status)){LBS.evq=LBS.evq.filter(o=>o!==sc);lbSave();if(LBS.evq.length)setTimeout(evFlush,31000)}}
 function lbShowRank(res){lb.data={};lb.me={};lb.ev=res.ev||null;lb.board=res.board;lbLoad(res.board);lb.back='title';lb.scroll=0;lb.want=Math.max(0,res.n-5)*RH;lb.t0=clock;
  lb.rank=(res.from==null||res.n<res.from)?{n:res.n,from:res.from,row:res.row,t0:clock+.5,burst:0}:null;if(scene!=='lb')go('lb')}
 const _endRun=endRun;endRun=function(win){const was=G&&G.over;_endRun(win);if(was||!LB_API||!G||!G.over||G.dbg)return;if(G.hw)return hwPost();
@@ -1248,7 +1257,7 @@ addEventListener('pointerup',e=>{const d=chs.drag;chs.drag=null;if(!d||d.moved||
 cv.addEventListener('wheel',e=>{if(scene==='lb'){lb.scroll+=e.deltaY/lbT.k;e.preventDefault()}else if(scene==='codex'){codex.scroll+=e.deltaY/lbT.k;e.preventDefault()}else if(scene==='chars'){chs.scroll=Math.max(0,Math.min(chs.maxS,chs.scroll+e.deltaY));e.preventDefault()}},{passive:false});
 if(LB_API){const m=location.hash.match(/lb_token=([^&]+)/),er=/lb_error=/.test(location.hash);if(m||er){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
  if(m){LBS.tok=decodeURIComponent(m[1]);lbSave()}else if(er){LBS.pend=null;lbSave();toast={t:'Sign-in cancelled',l:1.8};try{sessionStorage.removeItem('cs_sx')}catch(e){}}
- if(LBS.tok)lbRefreshMe().then(async()=>{if(lbIn())sySync();try{if(lbIn()&&sessionStorage.getItem('cs_sx')){sessionStorage.removeItem('cs_sx');dbTrack('signin_x',{})}}catch(e){}if(!lbIn()||!LBS.pend)return;const p=LBS.pend;LBS.pend=null;lbSave();const res=await lbSubmit(p,p.board);if(res)lbShowRank(res);else openLB('title',p.board,p.ev)})}
+ if(LBS.tok)lbRefreshMe().then(async()=>{if(lbIn()){sySync();setTimeout(evFlush,LBS.pend?31000:0)}try{if(lbIn()&&sessionStorage.getItem('cs_sx')){sessionStorage.removeItem('cs_sx');dbTrack('signin_x',{})}}catch(e){}if(!lbIn()||!LBS.pend)return;const p=LBS.pend;LBS.pend=null;lbSave();const res=await lbSubmit(p,p.board);if(res)lbShowRank(res);else openLB('title',p.board,p.ev)})}
 // ===== telemetry ===== first-party progression + runs to our own API (docs/telemetry.md). Random install id, no PII; the Databuddy events above are separate
 const TK='crownsurv_tid',tUuid=()=>{try{return crypto.randomUUID()}catch(e){const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;const h=[...b].map(v=>v.toString(16).padStart(2,'0')).join('');return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20)}};
 let TID;try{TID=localStorage.getItem(TK);if(!TID){TID=tUuid();localStorage.setItem(TK,TID)}}catch(e){TID=tUuid()}

@@ -457,6 +457,18 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       assert.deepEqual((await board("crowns")).slice(0, 2).map((r) => [r.rank, r.handle, r.crowns, r.rituals]), [[1, "playerone", 2, 13], [1, "third", 2, 13]]);
     });
 
+    test("a retried run is stored once, so its crowns never count twice", async () => {
+      const { insertEventScore } = await import("../_src/event-scores.js");
+      const prince = { hero: "pumpkin-prince", time_s: 700, kills: 950, crowns: 1, rituals: 4, first_crown_s: 260 };
+      const id = await insertEventScore(EV, "u2", prince);
+      assert.ok(id);
+      // the retry lands inside the 30s rate limit window and still gets the same row back
+      assert.equal(await insertEventScore(EV, "u2", prince), id);
+      assert.equal(await count(`SELECT count(*) AS n FROM event_scores WHERE user_id = 'u2'`), 2);
+      assert.equal(await insertEventScore(EV, "u2", { ...prince, kills: 951 }), null);
+      assert.deepEqual((await board("crowns")).map((r) => [r.handle, r.crowns]).find((r) => r[0] === "second"), ["second", 2]);
+    });
+
     test("fastest crown and most kills still rank each player's best single run", async () => {
       assert.deepEqual((await board("fastest")).map((r) => [r.handle, r.first_crown_s, r.hero]), [["playerone", 239, "king-cube"], ["second", 302, "king-cube"]]);
       assert.deepEqual((await board("kills")).map((r) => [r.handle, r.kills]), [["second", 1827], ["playerone", 1771], ["third", 50]]);
