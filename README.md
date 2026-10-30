@@ -55,6 +55,8 @@ npm run typecheck
 cd api && npx vercel dev       # game + API on one origin (usually http://localhost:3000)
 ```
 
+Tests: `DATABASE_URL=postgresql://localhost:5432/crown_test npm test` runs the unit tests and the integration tests (Hono app + Postgres, Resend stubbed). Point it at a throwaway database with migrations applied: the integration tests truncate tables. Without `DATABASE_URL` the integration suite is skipped. CI (`.github/workflows/test.yml`) runs them on every pull request and on demand.
+
 Serve the game locally (optional): `npx serve public -p 8799` — add that origin via `EXTRA_ORIGINS` if you point the game at a separate API URL.
 
 ## Deploy (Vercel)

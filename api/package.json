@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
     "migrate": "tsx scripts/migrate.ts",
     "dev": "vercel dev"
   },
