@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.0] - 2026-10-30
+
+### Added
+- The asset viewer is now the Crown Survivors Workshop (`npm run workshop`; `npm run assets` still works), one local page with Assets, Playground, Balance and Reports tabs and a Play (debug) link that serves the game at `/play` without analytics.
+- Playground: a configurable live run for testing mechanics, with the mode, hero, curse, start time, arena phase, every weapon and passive level, target dummies (type, count, layout, elite, pinned or moving, immortal or real HP), a held Classic or ritual boss phase, spawning, god mode and free move, plus live DPS, time to kill, computed stats, entity counts and frame times, and saved presets.
+- Balance: every data table read from the running code, plus XP per level, Halloween tier scaling and ritual costs, each with its source line, Copy JSON, and a Download config.json for everything.
+- An in-game debug menu in dev mode (backtick, or the DBG tab): god mode, time scale and frame step, time jumps, hitbox and FPS overlays, player, weapon and passive controls, spawning enemies and bosses, and Halloween shortcuts. Debug runs never reach the leaderboard, the save or telemetry.
+- F8 bug reports: a screenshot, a note, recent errors and the full game state saved to `dev/reports/<id>/` with a README an agent can read, listed in the Workshop's Reports tab where they can be resolved and reopened.
+- Any report can be replayed at that exact moment with `/play?report=<id>`, frozen, without touching saves, cloud sync or telemetry, and followed up with another report.
+
+### Changed
+- The asset viewer moved from `tools/asset-viewer/` to `tools/workshop/`.
+
 ## [0.6.0] - 2026-10-30
 
 ### Added

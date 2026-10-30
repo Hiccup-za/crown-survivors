@@ -1,5 +1,6 @@
 'use strict';
-// Crown Survivors asset viewer. Every sprite here is drawn by the live game code in public/index.html, never a copy:
+// Crown Survivors Workshop, Assets tab (Playground, Balance and Reports live in workshop.js).
+// Every sprite here is drawn by the live game code in public/index.html, never a copy:
 // the game script runs in a hidden iframe (storage, network and the main loop stubbed out, so no save is read or written
 // and no telemetry is sent), and a small bridge is injected just before the game's IIFE closes so we can call its drawers.
 const $ = id => document.getElementById(id);
@@ -9,8 +10,8 @@ const PRELUDE = `(()=>{
  const mk=()=>{const m=new Map();return{getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>{m.set(k,String(v))},removeItem:k=>{m.delete(k)},clear:()=>m.clear(),key:i=>[...m.keys()][i]??null,get length(){return m.size}}};
  Object.defineProperty(window,'localStorage',{value:mk(),configurable:true});
  Object.defineProperty(window,'sessionStorage',{value:mk(),configurable:true});
- window.fetch=()=>Promise.reject(new Error('network is off in the asset viewer'));
- window.XMLHttpRequest=function(){throw new Error('network is off in the asset viewer')};
+ window.fetch=()=>Promise.reject(new Error('network is off in the Workshop runtime'));
+ window.XMLHttpRequest=function(){throw new Error('network is off in the Workshop runtime')};
  try{Object.defineProperty(navigator,'sendBeacon',{value:()=>true,configurable:true})}catch(e){}
  window.requestAnimationFrame=()=>0;
  window.__errs=[];addEventListener('error',e=>__errs.push(e.message));addEventListener('unhandledrejection',e=>e.preventDefault());
@@ -21,10 +22,10 @@ const BRIDGE = `
  draw(c,fn){const o=x,ou=U;x=c;U=1;try{fn()}finally{x=o;U=ou;FL=0}}};
 // combat sandbox: a real run (startRun / update / drawWorld) with spawning off, the hero pinned and invulnerable, pinned target
 // dummies that never die, and a boss whose attack choice (e.seq) and phase (HP fraction) are held so one attack repeats
-;(()=>{let on=0,cfg=null,boss=null;const _hs=hwSpawn,_hr=hwRitual;hwSpawn=dt=>{if(!on)_hs(dt)};hwRitual=dt=>{if(!on)_hr(dt)};
+;(()=>{let on=0,cfg=null,boss=null,pon=0,pc=null,slots=[],pb=null,pq=0;const _hs=hwSpawn,_hr=hwRitual;hwSpawn=dt=>{if(!on&&!pq)_hs(dt)};hwRitual=dt=>{if(!on&&!pq)_hr(dt)};
  const hpf=p=>p===3?.2:p===2?.5:.95;
  window.__CS.sim={
-  start(c){cfg=c;on=1;S.char=c.hero|0;S.tut=true;S.muted=true;startRun(c.hw?1:0);const g=G;
+  start(c){cfg=c;on=1;pon=pq=0;S.char=c.hero|0;S.tut=true;S.muted=true;startRun(c.hw?1:0);const g=G;
    g.tut=null;g.god=true;g.won=!c.hw;g.banner=null;g.w={};g.evo={};g.phase=c.phase|0;g.en=[];g.eliteT=1e9;
    if(c.weapon){g.w[c.weapon]=c.lvl||1;if(c.evo)g.evo[c.weapon]=1}
    SC=st();
@@ -40,11 +41,43 @@ const BRIDGE = `
    if(boss){boss.hp=boss.mhp*hpf(cfg.ph);boss.dead=0;if(!g.en.includes(boss))g.en.push(boss)}
    const k=Math.min(1,dt*4);for(const e of g.en)if(e.home){e.hp=e.mhp;e.x+=(e.home[0]-e.x)*k;e.y+=(e.home[1]-e.y)*k}},
   draw(c,w,h,z){const o=x,ow=W,oh=H,oz=Z,ou=U;x=c;W=w;H=h;Z=z;U=1;try{SC=SC||st();drawWorld()}finally{x=o;W=ow;H=oh;Z=oz;U=ou}},
-  stop(){on=0;G=null;scene='title'}}})();
+  stop(){on=0;G=null;scene='title'}};
+// playground: a configurable real run (workshop.js). Hero pinned at 0,0 unless free move; target slots respawn their kills so time to kill can be
+// measured; immortal targets and a held boss have their HP pinned. The world steps at phone size (390x844) so edge spawns and on-screen checks match a phone
+ const lay=(n,k)=>Array.from({length:n},(_,i)=>{const a=i*2.39996,r=9*Math.sqrt(i),R=Math.max(70,n*7);return k==='line'?[50+i*22,0]:k==='pack'?[110+r*Math.cos(a),r*Math.sin(a)]:[Math.cos(i*6.2832/n)*R,Math.sin(i*6.2832/n)*R]});
+ const put=s=>{const g=G,T=pc.target,e=spawnEnemy(T.type,!!T.elite);e.x=s.x+(T.pin?0:g.p.x);e.y=s.y+(T.pin?0:g.p.y);if(T.pin){e.home=[s.x,s.y];e.spd=0}if(T.hp!=='real')e.hp=e.mhp=1e9;s.e=e;s.t0=g.t;s.wait=0};
+ window.__CS.pg={
+  start(c){on=0;pc=c;pon=1;pq=!c.spawn;const hw=c.mode==='halloween';S.char=c.hero|0;S.curse=hw?0:c.curse|0;S.tut=true;S.muted=true;startRun(hw?1:0);const g=G;
+   g.tut=null;g.banner=null;g.god=!!c.god;g.t=+c.t||0;g.phase=c.phase|0;g.w={};g.evo={};g.ps={};
+   for(const k in c.w||{}){const v=c.w[k];if(v==='evo'){g.w[k]=5;g.evo[k]=1}else if(v>0)g.w[k]=v}
+   for(const k in c.ps||{})if(c.ps[k]>0)g.ps[k]=c.ps[k];if(g.ps.heart){g.p.mhp+=20*g.ps.heart;g.p.hp=g.p.mhp}
+   const nb=BOSS.findIndex(b=>b.t>g.t);g.bossI=!c.spawn||nb<0?BOSS.length:nb;g.eliteT=c.spawn?45:1e9;SC=st();
+   const T=c.target;slots=T&&T.n>0?lay(T.n,T.layout).map(([x,y])=>({x,y,e:null,t0:0,wait:0,kills:0,ttk:[]})):[];slots.forEach(put);
+   pb=null;const B=c.boss;
+   if(B&&B.kind==='classic'){spawnBoss(+B.id);pb=G.boss}
+   if(B&&B.kind==='ritual'&&hw&&HB[B.id]){const H=HB[B.id];pb={type:'boss',hb:B.id,boss:1,x:0,y:0,hp:H.hp,mhp:H.hp,r:H.r,spd:H.spd,dmg:H.dmg,xp:60,flash:0,kx:0,ky:0,ph:0,atk:2,seq:0,hitT:{}};g.en.push(pb);g.hw.live.push(pb)}
+   if(pb){pb.x=g.p.x+130;pb.y=g.p.y-70;pb.hp=pb.mhp*hpf(B.ph);pb.bph=B.ph||1;g.banner=null}
+   scene='play';trans=null;shake=0},
+  step(dt){if(!pon||!G||G.over)return;const g=G,p=g.p,T=pc.target||{},o=[W,H,Z];if(pq){g.spawnAcc=-1e9;g.eliteT=1e9}
+   W=390;H=844;Z=Math.min(390/300,844/540);try{update(dt)}finally{W=o[0];H=o[1];Z=o[2]}
+   g.choice=null;g.queue=0;g.xp=0;if(!pc.move)p.x=p.y=0;
+   for(const s of slots){if(s.e&&s.e.dead){s.kills++;s.ttk.push(g.t-s.t0);if(s.ttk.length>50)s.ttk.shift();s.e=null;s.wait=.25}
+    if(!s.e){s.wait-=dt;if(s.wait<=0)put(s);continue}
+    if(T.hp!=='real')s.e.hp=s.e.mhp;
+    if(s.e.home){const k=Math.min(1,dt*4);s.e.x+=(s.e.home[0]-s.e.x)*k;s.e.y+=(s.e.home[1]-s.e.y)*k}}
+   if(pb&&T.hp!=='real'&&!pb.dead)pb.hp=pb.mhp*hpf(pc.boss.ph)},
+  stats(){const g=G;if(!pon||!g)return null;const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+   return JSON.stringify({t:g.t,dmg:g.dmgDealt,kills:g.kills,hp:g.p.hp,mhp:g.p.mhp,lvl:g.lvl,over:g.over?g.over.win?'won':'dead':null,SC,
+    n:{enemies:g.en.length,shots:g.pr.length,bullets:g.eb.length,fx:g.fx.length,pools:g.pools.length,hazards:(g.tele||[]).length,gems:g.gems.length},
+    slots:slots.map(s=>({kills:s.kills,last:s.ttk.length?s.ttk[s.ttk.length-1]:null,avg:avg(s.ttk),hp:s.e?s.e.hp:0,mhp:s.e?s.e.mhp:0})),
+    boss:pb?{n:(pb.hb?HB[pb.hb]:BOSS[pb.bi]).n,hp:pb.hp,mhp:pb.mhp,ph:pb.bph||1,dead:!!pb.dead}:null,hw:g.hw?{embers:g.hw.embers,rank:g.hw.rank,tier:hwTier()}:null})},
+  key(k,d){keys[k]=d?1:0},
+  draw(c,w,h,z){window.__CS.sim.draw(c,w,h,z)},
+  stop(){pon=pq=0;G=null;scene='title';for(const k in keys)keys[k]=0}}})();
 `;
 const NAMES = ['heroS', 'enemyS', 'bossS', 'hwBossS', 'sprite', 'gemS', 'icon', 'soulEmber', 'pcrown', 'jack', 'crownG', 'hwProps',
   'CH', 'ETYPE', 'ENAME', 'BOSS', 'HB', 'WP', 'PS', 'MIC', 'META', 'SPRK', 'SPRF', 'SPRR', 'RAMP', 'PHASE', 'HPH', 'GMAT', 'pal'];
-let CS = null, R = {}, frameEl = null, mtime = null;
+let CS = null, R = {}, frameEl = null, mtime = null, TAB = 'assets'; // TAB: the Workshop tab on show (workshop.js switches it)
 
 async function loadRuntime() {
   const res = await fetch('/game/index.html', { cache: 'no-store' });
@@ -309,6 +342,7 @@ function lineupItems() {
 }
 function render(now) {
   const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (TAB !== 'assets') { requestAnimationFrame(render); return; }
   const c = clip();
   if (st.playing && c) st.t += dt * st.speed;
   const d = devicePixelRatio, w = Math.round(vp.clientWidth * d), h = Math.round(vp.clientHeight * d);
@@ -684,6 +718,7 @@ vp.addEventListener('wheel', e => {
 }, { passive: false });
 
 addEventListener('keydown', e => {
+  if (TAB !== 'assets') return;
   if (e.target.tagName === 'INPUT' && e.target.type !== 'range') { if (e.key === 'Escape') e.target.blur(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase(), list = st.assets.filter(visible), i = list.indexOf(st.a);
@@ -724,7 +759,7 @@ async function reload(manual) {
 function drawLogo() { const cv = $('logo'), X = cv.getContext('2d'); X.setTransform(1.6, 0, 0, 1.6, 24, 28); try { paint(X, st.assets[0], .3, st.assets[0].clips[0], { face: 1 }); } catch (e) { } }
 setInterval(async () => {
   if (loading || document.hidden) return;
-  try { const r = await fetch('/game/index.html', { method: 'HEAD', cache: 'no-store' }); const m = r.headers.get('x-mtime'); if (m && mtime && m !== mtime) reload(false); } catch (e) { setStatus('err', 'Viewer server is not reachable'); }
+  try { const r = await fetch('/game/index.html', { method: 'HEAD', cache: 'no-store' }); const m = r.headers.get('x-mtime'); if (m && mtime && m !== mtime) reload(false); } catch (e) { setStatus('err', 'Workshop server is not reachable'); }
 }, 1200);
 
 syncToggles();

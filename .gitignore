@@ -4,3 +4,4 @@ node_modules
 .vercel
 api/node_modules
 .DS_Store
+dev/reports/

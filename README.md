@@ -21,6 +21,8 @@ cd api && npx vercel dev       # game + API on one origin (usually http://localh
 | `api/` | Leaderboard API (Vercel serverless via `api/index.ts`) |
 | `api/_src`, `api/_scripts`, `api/_test` | API code, CLI scripts and tests (`_` prefix keeps Vercel from deploying each file as a function) |
 | `docs/` | Development guide, event notes and art rules |
+| `tools/workshop/` | Workshop: local asset viewer, mechanics playground, balance tables and bug reports (`npm run workshop`) |
+| `dev/` | Local bug reports from F8 (`dev/reports/`, git-ignored) |
 
 ## Documentation
 
