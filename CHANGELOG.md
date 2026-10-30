@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2] - 2026-10-31
+
+### Fixed
+- A Halloween run whose post fails (offline, timeout, server error, expired sign-in or rate limit) is kept on the device and retried until it reaches the Harvest Moon boards, instead of being dropped.
+- A run that earns a Pumpkin Crown while signed out is posted once the player signs in.
+- The server stores a retried run only once, so its crowns never count twice.
+
 ## [0.7.1] - 2026-10-31
 
 ### Fixed
