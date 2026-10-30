@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { auth, type Session } from "./auth.js";
-import { ALLOWED_ORIGINS, isAllowedReturnUrl } from "./origins.js";
+import { ALLOWED_ORIGINS, isAllowedReturnUrl, PUBLIC_URL } from "./origins.js";
 import { BOARDS, type Board, getLeaderboard, getMyRank, insertScore, validateScore, RATE_LIMIT_SECONDS } from "./scores.js";
+import { ipHash, recordTelemetry, TELEMETRY_MAX_BYTES, validateTelemetry } from "./telemetry.js";
+import { getAdminStats, isAdmin, MAX_RANGE_DAYS, parseRange } from "./admin.js";
 
 type Vars = { user: Session["user"] | null; session: Session["session"] | null };
 
@@ -20,7 +22,7 @@ app.use(
   }),
 );
 
-// Better Auth routes: /api/auth/sign-in/social, /api/auth/callback/twitter, /api/auth/get-session, /api/auth/sign-out ...
+// Better Auth routes: /api/auth/sign-in/social, /api/auth/sign-in/magic-link, /api/auth/magic-link/verify, /api/auth/callback/twitter, /api/auth/get-session, /api/auth/sign-out ...
 // Users must not edit name/handle/avatar themselves; they always come from X.
 app.all("/api/auth/update-user", (c) => c.json({ error: "not allowed" }, 403));
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
@@ -33,7 +35,8 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-app.get("/api/health", (c) => c.json({ ok: true, service: "crown-survivors-api" }));
+// env tells /admin which database it is reading: previews get their own Neon branch (docs/telemetry.md).
+app.get("/api/health", (c) => c.json({ ok: true, service: "crown-survivors-api", env: process.env.VERCEL_ENV ?? "development" }));
 
 /**
  * Top-level sign-in entry the game links to (window.location = ...):
@@ -45,7 +48,7 @@ app.get("/api/health", (c) => c.json({ ok: true, service: "crown-survivors-api" 
 app.get("/auth/x", async (c) => {
   const returnTo = c.req.query("returnTo");
   if (!isAllowedReturnUrl(returnTo)) return c.json({ error: "returnTo must be a game URL" }, 400);
-  const base = process.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
+  const base = PUBLIC_URL ?? new URL(c.req.url).origin;
   const callbackURL = `${base}/auth/handoff?returnTo=${encodeURIComponent(returnTo)}`;
   const res = await auth.api.signInSocial({
     body: { provider: "twitter", callbackURL, errorCallbackURL: callbackURL },
@@ -116,6 +119,38 @@ app.get("/api/me/rank", async (c) => {
   const { row, total } = await getMyRank(board, user.id);
   c.header("Cache-Control", "private, no-store");
   return c.json({ board, total, rank: row?.rank ?? null, row });
+});
+
+// ---- First-party telemetry (docs/telemetry.md). Anonymous by install id; linked to the X user when signed in. ----
+
+app.post("/api/t", async (c) => {
+  const text = await c.req.text();
+  if (text.length > TELEMETRY_MAX_BYTES) return c.json({ error: "payload too large" }, 413);
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return c.json({ error: "invalid JSON" }, 400);
+  }
+  const v = validateTelemetry(body);
+  if (!v.ok) return c.json({ error: v.error }, 400);
+  // Vercel sets x-forwarded-for itself (client values are overwritten), so it is safe to key limits on.
+  const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip");
+  const res = await recordTelemetry(c.get("user")?.id ?? null, ipHash(ip), v.value);
+  if ("limited" in res) return c.json({ error: res.limited }, 429);
+  return c.json({ ok: true, run: res.run });
+});
+
+// ---- Admin dashboard (public/admin.html). Only ADMIN_EMAILS, signed in by magic link. ----
+
+app.get("/api/admin/stats", async (c) => {
+  const user = c.get("user");
+  if (!user) return c.json({ error: "sign in required" }, 401);
+  if (!isAdmin(user)) return c.json({ error: "not an admin" }, 403);
+  const range = parseRange(c.req.query("from"), c.req.query("to"));
+  if (!range) return c.json({ error: `from/to must be YYYY-MM-DD, to after from, at most ${MAX_RANGE_DAYS} days` }, 400);
+  c.header("Cache-Control", "private, no-store");
+  return c.json(await getAdminStats(range.from, range.to));
 });
 
 app.onError((err, c) => {

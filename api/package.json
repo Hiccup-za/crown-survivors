@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "migrate": "tsx scripts/migrate.ts",
+    "test": "tsx --test _test/*.test.ts",
+    "migrate": "tsx _scripts/migrate.ts",
+    "db": "tsx _scripts/db.ts",
     "dev": "vercel dev"
   },
   "engines": {

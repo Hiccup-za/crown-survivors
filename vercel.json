@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ] && [ \"$MIGRATE_ON_PREVIEW_BUILD\" = \"1\" ]; then npm ci --prefix api && npm run migrate --prefix api; fi",
   "rewrites": [
+    { "source": "/admin", "destination": "/admin.html" },
     { "source": "/auth/:path*", "destination": "/api" },
     { "source": "/api/:path*", "destination": "/api" }
   ]

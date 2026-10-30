@@ -204,7 +204,7 @@ function hurtPlayer(d){const p=G.p;if(p.inv>0||G.god||G.won)return;d=Math.max(1,
  if(p.hp<=0){if(G.revive>0){G.revive--;p.hp=p.mhp*.5;p.inv=2;banner('REVIVED!','#9fd3ff');G.en.forEach(e=>{if(!e.boss&&d2(e,p)<160*160)killEnemy(e)});ringFx(p.x,p.y,'#9fd3ff',160)}else{p.hp=0;endRun(false)}}}
 function endRun(win){if(G.over)return;const gold=Math.round(G.gold+G.kills/30+(win?220*(1+G.curse*.5):0)+(G.bb>=3&&!win?60:0));G.over={win,gold,t:0};dbTrack('run_end',{result:win?'win':'death',time_s:Math.floor(G.t),kills:G.kills|0,bosses:G.bb|0,curse:G.curse|0});S.gold+=gold;S.kills+=G.kills;S.best=Math.max(S.best,Math.floor(G.t));
  if(win){S.wins++;S.winsBy[S.char]=(S.winsBy[S.char]||0)+1;if(S.curse>=S.maxCurse&&S.maxCurse<5){S.maxCurse=S.curse+1;G.over.newCurse=S.maxCurse}sfx.win();vib([50,50,50,50,200])}else{sfx.die();vib([100,50,200])}
- S.tut=true;save()}
+ S.tut=true;save();tRun({mode:'classic',event_id:null,hero:HERO_ID[G.char],result:win?'win':'death',gold_earned:gold,curse:G.curse|0,bosses:G.bb|0})}
 // ===== gore =====
 // Floor blood is baked into GT×GT world-unit canvases (1 canvas px = 1 world unit) so it stays all run for ~free; the tile farthest from the player is evicted past GMAX.
 const GT=256,GMAX=40;
@@ -809,6 +809,16 @@ cv.addEventListener('wheel',e=>{if(scene==='lb'){lb.scroll+=e.deltaY/lbT.k;e.pre
 if(LB_API){const m=location.hash.match(/lb_token=([^&]+)/),er=/lb_error=/.test(location.hash);if(m||er){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
  if(m){LBS.tok=decodeURIComponent(m[1]);lbSave()}else if(er){LBS.pend=null;lbSave();toast={t:'Sign-in cancelled',l:1.8};try{sessionStorage.removeItem('cs_sx')}catch(e){}}
  if(LBS.tok)lbRefreshMe().then(async()=>{try{if(lbIn()&&sessionStorage.getItem('cs_sx')){sessionStorage.removeItem('cs_sx');dbTrack('signin_x',{})}}catch(e){}if(!lbIn()||!LBS.pend)return;const p=LBS.pend;LBS.pend=null;lbSave();const res=await lbSubmit(p,p.board);if(res)lbShowRank(res);else openLB('title',p.board)})}
+// ===== telemetry ===== first-party progression + runs to our own API (docs/telemetry.md). Random install id, no PII; the Databuddy events above are separate
+const TK='crownsurv_tid',tUuid=()=>{try{return crypto.randomUUID()}catch(e){const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;const h=[...b].map(v=>v.toString(16).padStart(2,'0')).join('');return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20)}};
+let TID;try{TID=localStorage.getItem(TK);if(!TID){TID=tUuid();localStorage.setItem(TK,TID)}}catch(e){TID=tUuid()}
+const TSID=tUuid(),TTOUCH=typeof matchMedia!=='undefined'&&matchMedia('(pointer:coarse)').matches;let tLast='';
+const tSnap=()=>({gold:Math.max(0,Math.round(S.gold)),pumpkin_crowns:S.pumpkinCrowns|0,runs:S.runs|0,wins:S.wins|0,kills:Math.max(0,Math.round(S.kills)),best_s:S.best|0,max_curse:S.maxCurse|0,meta:S.meta,chars:S.chars,wins_by:S.winsBy,pumpkin_by:S.pumpkinBy,codex:S.codex});
+// one POST = session ping + latest save (+ the finished run). Snapshot-only pings are skipped when nothing changed
+function tSend(run){if(!LB_API)return;const snap=tSnap(),k=JSON.stringify(snap);if(!run&&k===tLast)return;tLast=k;const h={'Content-Type':'application/json'};if(LBS.tok)h.Authorization='Bearer '+LBS.tok;
+ try{fetch(LB_API+'/t',{method:'POST',headers:h,credentials:'include',keepalive:true,body:JSON.stringify({v:1,install_id:TID,session_id:TSID,touch:TTOUCH,snap,run:run||null})}).catch(()=>{})}catch(e){}}
+function tRun(r){const g=G;tSend(Object.assign({time_s:Math.floor(g.t),kills:g.kills|0,level:g.lvl|0||1,build:{w:g.w,ps:g.ps,evo:g.evo,inf:g.inf||{}}},r))}
+tSend();addEventListener('visibilitychange',()=>{if(document.hidden)tSend()});
 window.__cs={get joy(){return joy},get mt(){return mt},setHp:f=>{G.p.hp=G.p.mhp*f},cards:()=>cards(),INF,WP,PS,CH,get btns(){return btns},BOSS,spawnBoss:i=>{G.bossI=i+1;spawnBoss(i)},setPhase:n=>{G.phase=n},setT:t=>{G.t=t},get G(){return G},get S(){return S},get scene(){return scene},start:()=>{scene='play';startRun()},auto:(on=true)=>{G.auto=on},god:(on=true)=>{G.god=on},speed:n=>speedMul=n,go:s=>{scene=s},
  pickAuto:()=>{if(G&&G.choice){const c=G.choice;c.t=1;const cs=c.cards;const e=cs.find(q=>q.kind==='e')||cs.find(q=>q.kind==='w'&&q.lv>1)||cs[Math.random()*cs.length|0];choose(e);return true}return false},addGold:n=>{S.gold+=n;save()},event:(id,on)=>{if(on==null)delete evForce[id];else evForce[id]=!!on}};
 })();

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "typecheck": "npm run typecheck --prefix api",
+    "test": "npm run test --prefix api",
     "migrate": "npm run migrate --prefix api",
     "dev": "npm run dev --prefix api"
   },
