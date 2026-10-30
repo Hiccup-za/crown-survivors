@@ -153,6 +153,7 @@ single run, the same way as Classic.
 | --- | --- | --- |
 | `crowns` MOST CROWNS | total crowns ↓, total rituals cleared ↓ | total rituals cleared |
 | `fastest` FASTEST CROWN | time of first Night Gourd kill ↑ (runs with ≥1 crown) | time |
+| `survival` LONGEST SURVIVAL | run time ↓ | time |
 | `kills` MOST KILLS | kills ↓ | kills |
 
 API: `POST /api/events/:id/scores` (live window + grace only, 30 s rate limit), plus

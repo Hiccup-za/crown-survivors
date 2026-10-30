@@ -174,7 +174,7 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
 
     test("signed out gets 401 on every admin route", async () => {
       cookie = "";
-      for (const p of ["/players?from=2026-10-01&to=2026-10-08", "/players/user/u1", `/players/install/${ANON}`, "/leaderboard"])
+      for (const p of ["/players?from=2026-10-01&to=2026-10-08", "/players/user/u1", `/players/install/${ANON}`, "/leaderboard", "/events/harvest-2026/leaderboard"])
         assert.equal((await get(p)).status, 401, p);
     });
 
@@ -273,6 +273,17 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       assert.equal(admin.rows[0].user_id, "u1");
       const pub = await (await app.request(`${BASE}/api/leaderboard?board=survival`)).json();
       assert.equal("user_id" in pub.rows[0], false);
+    });
+
+    test("the admin event boards carry user_id on every board", async () => {
+      await pool.query(`INSERT INTO event_scores (event_id, user_id, hero, time_s, kills, crowns, rituals, first_crown_s)
+        VALUES ('harvest-2026', 'u1', 'pumpkin-prince', 700, 900, 1, 4, 250)`);
+      for (const b of ["crowns", "fastest", "survival", "kills"]) {
+        const res = await (await get(`/events/harvest-2026/leaderboard?board=${b}`)).json();
+        assert.deepEqual([res.rows.length, res.rows[0].user_id], [1, "u1"], b);
+      }
+      assert.equal((await get("/events/harvest-2026/leaderboard?board=nope")).status, 400);
+      assert.equal((await get("/events/nope/leaderboard")).status, 404);
     });
   });
 
@@ -423,7 +434,7 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
          VALUES ($1, $2, $3, 600, $4, $5, $6, $7, $8)`,
         [EV, user, hero, kills, crowns, rituals, first, at],
       );
-    type Row = { rank: number; handle: string; hero: string; crowns: number; rituals: number; kills: number; first_crown_s: number | null };
+    type Row = { rank: number; handle: string; hero: string; time_s: number; crowns: number; rituals: number; kills: number; first_crown_s: number | null };
     const board = async (b: string) =>
       ((await (await app.request(`${BASE}/api/events/${EV}/leaderboard?board=${b}`)).json()) as { rows: Row[] }).rows;
 
@@ -472,6 +483,14 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
     test("fastest crown and most kills still rank each player's best single run", async () => {
       assert.deepEqual((await board("fastest")).map((r) => [r.handle, r.first_crown_s, r.hero]), [["playerone", 239, "king-cube"], ["second", 302, "king-cube"]]);
       assert.deepEqual((await board("kills")).map((r) => [r.handle, r.kills]), [["second", 1827], ["playerone", 1771], ["third", 50]]);
+    });
+
+    test("longest survival ranks each player's longest single run, win or no crown", async () => {
+      await pool.query(`UPDATE event_scores SET time_s = CASE WHEN kills = 300 THEN 1500 WHEN user_id = 'u3' THEN 900 ELSE time_s END`);
+      assert.deepEqual(
+        (await board("survival")).map((r) => [r.rank, r.handle, r.time_s, r.hero]),
+        [[1, "playerone", 1500, "king-cube"], [2, "third", 900, "king-cube"], [3, "second", 600, "king-cube"]],
+      );
     });
   });
 });

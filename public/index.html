@@ -1068,7 +1068,7 @@ const lbSave=()=>{try{localStorage.setItem(LBK,JSON.stringify(LBS))}catch(e){}};
 const lbIn=()=>!!(LB_API&&LBS.tok&&LBS.user);
 const lb={want:null,board:'fastest',ev:null,data:{},me:{},scroll:0,t0:0,back:'title',rank:null,drag:null};
 // event boards (lb.ev = event id): [board, tab, value column, footer]. Board set is a placeholder until Christopher picks (docs/halloween-event.md)
-const EVB=[['crowns','MOST CROWNS','RITUALS','Total Pumpkin Crowns this event · then rituals'],['fastest','FASTEST CROWN','TIME','Fastest first Night Gourd kill'],['kills','MOST KILLS','KILLS','Most kills in a single Halloween run']];
+const EVB=[['crowns','MOST CROWNS','RITUALS','Total Pumpkin Crowns this event · then rituals'],['fastest','FASTEST CROWN','TIME','Fastest first Night Gourd kill'],['survival','LONGEST SURVIVAL','TIME','Longest single Halloween run'],['kills','MOST KILLS','KILLS','Most kills in a single Halloween run']];
 const lbP=ev=>ev?'/events/'+ev:'',lbK=(b,ev)=>ev?ev+':'+b:b,evById=id=>EVL.find(e=>e.id===id)||null;
 let lbT={k:1,ox:0,oy:0},lbCard=null;
 const fmtT=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'),fmtN=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');
@@ -1095,11 +1095,11 @@ async function lbSubmit(sc,b){const P=lbP(sc.ev),old=b?await api(P+'/me/rank?boa
  const r=await api(P+'/scores',{method:'POST',body:JSON.stringify(sc.ev?{hero:sc.hero,time_s:sc.time_s,kills:sc.kills,crowns:sc.crowns,rituals:sc.rituals,first_crown_s:sc.first_crown_s}:{hero:sc.hero,curse:sc.curse,won:sc.won,time_s:sc.time_s,kills:sc.kills,bosses:sc.bosses})});
  if(r&&r.ok)dbTrack('score_submit',{board:sc.ev?sc.theme:b||'none'});if(sc.ev&&evRetry(r&&r.status))evQueue(sc);if(!r||!r.ok||!b)return null;const nw=await api(P+'/me/rank?board='+b);if(!nw||!nw.ok||!nw.j||!nw.j.rank)return null;LBS.ranks[lbK(b,sc.ev)]=nw.j.rank;lbSave();
  const from=old&&old.ok&&old.j?old.j.rank:null;return{board:b,ev:sc.ev||null,n:nw.j.rank,from,row:nw.j.row}}
-// event best-tracking (LBS.evb[event]): c = [crowns, rituals, kills], f = first crown s, k = kills
+// event best-tracking (LBS.evb[event]): c = [crowns, rituals, kills], f = first crown s, s = longest run s, k = kills
 const hwC=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
 // crowns is a running total, so any crown counts
-function hwBetter(sc){const B=(LBS.evb||{})[sc.ev]||{};if(sc.crowns>0||!B.c||hwC([sc.crowns,sc.rituals,sc.kills],B.c)>0)return'crowns';if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))return'fastest';if(sc.kills>(B.k||0))return'kills';return null}
-function hwRecord(sc){const A=LBS.evb=LBS.evb||{},B=A[sc.ev]=A[sc.ev]||{},c=[sc.crowns,sc.rituals,sc.kills];if(!B.c||hwC(c,B.c)>0)B.c=c;if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))B.f=sc.first_crown_s;B.k=Math.max(B.k||0,sc.kills);lbSave()}
+function hwBetter(sc){const B=(LBS.evb||{})[sc.ev]||{};if(sc.crowns>0||!B.c||hwC([sc.crowns,sc.rituals,sc.kills],B.c)>0)return'crowns';if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))return'fastest';if(sc.time_s>(B.s||0))return'survival';if(sc.kills>(B.k||0))return'kills';return null}
+function hwRecord(sc){const A=LBS.evb=LBS.evb||{},B=A[sc.ev]=A[sc.ev]||{},c=[sc.crowns,sc.rituals,sc.kills];if(!B.c||hwC(c,B.c)>0)B.c=c;if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))B.f=sc.first_crown_s;B.s=Math.max(B.s||0,sc.time_s);B.k=Math.max(B.k||0,sc.kills);lbSave()}
 function hwPost(){const g=G,h=g.hw,E=evById(h.ev)||{},o=g.over,sc={ev:h.ev,theme:E.theme,hero:HERO_ID[g.char],ci:g.char,time_s:Math.min(86400,Math.floor(g.t)),kills:Math.min(1e6,g.kills|0),crowns:h.crowns,rituals:h.cleared,first_crown_s:h.first};
  const b=hwBetter(sc);hwRecord(sc);if(lbIn())lbSubmit(sc,b).then(res=>{if(res&&(res.from==null||res.n<res.from))o.lb=res;setTimeout(evFlush,31000)});
  else{if(sc.crowns>0&&evState(E)==='live')evQueue(sc);if(b&&sc.time_s>=60&&evState(E)==='live')o.pend=Object.assign({board:b},sc)}}
@@ -1146,7 +1146,7 @@ const heroIx=h=>Math.max(0,HERO_ID.indexOf(h));
 function pips(X,cy,n){for(let s=0;s<5;s++)rr(X+s*10,cy-4,7,8,2,s<n?'#c8452f':'#c9b48a',s<n?LINK:null,1.2)}
 function curseB(cx,cy,c){rr(cx-15,cy-11,30,22,6,c>0?'#6a5acd':'#a8875a',LINK,2);txt(''+c,cx,cy+1,12,pal.paper)}
 function crownB(cx,cy,n){rr(cx-17,cy-11,34,22,6,n>0?'#d0661a':'#a8875a',LINK,2);txt(''+n,cx,cy+1,12,pal.paper)}
-function lbVal(b,r){return lb.ev?(b==='crowns'?fmtN(r.rituals):b==='fastest'?fmtT(r.first_crown_s):fmtN(r.kills)):b==='kills'?fmtN(r.kills):fmtT(r.time_s)}
+function lbVal(b,r){return lb.ev?(b==='crowns'?fmtN(r.rituals):b==='fastest'?fmtT(r.first_crown_s):b==='survival'?fmtT(r.time_s):fmtN(r.kills)):b==='kills'?fmtN(r.kills):fmtT(r.time_s)}
 function lbRow(y,h,rank,r,me,b){let bg=rank%2?'#efdcae':'#e6cf9c',bd=null,lw=0;
  if(rank<=3){bg=['#ffe9a0','#ece8dc','#f2d2ac'][rank-1];bd=MED[rank-1][1];lw=2}
  if(me){bg='#ffe58a';bd='rgba(200,69,47,'+(.7+.3*Math.sin(clock*6))+')';lw=3}
@@ -1171,8 +1171,8 @@ function drawLB(){menuBg();lbBegin();const b=lb.board,E=lb.ev&&evById(lb.ev),k=l
  if(E){pix(E.n.toUpperCase(),195,40,20,'#ffb13d',2,'#e07820');const live=evState(E)==='live';rr(320,30,58,20,6,live?'#d0661a':'#8b6a3a',LINK,2);txt(live?'LIVE':'ARCHIVE',349,41,8,pal.paper,'center',false)}
  else pix('LEADERBOARD',195,40,20,pal.gold,2,'#e0a526');if(lbIn())lbChip(102,62);
  rr(13,146,364,630,16,'rgba(0,0,0,.35)');rr(13,140,364,630,16,'#f3e2b8',LINK,4);
- tabs.forEach(([id,nm],i)=>{const X=15+i*120,on=id===b;rr(X,on?104:110,116,on?44:34,9,on?'#f3e2b8':'#a8875a',LINK,3);if(on){x.fillStyle='#f3e2b8';x.fillRect(X+3,138,110,14)}
-  txt(nm,X+58,on?124:127,9,on?'#7d2618':'#3b2a1a','center',false);btns.push({x:X,y:104,w:116,h:44,k:'tab'+id,f:()=>lbTab(id)})});
+ const tw=(364-4*tabs.length)/tabs.length;tabs.forEach(([id,nm],i)=>{const X=15+i*(tw+4),on=id===b,ty=on?124:127,c=on?'#7d2618':'#3b2a1a';rr(X,on?104:110,tw,on?44:34,9,on?'#f3e2b8':'#a8875a',LINK,3);if(on){x.fillStyle='#f3e2b8';x.fillRect(X+3,138,tw-6,14)}
+  x.font='bold '+Math.round(9*U)+'px "Courier New",Courier,monospace';if(x.measureText(nm).width>tw-8){const [a,...z]=nm.split(' ');txt(a,X+tw/2,ty-5,9,c,'center',false);txt(z.join(' '),X+tw/2,ty+6,9,c,'center',false)}else txt(nm,X+tw/2,ty,9,c,'center',false);btns.push({x:X,y:104,w:tw,h:44,k:'tab'+id,f:()=>lbTab(id)})});
  rr(21,148,348,614,10,null,'#c9a66b',2);
  [['#',46,'center'],['HERO',76,'center'],['PLAYER',96,'left'],[E?'CROWNS':'CURSE',262,'center'],[colv[b],322,'center']].forEach(([s,X,a])=>txt(s,X,164,9,'#8b6a3a',a,false));x.fillStyle='#c9a66b';x.fillRect(28,175,326,2);
  const maxS=Math.max(0,rows.length*RH+4-LH);lb.scroll=Math.max(0,Math.min(maxS,lb.scroll));let meVis=false;

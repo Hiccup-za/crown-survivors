@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.0] - 2026-10-31
+
+### Added
+- The Harvest Moon boards have a Longest Survival tab that ranks each player's longest single Halloween run, with or without a crown.
+- The admin dashboard's Players view shows all four Harvest Moon boards, and each row opens that player's profile.
+
 ## [0.7.2] - 2026-10-31
 
 ### Fixed
