@@ -52,7 +52,8 @@ Tasks:
   - Sign-out: keep the local save and its owner, stop syncing until the owner signs in again
 - [x] Integration tests for the save endpoints (`api/_test/integration.test.ts`)
 - [x] Admin profiles read `player_saves` as the player's one save; per-device `player_snapshots` stay as history
-- [ ] When `feature/halloween-event` is rebased: its client must send `pumpkinCrowns`, `pumpkinBy` and `lastEvent` (the table and merge already handle them)
+- [x] When `feature/halloween-event` is rebased: its client must send `pumpkinCrowns`, `pumpkinBy` and `lastEvent` (the table and merge already handle them)
+  - Rebased 2026-10-30. Main's cloud-save client already sent the three fields; the branch adds them to `DEF`, so Halloween progress now syncs
 
 ## 2. Open decisions
 
@@ -74,4 +75,4 @@ Tasks:
 
 - [ ] Overview "Avg session" note says "bounces left out", which is misleading. Change it to "sessions with a run or save change" (`public/admin.html`)
 - [ ] Document the Players tab, profiles and `/api/admin/players*`, `/api/admin/leaderboard` in `docs/telemetry.md`
-- [ ] Merge `feature/halloween-event` after cloud save (rebased): its `002_event_scores.sql` is already applied to production but not in `main`
+- [ ] Merge `feature/halloween-event` after cloud save (rebased 2026-10-30, ready for review): its `002_event_scores.sql` is already applied to production but not in `main`
