@@ -10,6 +10,7 @@ The game lives at `/` (`public/index.html`). The API is under `/api/*` with Bett
 | --- | --- |
 | `public/` | Static game (Classic) |
 | `api/` | Leaderboard API (Vercel serverless via `api/index.ts`) |
+| `api/_src`, `api/_scripts`, `api/_test` | API code, CLI scripts and tests. The `_` prefix keeps Vercel from deploying each file as its own function (Hobby allows 12); `api/index.ts` is the only one |
 
 ## Environment variables (Vercel + local)
 

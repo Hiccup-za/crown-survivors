@@ -1,10 +1,10 @@
 // Pure logic: no database, network or clock. See the PR #11 test plan (R1, R4).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isAdmin, isAdminEmail, parseRange } from "../src/admin.js";
-import { ipHash, validateTelemetry } from "../src/telemetry.js";
-import { publicUrl } from "../src/origins.js";
-import { targetError } from "../scripts/db.js";
+import { isAdmin, isAdminEmail, parseRange } from "../_src/admin.js";
+import { ipHash, validateTelemetry } from "../_src/telemetry.js";
+import { publicUrl } from "../_src/origins.js";
+import { targetError } from "../_scripts/db.js";
 
 function withAdmins(value: string | undefined, fn: () => void) {
   const prev = process.env.ADMIN_EMAILS;

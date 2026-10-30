@@ -14,9 +14,9 @@ const BASE = "http://localhost:3000";
 const ADMIN = "admin@example.com";
 
 describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
-  let app: typeof import("../src/app.js").app;
-  let pool: typeof import("../src/db.js").pool;
-  let ipHash: typeof import("../src/telemetry.js").ipHash;
+  let app: typeof import("../_src/app.js").app;
+  let pool: typeof import("../_src/db.js").pool;
+  let ipHash: typeof import("../_src/telemetry.js").ipHash;
 
   // Resend calls are captured; every other fetch goes through.
   const realFetch = globalThis.fetch;
@@ -37,9 +37,9 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       }
       return realFetch(input, init);
     }) as typeof fetch;
-    ({ app } = await import("../src/app.js"));
-    ({ pool } = await import("../src/db.js"));
-    ({ ipHash } = await import("../src/telemetry.js"));
+    ({ app } = await import("../_src/app.js"));
+    ({ pool } = await import("../_src/db.js"));
+    ({ ipHash } = await import("../_src/telemetry.js"));
   });
 
   after(async () => {

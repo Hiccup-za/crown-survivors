@@ -46,7 +46,7 @@ nothing; the game ignores it.
   this only caps invented install ids, the main way to flood the stats.
 
 Limit rows prune themselves (1% of requests delete rows older than 1 h / 2 days). Requests with no IP
-(local dev) are not limited. Tune with `IP_HITS_PER_WINDOW` / `IP_NEW_INSTALLS_PER_DAY` in `api/src/telemetry.ts`.
+(local dev) are not limited. Tune with `IP_HITS_PER_WINDOW` / `IP_NEW_INSTALLS_PER_DAY` in `api/_src/telemetry.ts`.
 
 ## Tables (`api/migrations/003_telemetry.sql`)
 
@@ -59,7 +59,7 @@ Limit rows prune themselves (1% of requests delete rows older than 1 h / 2 days)
 ## Dashboard
 
 `/admin` (`public/admin.html`) charts everything above from `GET /api/admin/stats?from=YYYY-MM-DD&to=YYYY-MM-DD`
-(`api/src/admin.ts`; `to` exclusive, days in SAST, at most 120). Only emails listed in `ADMIN_EMAILS` can read it:
+(`api/_src/admin.ts`; `to` exclusive, days in SAST, at most 120). Only emails listed in `ADMIN_EMAILS` can read it:
 enter one on the page and Better Auth emails a single-use magic link (10 minutes, sent through Resend). Other
 addresses get the same "sent" reply but no email, so no account is created for them. Signing in with X no longer
 grants admin access. A badge in the header shows which deployment the page reads
