@@ -54,7 +54,7 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       telemetry_limits, telemetry_ip_installs CASCADE`);
   });
 
-  const requestLink = (email: string, callbackURL = `${BASE}/admin`) =>
+  const requestLink = (email: string, callbackURL = "/admin") =>
     app.request(`${BASE}/api/auth/sign-in/magic-link`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Origin: BASE },
@@ -86,6 +86,7 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       const link = linkFromEmail();
       const first = await app.request(link);
       assert.equal(first.status, 302);
+      // A relative callbackURL resolves against Better Auth's baseURL, the host that just set the cookie.
       assert.equal(first.headers.get("location"), `${BASE}/admin`);
       const cookie = cookieFrom(first);
       assert.match(cookie, /session_token=/);
@@ -101,7 +102,7 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       await pool.query(`UPDATE verification SET "expiresAt" = now() - interval '1 minute'`);
       const res = await app.request(linkFromEmail());
       assert.equal(res.status, 302);
-      assert.match(res.headers.get("location") ?? "", /\/admin\?error=/);
+      assert.match(res.headers.get("location") ?? "", /^http:\/\/localhost:3000\/admin\?error=/);
       assert.equal(res.headers.getSetCookie().some((c) => /session_token=[^;]+/.test(c) && !/Max-Age=0/i.test(c)), false);
     });
 

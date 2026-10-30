@@ -163,7 +163,8 @@ const linkErr=qs.get('error');
 if(linkErr){const u=new URL(location.href);u.searchParams.delete('error');try{history.replaceState(null,'',u)}catch(e){}}
 async function sendLink(f){const email=f.email.value.trim(),msg=f.querySelector('.msg'),btn=f.querySelector('button');if(!email)return;
   btn.disabled=true;msg.textContent='Sending…';
-  const back=location.origin+location.pathname;
+  // Relative, so the link lands on the host that just set the cookie (preview links use the branch URL).
+  const back=location.pathname;
   const r=await api('/auth/sign-in/magic-link',{email,callbackURL:back,errorCallbackURL:back});
   btn.disabled=false;
   msg.textContent=r.status===200?'If '+email+' is an admin address, a sign-in link is on its way. It expires in 10 minutes.'
