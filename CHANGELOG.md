@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.1] - 2026-10-30
+
+### Fixed
+- Cloud save now syncs in production: save uploads were rejected before reaching the server, so no account had synced yet.
+
 ## [0.4.0] - 2026-10-30
 
 ### Added

@@ -1,5 +1,6 @@
 // Pure logic: no database, network or clock. See the PR #11 test plan (R1, R4).
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { isAdmin, isAdminEmail, parseRange } from "../_src/admin.js";
 import { ipHash, validateTelemetry } from "../_src/telemetry.js";
@@ -136,4 +137,13 @@ test("db script refuses empty or hostless URLs and unconfirmed remote writes", (
   assert.match(targetError(neon, { write: true, confirmHost: "ep-y.eu-west-2.aws.neon.tech" })!, /--confirm-host/);
   assert.equal(targetError(neon, { write: true, confirmHost: "ep-x.eu-west-2.aws.neon.tech" }), null);
   assert.equal(targetError("postgresql://localhost:5432/crown_test", { write: true }), null);
+});
+
+test("the Vercel entrypoint exports every method the app routes use", () => {
+  // Vercel answers 405 for a method api/index.ts does not export, before Hono sees it (cloud save PUTs failed this way).
+  const app = readFileSync(new URL("../_src/app.ts", import.meta.url), "utf8");
+  const index = readFileSync(new URL("../index.ts", import.meta.url), "utf8");
+  const used = new Set([...app.matchAll(/app\.(get|post|put|patch|delete)\(/g)].map((m) => m[1].toUpperCase()));
+  for (const m of app.matchAll(/allowMethods: \[([^\]]*)\]/g)) for (const x of m[1].matchAll(/"(\w+)"/g)) used.add(x[1]);
+  for (const m of used) assert.match(index, new RegExp(`export const ${m} = handler`), `api/index.ts must export ${m}`);
 });
