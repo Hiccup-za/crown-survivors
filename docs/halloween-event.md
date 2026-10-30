@@ -3,7 +3,7 @@
 Companion to the *Halloween Event — Plan of Action* page. The numbers here are the
 **playtest defaults** that the code reads (working rule 3: no stats invented in code). To
 retune, change this table and the matching constant in `public/index.html`
-(`EVENTS`, `HW`, `HB`, the `ETYPE` Halloween rows) or `api/src/events.ts`.
+(`EVENTS`, `HW`, `HB`, the `ETYPE` Halloween rows) or `api/_src/events.ts`.
 
 Items marked **Needs Christopher** are placeholders. They are easy to change and nothing
 ships until he signs off.
@@ -12,12 +12,12 @@ ships until he signs off.
 
 | Field | Value | Where |
 | --- | --- | --- |
-| id | `harvest-2026` | `EVENTS.harvest` in `public/index.html` and `api/src/events.ts` (keep in sync) |
+| id | `harvest-2026` | `EVENTS.harvest` in `public/index.html` and `api/_src/events.ts` (keep in sync) |
 | name | `Harvest Moon` (shared with the Pumpkin Prince event hero) | |
 | startAt | `2026-10-28T00:00:00+02:00` (SAST) | |
 | endAt | `2026-11-08T00:00:00+02:00` (SAST, exclusive: last day is 7 Nov) | |
 | theme | `halloween` (title skin, arena, analytics `score_submit` board tag) | |
-| submit grace | 2 h after `endAt` (lets runs that were in progress at close still post) | `api/src/events.ts` |
+| submit grace | 2 h after `endAt` (lets runs that were in progress at close still post) | `api/_src/events.ts` |
 
 QA override (ignored on `crown-survivors.vercel.app`): `?event=harvest-2026` forces the
 event live and `?event=ended` forces every event over. The API still enforces the real window,

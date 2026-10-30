@@ -448,7 +448,7 @@ function hwBossDown(e){const g=G,h=g.hw;h.live=h.live.filter(o=>o!==e);shake=20;
  else{h.step++;banner(['THE PATCH FALLS QUIET...','THE HOLLOW IS STILLED...','THE HARVEST IS IN...'][h.step-1],'#fff3c4')}}
 function hwEnd(){const g=G,h=g.hw,q=!!h.quit,s=h.hit,why=!s?'other':s.hb?(s.hb==='gourd'?'gourd':'boss'):s.by||'horde',gold=Math.round(g.gold+g.kills/30+h.crowns*HW.crownGold);g.over={win:false,gold,t:0};
  dbTrack('run_end',Object.assign({mode:'halloween',hero:HERO_ID[g.char],result:q?'quit':'death',time_s:Math.floor(g.t),kills:g.kills|0,embers_collected:h.got|0,rituals_cleared:h.cleared|0,night_rank_max:h.rank|0,crowns_this_run:h.crowns|0,minibosses_killed:h.mini|0,night_gourd_kills:h.gourds|0},q?{}:{death_reason:why}));
- S.gold+=gold;S.tut=true;save();if(h.crowns){sfx.crown();vib([50,50,50,50,200])}else{sfx.die();vib([100,50,200])}}
+ S.gold+=gold;S.tut=true;save();tRun({mode:'halloween',event_id:h.ev,hero:HERO_ID[g.char],result:q?'quit':'death',gold_earned:gold,crowns:h.crowns|0,rituals:h.cleared|0,night_rank:h.rank|0,embers:h.got|0,death_cause:q?null:why});if(h.crowns){sfx.crown();vib([50,50,50,50,200])}else{sfx.die();vib([100,50,200])}}
 // ===== halloween endless: ritual bosses ===== every attack shows a tell first (docs/halloween-event.md)
 function hwBossAI(e,dx,dy,l,dt){const g=G,p=g.p,dm=1+HW.bossDmg*(g.hw.rank-1),by=e.hb==='gourd'?'gourd':'boss';
  const shot=(a,v,d,c,r=5)=>g.eb.push({x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r,dmg:d*dm,l:4.5,c,by}),
