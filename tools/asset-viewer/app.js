@@ -19,6 +19,28 @@ const PRELUDE = `(()=>{
 const BRIDGE = `
 ;window.__CS={get:n=>{try{return eval(n)}catch(e){return undefined}},set:(n,v)=>{window.__v=v;eval(n+'=window.__v')},
  draw(c,fn){const o=x,ou=U;x=c;U=1;try{fn()}finally{x=o;U=ou;FL=0}}};
+// combat sandbox: a real run (startRun / update / drawWorld) with spawning off, the hero pinned and invulnerable, pinned target
+// dummies that never die, and a boss whose attack choice (e.seq) and phase (HP fraction) are held so one attack repeats
+;(()=>{let on=0,cfg=null,boss=null;const _hs=hwSpawn,_hr=hwRitual;hwSpawn=dt=>{if(!on)_hs(dt)};hwRitual=dt=>{if(!on)_hr(dt)};
+ const hpf=p=>p===3?.2:p===2?.5:.95;
+ window.__CS.sim={
+  start(c){cfg=c;on=1;S.char=c.hero|0;S.tut=true;S.muted=true;startRun(c.hw?1:0);const g=G;
+   g.tut=null;g.god=true;g.won=!c.hw;g.banner=null;g.w={};g.evo={};g.phase=c.phase|0;g.en=[];g.eliteT=1e9;
+   if(c.weapon){g.w[c.weapon]=c.lvl||1;if(c.evo)g.evo[c.weapon]=1}
+   SC=st();
+   for(const d of c.dummies||[]){const e=spawnEnemy(d.type);e.x=d.x;e.y=d.y;if(d.shootT!=null)e.shootT=d.shootT;if(d.pin){e.home=[d.x,d.y];e.spd=0;e.hp=e.mhp=1e9}}
+   boss=null;
+   if(c.bi!=null){spawnBoss(c.bi);boss=G.boss;g.banner=null}
+   if(c.hb){const B=HB[c.hb];boss={type:'boss',hb:c.hb,boss:1,x:0,y:0,hp:B.hp,mhp:B.hp,r:B.r,spd:B.spd,dmg:B.dmg,xp:60,flash:0,kx:0,ky:0,ph:0,atk:1,seq:0,hitT:{}};g.en.push(boss);g.hw.live.push(boss)}
+   if(boss){boss.x=c.bx;boss.y=c.by;boss.atk=c.atk!=null?c.atk:.5;boss.hp=boss.mhp*hpf(c.ph);boss.bph=c.ph||1;if(c.seq!=null)boss.seq=c.seq}
+   scene='play';trans=null;shake=0},
+  step(dt){if(!on||!G)return;const g=G;g.paused=false;g.choice=null;g.queue=0;if(boss&&cfg.seq!=null)boss.seq=cfg.seq;
+   update(dt);
+   g.choice=null;g.queue=0;g.xp=0;g.p.hp=g.p.mhp;g.p.x=g.p.y=0;g.banner=null;g.flash=0;shake=0;
+   if(boss){boss.hp=boss.mhp*hpf(cfg.ph);boss.dead=0;if(!g.en.includes(boss))g.en.push(boss)}
+   const k=Math.min(1,dt*4);for(const e of g.en)if(e.home){e.hp=e.mhp;e.x+=(e.home[0]-e.x)*k;e.y+=(e.home[1]-e.y)*k}},
+  draw(c,w,h,z){const o=x,ow=W,oh=H,oz=Z,ou=U;x=c;W=w;H=h;Z=z;U=1;try{SC=SC||st();drawWorld()}finally{x=o;W=ow;H=oh;Z=oz;U=ou}},
+  stop(){on=0;G=null;scene='title'}}})();
 `;
 const NAMES = ['heroS', 'enemyS', 'bossS', 'hwBossS', 'sprite', 'gemS', 'icon', 'soulEmber', 'pcrown', 'jack', 'crownG', 'hwProps',
   'CH', 'ETYPE', 'ENAME', 'BOSS', 'HB', 'WP', 'PS', 'MIC', 'META', 'SPRK', 'SPRF', 'SPRR', 'RAMP', 'PHASE', 'HPH', 'GMAT', 'pal'];
@@ -182,6 +204,43 @@ function buildCatalog() {
   em('jack', 'Magic Pumpkin shot', 'Jack-o\'-lantern glyph, layered and swayed the way the Magic Pumpkin projectile draws it.', 'jack(u, ox, oy, k, body, face, stem, side)', 12,
     [{ id: 'sway', name: 'Sway', dur: TAU / 18 * 2 }], (X, t) => { X.rotate(Math.sin(t * 18) * .3); R.jack(1.25, 0, 0, 1, R.pal.ink, R.pal.ink); R.jack(1, 0, 0, 1, '#e87820', '#ffd23f', '#2f6b44', '#c95f12'); });
 
+  // attacks: live combat sandbox (the game's own update() + drawWorld()), see BRIDGE
+  const SIM = 'update() + drawWorld() in a sandboxed run';
+  const sim = (group, id, name, sub, desc, span, clips, thumb, stats = []) => A.push({ id: 'atk-' + id, group, name, sub, desc, src: SIM, sim: 1, span, clips, stats, box: () => 13, draw: thumb });
+  const ring = [[45, 4, Math.PI / 4], [85, 4, 0], [125, 2, .4]].flatMap(([r, n, a0]) => Array.from({ length: n }, (_, i) => { const a = a0 + i * TAU / n; return { type: 'blob', x: Math.cos(a) * r, y: Math.sin(a) * r, pin: 1 }; }));
+  Object.keys(WP).forEach(k => {
+    const hero = Math.max(0, (R.CH || []).findIndex(c => c.w === k)), w = WP[k];
+    sim('Weapon attacks', 'w-' + k, w.n, 'Lv 1–5 · ' + w.e, w.d + '. Fired by ' + R.CH[hero].n + ' at pinned target dummies that never die.', 320,
+      [1, 2, 3, 4, 5].map(l => ({ id: 'l' + l, name: 'Lv ' + l, cfg: { hero, weapon: k, lvl: l, dummies: ring } })).concat([{ id: 'evo', name: 'Evolved · ' + w.e, cfg: { hero, weapon: k, lvl: 5, evo: 1, dummies: ring } }]),
+      () => R.icon('w', k, 0, 0, 10), [['Hero', R.CH[hero].n], ['Evolution', w.e], ['Evolves with', (PS[w.ev] || {}).n || w.ev]]);
+  });
+  const foe = (type, r) => X => R.enemyS({ type, x: 0, y: 0, r, ph: .3, flash: 0 });
+  sim('Enemy attacks', 'imp', (EN.imp || 'imp') + ' fireball', 'imp · ranged', 'Backs off inside 150u and lobs a fireball every 2.5–4s.', 360,
+    [{ id: 'shot', name: 'Fireball', loop: 6, cfg: { phase: 2, dummies: [{ type: 'imp', x: 120, y: -30, shootT: .4 }] } }], foe('imp', 9));
+  sim('Enemy attacks', 'harpy', (EN.harpy || 'harpy') + ' feathers', 'harpy · ranged', 'Hangs back inside 190u and throws a 3-feather fan.', 380,
+    [{ id: 'fan', name: 'Feather fan', loop: 6, cfg: { phase: 4, dummies: [{ type: 'harpy', x: 150, y: -40, shootT: .4 }] } }], foe('harpy', 11));
+  sim('Enemy attacks', 'sknight', (EN.sknight || 'sknight') + ' Grave Pin', 'sknight · hazard', 'Raises its sword, then bone spikes erupt under the player after a 1s telegraph.', 360,
+    [{ id: 'pin', name: 'Grave Pin', loop: 5, cfg: { hw: 1, dummies: [{ type: 'sknight', x: 130, y: -20, shootT: .4 }] } }], X => { X.imageSmoothingEnabled = false; R.sprite('sknight', 11, 1, 't'); });
+  const B = R.BOSS || [], bossT = bi => X => R.enemyS({ type: 'boss', bi, x: 0, y: 0, r: 6.5, ph: .3, flash: 0 }), at = (bi, o) => Object.assign({ bi, phase: bi, bx: 120, by: -60 }, o);
+  const BA = [
+    [['summon', 'Summon blobs', 6, {}]],
+    [['dash', 'Dash + bats', 5, {}]],
+    [['ring', 'Fire ring', 5, {}]],
+    [['spiral', 'Seed spiral', 4, { ph: 1, seq: 0 }], ['snare', 'Root snare', 4, { ph: 1, seq: 1 }], ['lash', 'Vine lash · P2', 4, { ph: 2, seq: 0 }], ['pods', 'Bursting pods · P2', 4, { ph: 2, seq: 1 }], ['burrow', 'Burrow', 3.5, { ph: 1, bx: 300, by: 0, atk: 1 }]],
+    [['grid', 'Thunder grid', 4, { ph: 1, seq: 0 }], ['gale', 'Gale feathers', 4, { ph: 1, seq: 1 }], ['blink', 'Blink strike · P2', 3.5, { ph: 2, seq: 0 }], ['eye', 'Eye of the Storm · P3', 6, { ph: 3, seq: 0 }]],
+  ];
+  B.forEach((b, bi) => sim('Boss attacks', 'b' + bi, b.n.replace(/\b\w+/g, w => w[0] + w.slice(1).toLowerCase()), (BA[bi] || []).length + ' attack' + ((BA[bi] || []).length > 1 ? 's' : ''),
+    'Each clip forces one attack and repeats it; the phase is held by pinning HP.', 440, (BA[bi] || []).map(([id, name, loop, o]) => ({ id, name, loop, cfg: at(bi, o) })), bossT(bi), [['HP', b.hp], ['Arrives', (b.t / 60 | 0) + ':' + String(b.t % 60).padStart(2, '0')]]));
+  const HA = {
+    patch: [['slam', 'Slam', 4.5, {}]],
+    twin: [['dash', 'Dash', 3.5, { seq: 0 }], ['fan', 'Seed fan', 3.5, { seq: 1 }]],
+    wheel: [['roll', 'Roll', 5, {}]],
+    gourd: [['volley', 'Volley', 4, { ph: 1, seq: 0 }], ['vines', 'Vines', 4, { ph: 1, seq: 1 }], ['rain', 'Ember rain · P2', 4, { ph: 2, seq: 0 }], ['summon', 'Summon · P2', 4, { ph: 2, seq: 2 }], ['spiral', 'Spiral · P3', 4, { ph: 3, seq: 0 }], ['charge', 'Charge · P3', 4, { ph: 3, seq: 1 }]],
+  };
+  Object.keys(R.HB || {}).forEach(k => sim('Ritual boss attacks', 'hb-' + k, R.HB[k].n.replace(/\b\w+/g, w => w[0] + w.slice(1).toLowerCase()), (HA[k] || []).length + ' attack' + ((HA[k] || []).length > 1 ? 's' : ''),
+    'Tell first, then the attack: each clip forces one and repeats it.', 440, (HA[k] || []).map(([id, name, loop, o]) => ({ id, name, loop, cfg: Object.assign({ hw: 1, hb: k, bx: 130, by: -60 }, o) })),
+    () => R.hwBossS({ hb: k, r: 8, ph: .3, flash: 0, fc: 1 }), [['HP', R.HB[k].hp], ['Damage', R.HB[k].dmg]]));
+
   return A.filter(a => a.draw);
 }
 function enemyStats(E, k) {
@@ -258,12 +317,14 @@ function render(now) {
   vx.imageSmoothingEnabled = true;
   const T = transform(w, h);
   try {
+    if (CS && st.a && c && st.a.sim) simRender(dt, c, w, h, d);
+    else {
     if (CS) drawBg(vx, w, h, T);
     if (st.ov.grid) drawGrid(vx, w, h, T);
     if (CS && st.a && c) {
       const o = opts();
       vx.setTransform(...T.m);
-      if (st.lineup) {
+      if (st.lineup && !st.a.sim) {
         for (const it of lineupItems()) {
           const cc = it.a.clips.find(k => k.id === c.id) || it.a.clips[0];
           vx.save(); vx.translate(it.x, 0); paint(vx, it.a, st.t, cc, o);
@@ -283,6 +344,7 @@ function render(now) {
       }
       if (st.ov.origin) drawOrigin(vx, T);
     }
+    }
     renderErr = null; $('err').style.display = 'none';
   } catch (e) {
     if (String(e) !== renderErr) { renderErr = String(e); showErr('Draw error in ' + (st.a ? st.a.name : '?') + ':\n' + (e.stack || e)); }
@@ -290,6 +352,25 @@ function render(now) {
   hud(c);
   syncTransport(c);
   requestAnimationFrame(render);
+}
+// ---------- combat sandbox ----------
+// attack clips run the real game loop at a fixed 60 Hz; a clip restarts its run when selected and again every c.loop seconds
+const SIM_DT = 1 / 60;
+let simKey = null, simAcc = 0, simT = 0;
+function simStart(c) { CS.sim.start(c.cfg); simAcc = 0; simT = 0; }
+function simAdvance(t) {
+  simAcc += t;
+  let n = 0;
+  while (simAcc >= SIM_DT && n++ < 12) { CS.sim.step(SIM_DT); simAcc -= SIM_DT; simT += SIM_DT; }
+  if (n >= 12) simAcc = 0;
+}
+function simRender(dt, c, w, h, d, X = vx, zoom = st.zoom, pan = [st.panX, st.panY]) {
+  const key = st.a.id + '|' + c.id;
+  if (key !== simKey) { simStart(c); simKey = key; }
+  if (X === vx && st.playing) simAdvance(dt * st.speed);
+  if (c.loop && simT >= c.loop) simStart(c);
+  X.setTransform(d, 0, 0, d, pan[0] * d, pan[1] * d);
+  CS.sim.draw(X, w / d, h / d, zoom);
 }
 function drawGrid(X, w, h, T) {
   const [x0, y0] = T.inv(0, 0), [x1, y1] = T.inv(w, h);
@@ -326,6 +407,7 @@ function drawOnion(w, h, T, o, c) {
 const frameOf = c => c.frames ? Math.floor(st.t * c.fps + 1e-6) % c.frames : 0;
 function hud(c) {
   if (!st.a || !c) return;
+  if (st.a.sim) { $('hud').textContent = `${st.a.name} · ${c.name} · live game loop\n${st.zoom.toFixed(2)} css px / world unit`; return; }
   const m = st.mouse ? `   cursor ${st.mouse[0].toFixed(1)}, ${st.mouse[1].toFixed(1)} u` : '';
   $('hud').textContent = `${st.lineup ? st.a.group + ' lineup' : st.a.name} · ${c.name}${c.frames ? ` · frame ${frameOf(c) + 1}/${c.frames}` : ''}\n` +
     `${st.zoom.toFixed(2)} css px / world unit${Math.abs(st.zoom - PHONE) < .01 ? ' (phone 1:1)' : ''}${m}`;
@@ -369,6 +451,8 @@ function select(id, keepView) {
   const changed = a !== st.a;
   st.a = a;
   if (changed) {
+    if (CS && CS.sim) CS.sim.stop();
+    simKey = null;
     st.clip = 0; st.t = 0;
     for (const v of a.vars || []) st.o[v.key] = v.opts[0][0];
     if (!keepView) fit();
@@ -381,7 +465,8 @@ function select(id, keepView) {
 function fit() {
   if (!st.a) return;
   const w = vp.clientWidth, h = vp.clientHeight, o = opts();
-  if (st.lineup) {
+  if (st.a.sim) st.zoom = Math.min(w, h) / st.a.span;
+  else if (st.lineup) {
     const it = lineupItems(), span = it.length ? it[it.length - 1].x + it[it.length - 1].b - (it[0].x - it[0].b) : 40, tall = Math.max(...it.map(i => i.b), 10);
     st.zoom = Math.min(w / (span * 1.1), h / (tall * 2 * 1.5), 12);
   } else st.zoom = Math.min(w, h) / (st.a.box(o) * 2 * 1.3);
@@ -409,6 +494,10 @@ function buildStrip() {
   const el = $('strip'), c = clip(), o = opts();
   el.innerHTML = '';
   if (!c || !CS) return;
+  if (st.a.sim) {
+    el.innerHTML = `<p class="simnote">Live: the game's own <code>update()</code> and <code>drawWorld()</code> run at 60 Hz with spawning off and the hero invulnerable.${c.loop ? ` The run restarts every ${c.loop}s so the attack repeats.` : ''} ▶ steps one tick; ⏮ restarts.</p>`;
+    return;
+  }
   const n = c.frames || 8;
   for (let k = 0; k < n; k++) {
     const t = c.frames ? (k + .5) / c.fps : k * c.dur / n;
@@ -424,11 +513,18 @@ function step(dir) {
   const c = clip();
   if (!c) return;
   st.playing = false;
+  if (st.a.sim) { if (dir > 0) simAdvance(SIM_DT); else toast('A live run can\'t rewind: ⏮ restarts it'); return; }
   if (c.frames) { const f = (frameOf(c) + dir + c.frames) % c.frames; st.t = (f + .5) / c.fps; } else st.t = Math.max(0, st.t + dir / 30);
 }
 function syncTransport(c) {
   $('play').textContent = st.playing ? '❚❚' : '▶';
   if (!c) return;
+  $('scrub').disabled = !!st.a.sim;
+  if (st.a.sim) {
+    $('scrub').value = c.loop ? Math.round(simT / c.loop * 1000) : 0;
+    $('tc').textContent = `live · ${simT.toFixed(2)}s${c.loop ? ` / ${c.loop.toFixed(1)}s` : ''}`;
+    return;
+  }
   const lt = st.t % c.dur;
   if (document.activeElement !== $('scrub')) $('scrub').value = Math.round(lt / c.dur * 1000);
   $('tc').textContent = c.frames ? `F${frameOf(c) + 1}/${c.frames} · ${lt.toFixed(2)}s / ${c.dur.toFixed(2)}s` : `${lt.toFixed(2)}s / ${c.dur.toFixed(2)}s`;
@@ -439,6 +535,7 @@ function syncTransport(c) {
 // ---------- inspector ----------
 function buildInspector() {
   const a = st.a, o = opts(), el = $('insp');
+  if (a.sim) return buildSimInspector(a, el);
   const seg = (key, choices, enabled = true) => `<span class="seg" data-key="${key}">${choices.map(([v, n]) => `<button data-v="${v}" class="${o[key] == v ? 'on' : ''}" ${enabled ? '' : 'disabled'}>${n}</button>`).join('')}</span>`;
   const ctl = (label, html, enabled = true, why = '') => `<div class="ctl${enabled ? '' : ' off'}" title="${esc(why)}"><label>${label}</label>${html}</div>`;
   const ramps = a.kit && R.RAMP ? `<div class="sec"><h3>Kit v2 ramps</h3>${Object.entries(R.RAMP).map(([n, cs]) => `<div class="ramp"><b>${n}</b><div class="sw">${cs.map(swatch).join('')}</div></div>`).join('')}</div>` : '';
@@ -473,6 +570,26 @@ function buildInspector() {
   $('xFrame').onclick = () => exportPng(false);
   $('xSheet').onclick = () => exportPng(true);
 }
+function buildSimInspector(a, el) {
+  el.innerHTML = `
+  <div class="sec"><p class="title">${esc(a.name)}</p><span class="tag">${esc(a.group)}</span>${a.desc ? `<p class="desc">${esc(a.desc)}</p>` : ''}<div class="src">${esc(a.src)}</div></div>
+  ${a.stats.length ? `<div class="sec"><h3>Game data</h3><table>${a.stats.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table></div>` : ''}
+  <div class="sec"><h3>Attacks</h3><table>${a.clips.map((c, i) => `<tr><td>${i + 1}</td><td>${esc(c.name)}</td></tr>`).join('')}</table></div>
+  <div class="sec"><h3>Export PNG</h3>
+    <div class="ctl"><label>Scale</label><span class="seg" id="xs">${[1, 2, 3].map(s => `<button data-s="${s}" class="${s === simScale ? 'on' : ''}">${s}×</button>`).join('')}</span></div>
+    <div class="exp"><button class="btn" id="xFrame">Current frame</button></div>
+  </div>
+  <div class="sec"><h3>Shortcuts</h3><div class="keys"><kbd>Space</kbd><span>Play / pause</span><kbd>→</kbd><span>Step one tick</span><kbd>1–9</kbd><span>Pick an attack</span><kbd>↑ ↓</kbd><span>Previous / next asset</span><kbd>0</kbd><span>Fit view</span></div></div>`;
+  el.querySelectorAll('#xs button').forEach(b => b.onclick = () => { simScale = +b.dataset.s; buildSimInspector(a, el); });
+  $('xFrame').onclick = () => {
+    const c = clip(), s = simScale, size = Math.round(a.span * s), cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    simRender(0, c, size, size, 1, cv.getContext('2d'), s, [0, 0]);
+    const name = `${a.id}-${c.id}-t${simT.toFixed(2)}@${s}x.png`;
+    cv.toBlob(b => { const u = URL.createObjectURL(b), l = document.createElement('a'); l.href = u; l.download = name; l.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); toast('Saved ' + name); });
+  };
+}
+let simScale = 2;
 const swatch = c => `<button data-c="${c}" title="Copy ${c}"><i style="background:${c}"></i><span>${c}</span></button>`;
 
 // ---------- export ----------
@@ -496,7 +613,7 @@ function setStatus(kind, msg) { $('dot').className = 'dot ' + kind; $('status').
 $('q').oninput = e => { st.q = e.target.value.trim().toLowerCase(); buildTree(); };
 $('bg').onchange = e => { st.bg = e.target.value; };
 $('play').onclick = () => { st.playing = !st.playing; };
-$('first').onclick = () => { st.t = 0; };
+$('first').onclick = () => { st.t = 0; simKey = null; };
 $('prev').onclick = () => step(-1);
 $('next').onclick = () => step(1);
 $('speed').onchange = e => { st.speed = +e.target.value; };

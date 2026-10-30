@@ -6,6 +6,7 @@
 - An asset viewer for developers (`npm run assets`) that browses every hero, enemy, boss, pickup, icon and emblem, drawn by the live game code.
 - Each asset's animations can be played, paused, stepped frame by frame and scrubbed, including attack tells, boss phases, hit flashes and silhouettes.
 - The viewer has zoom with a phone 1:1 preset, arena backdrops, hitbox, grid and onion skin overlays, a lineup mode for comparing sizes, and PNG frame and sprite sheet export.
+- Attack animations play live in a combat sandbox: every weapon at levels 1 to 5 and evolved, enemy ranged attacks, and each Classic and ritual boss attack with its tell, forced and repeated on a loop.
 - The viewer reloads by itself when `public/index.html` changes, runs offline without touching saves, and is never deployed.
 
 ## [0.5.0] - 2026-10-30

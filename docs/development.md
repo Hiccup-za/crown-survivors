@@ -66,7 +66,9 @@ Serve the game locally (optional): `npx serve public -p 8799`, then add that ori
 
 `npm run assets`, then open http://localhost:8790. It lists every hero, enemy, boss, pickup, icon and emblem, drawn by the live code in `public/index.html`, and plays each one's animations (cycles, tells, boss phases, hit flash, silhouette) with frame stepping, scrubbing, zoom, hitbox, grid and onion skin overlays, a lineup mode and PNG or sprite sheet export.
 
-It runs the game script in a hidden iframe with storage, network and the main loop switched off, so it never touches saves or sends telemetry, and it reloads when `public/index.html` changes. It lives in `tools/asset-viewer/` and is not deployed. Projectiles and effects drawn inline in `drawWorld` are not listed; they need their own drawer functions first.
+Attacks (weapons at every level and evolved, enemy ranged attacks, and every Classic and ritual boss attack) play in a combat sandbox: a real run driven by the game's own `update()` and `drawWorld()` with spawning off, the hero pinned and invulnerable, target dummies that never die, and the boss's attack choice and phase held so one attack repeats on a loop.
+
+It runs the game script in a hidden iframe with storage, network and the main loop switched off, so it never touches saves or sends telemetry, and it reloads when `public/index.html` changes. It lives in `tools/asset-viewer/` and is not deployed.
 
 ## Deploy (Vercel)
 
