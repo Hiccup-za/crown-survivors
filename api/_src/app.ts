@@ -6,6 +6,7 @@ import { BOARDS, type Board, getLeaderboard, getMyRank, insertScore, validateSco
 import { ipHash, recordTelemetry, TELEMETRY_MAX_BYTES, validateTelemetry } from "./telemetry.js";
 import { getAdminStats, isAdmin, MAX_RANGE_DAYS, parseRange } from "./admin.js";
 import { getProfile, isInstallId, isUserId, listPlayers } from "./players.js";
+import { getSave, pushSave, SAVE_MAX_BYTES, validatePush } from "./save.js";
 
 type Vars = { user: Session["user"] | null; session: Session["session"] | null };
 
@@ -16,7 +17,7 @@ app.use(
   cors({
     origin: (origin) => (ALLOWED_ORIGINS.includes(origin) ? origin : null),
     credentials: true,
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     exposeHeaders: ["set-auth-token"],
     maxAge: 600,
@@ -140,6 +141,39 @@ app.post("/api/t", async (c) => {
   const res = await recordTelemetry(c.get("user")?.id ?? null, ipHash(ip), v.value);
   if ("limited" in res) return c.json({ error: res.limited }, 429);
   return c.json({ ok: true, run: res.run });
+});
+
+// ---- Cloud save (docs/remaining-tasks.md, section 1). One merged save per X account. ----
+
+app.get("/api/save", async (c) => {
+  const user = c.get("user");
+  if (!user) return c.json({ error: "sign in required" }, 401);
+  const s = await getSave(user.id);
+  c.header("Cache-Control", "private, no-store");
+  return c.json({ save: s?.save ?? null, version: s?.version ?? null });
+});
+
+/** Merges the device's save into the account's (three-way, against base) and answers with the result. */
+app.put("/api/save", async (c) => {
+  const user = c.get("user");
+  if (!user) return c.json({ error: "sign in required" }, 401);
+  const text = await c.req.text();
+  if (text.length > SAVE_MAX_BYTES) return c.json({ error: "payload too large" }, 413);
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return c.json({ error: "invalid JSON" }, 400);
+  }
+  const v = validatePush(body);
+  if (!v.ok) return c.json({ error: v.error }, 400);
+  const res = await pushSave(user.id, v.value);
+  if ("limited" in res) {
+    c.header("Retry-After", "60");
+    return c.json({ error: res.limited }, 429);
+  }
+  c.header("Cache-Control", "private, no-store");
+  return c.json(res);
 });
 
 // ---- Admin dashboard (public/admin.html). Only ADMIN_EMAILS, signed in by magic link. ----
