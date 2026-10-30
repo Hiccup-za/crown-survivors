@@ -1,7 +1,6 @@
 import { pool } from "./db.js";
 
 // Admin dashboard aggregates over the telemetry tables (docs/telemetry.md). Read-only.
-// public/admin.html builds its mock data in this exact shape; keep the two in sync.
 
 /** Days are bucketed in event time (Harvest Moon dates are SAST). */
 const TZ = "Africa/Johannesburg";
