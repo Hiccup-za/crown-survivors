@@ -67,10 +67,11 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-
 .hero .value{font-size:56px;font-weight:650;line-height:1.05;letter-spacing:-.02em;margin:6px 0 4px}
 .hero .note{font-size:12px;color:var(--ink-2)}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--ring);border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--ring)}
-.tile{background:var(--surface);padding:14px 16px}
+.tile{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;min-width:0}
 .tile .label{font-size:12px;color:var(--ink-2)}
-.tile .value{font-size:22px;font-weight:600;margin-top:2px}
-.tile .note{font-size:11px;color:var(--muted);margin-top:1px}
+.tile .value{font-size:26px;font-weight:650;letter-spacing:-.01em;line-height:1.15;margin-top:6px}
+.tile .note{font-size:12px;color:var(--muted);margin-top:2px}
+.tile .tspark{margin-top:auto;padding-top:10px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px}
 .grid .wide{grid-column:1/-1}
 .section{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:28px 0 10px}
@@ -80,9 +81,23 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink-2);margin:-4px 0 10px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 .empty{height:180px;display:grid;place-items:center;color:var(--muted);font-size:13px;background:var(--surface-2);border-radius:8px}
-details.tbl{margin-top:10px;font-size:12px}
-details.tbl summary{color:var(--ink-2);cursor:pointer;width:max-content}
-details.tbl .tw{overflow-x:auto;margin-top:8px}
+/* card header: title and subtitle on the left, the Table button on the right */
+.ch{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.btn.sm{font-size:12px;padding:3px 10px;flex:none}
+/* chart cards fill their row, so side-by-side cards line up and empty states fill the card */
+.sec{display:flex;flex-direction:column}
+.sec>.grid{flex:1}
+.grid>.card{display:flex;flex-direction:column}
+.grid>.card>.chart{flex:1}
+.grid>.card>.chart>.empty{height:100%;min-height:180px}
+/* table modal */
+dialog{border:0;padding:0;border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--ring),0 12px 40px rgba(0,0,0,.35);width:min(760px,92vw);max-height:84vh}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog .in{padding:18px;display:flex;flex-direction:column;max-height:84vh}
+dialog .mh{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+dialog h2{font-size:15px;font-weight:600;margin:0}
+dialog .tw{overflow:auto;min-height:0}
+dialog thead th{position:sticky;top:0;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th,td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
@@ -183,6 +198,7 @@ tr.link a{text-decoration:none}
   <main id="main"></main>
 </div>
 <div id="tip" role="tooltip"></div>
+<dialog id="tbl-modal" aria-labelledby="tbl-title"><div class="in"><div class="mh"><h2 id="tbl-title"></h2><button class="btn" data-close>Close</button></div><div class="tw" id="tbl-body"></div></div></dialog>
 <script>
 (()=>{
 // ===== config =====
@@ -245,8 +261,16 @@ function rpath(x,y,w,h,dir,r=4){r=Math.min(r,dir==='up'?h:w,dir==='up'?w/2:h/2);
     :`M${x},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h-r}Q${x+w},${y+h} ${x+w-r},${y+h}H${x}Z`}
 const legend=items=>'<div class="legend">'+items.map(([c,n])=>'<span><i style="background:'+c+'"></i>'+esc(n)+'</span>').join('')+'</div>';
 const empty=msg=>'<div class="empty">'+esc(msg||'No data in this range yet')+'</div>';
-function table(cols,rows){return'<details class="tbl"><summary>Show table</summary><div class="tw"><table><thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
-  rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div></details>'}
+// Data tables (accessible view of every chart) open in a modal from a Table button in the card header.
+const TABLES={},dlg=document.getElementById('tbl-modal');let tblN=0;
+function tableBtn(title,cols,rows){if(!rows.length)return'';const k='t'+(++tblN);TABLES[k]={title,cols,rows};return`<button class="btn sm" data-tbl="${k}">Table</button>`}
+function openTable(k){const t=TABLES[k];if(!t)return;document.getElementById('tbl-title').textContent=t.title;
+  document.getElementById('tbl-body').innerHTML='<table><thead><tr>'+t.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
+    t.rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+  hideTip();dlg.showModal()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tbl]');if(b)openTable(b.dataset.tbl)});
+// Close on the button or a click on the backdrop (the dialog itself has no padding, so only the backdrop hits it).
+dlg.addEventListener('click',e=>{if(e.target===dlg||e.target.closest('[data-close]'))dlg.close()});
 function yAxis(max,x0,x1,y0,h){let s='';for(let i=0;i<=4;i++){const v=max*i/4,y=y0+h-h*i/4;
   s+=`<line x1="${x0}" x2="${x1}" y1="${y}" y2="${y}" stroke="${i?'var(--grid)':'var(--axis)'}" stroke-width="1"/><text class="tick" x="${x0-8}" y="${y+4}" text-anchor="end">${fmtC(v)}</text>`}return s}
 function xLabels(labels,xAt,y,plotW){const every=Math.max(1,Math.ceil(labels.length*56/plotW));let s='';
@@ -254,13 +278,15 @@ function xLabels(labels,xAt,y,plotW){const every=Math.max(1,Math.ceil(labels.len
 
 // line chart with crosshair; series: [{name,color,values}]
 const LC={};
-function lineChart(id,labels,series,H=220){const el=document.getElementById(id),W=el.clientWidth||600,ends=series.length>1&&W>=480,m={l:44,r:ends?96:16,t:10,b:26},pw=W-m.l-m.r,ph=H-m.t-m.b;
-  const max=niceMax(Math.max(1,...series.flatMap(s=>s.values))),n=labels.length,xAt=i=>m.l+(n<2?pw/2:pw*i/(n-1)),yAt=v=>m.t+ph-ph*v/max;
-  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(series.map(x=>x.name).join(', '))} by day">`+yAxis(max,m.l,m.l+pw,m.t,ph)+xLabels(labels,xAt,H-6,pw);
-  for(const se of series){s+=`<path d="${se.values.map((v,i)=>(i?'L':'M')+xAt(i).toFixed(1)+','+yAt(v).toFixed(1)).join('')}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`}
+function lineChart(id,labels,series,H=220){const el=document.getElementById(id),W=el.clientWidth||600,m={l:44,r:16,t:10,b:26},ph=H-m.t-m.b,n=labels.length;
+  const max=niceMax(Math.max(1,...series.flatMap(s=>s.values))),yAt=v=>m.t+ph-ph*v/max;
   // direct end labels, unless the chart is narrow or they would collide (the legend still carries identity)
   const last=series.map(se=>({se,y:yAt(se.values[n-1]||0)}));
-  if(ends&&last.every((a,i)=>last.every((b,k)=>k===i||Math.abs(a.y-b.y)>=14)))
+  const ends=series.length>1&&W>=480&&last.every((a,i)=>last.every((b,k)=>k===i||Math.abs(a.y-b.y)>=14));
+  if(ends)m.r=96;const pw=W-m.l-m.r,xAt=i=>m.l+(n<2?pw/2:pw*i/(n-1));
+  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(series.map(x=>x.name).join(', '))} by day">`+yAxis(max,m.l,m.l+pw,m.t,ph)+xLabels(labels,xAt,H-6,pw);
+  for(const se of series){s+=`<path d="${se.values.map((v,i)=>(i?'L':'M')+xAt(i).toFixed(1)+','+yAt(v).toFixed(1)).join('')}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`}
+  if(ends)
     for(const {se,y} of last)s+=`<circle cx="${xAt(n-1)}" cy="${y}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/><text class="lbl" x="${xAt(n-1)+10}" y="${y+4}">${esc(se.name)}</text>`;
   s+=`<g class="xg" style="display:none"><line class="xl" y1="${m.t}" y2="${m.t+ph}" stroke="var(--axis)" stroke-width="1"/>${series.map(se=>`<circle r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/>`).join('')}</g>`;
   s+=`<rect class="xh" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
@@ -309,7 +335,7 @@ function heatmap(id,p){const el=document.getElementById(id),by={};for(const u of
       if(cw>=40&&n)s+=`<text x="${x+cw/2}" y="${y+ch/2+4}" text-anchor="middle" font-size="11" fill="${ci>=7?'#ffffff':'#0b0b0b'}" pointer-events="none">${fmtP(sh)}</text>`}});
   el.innerHTML=s+'</svg>'}
 
-function spark(id,values,color){const el=document.getElementById(id),W=el.clientWidth||240,H=40,max=Math.max(1,...values),n=values.length;if(n<2){el.innerHTML='';return}
+function spark(id,values,color,H=40){const el=document.getElementById(id),W=el.clientWidth||240,max=Math.max(1,...values),n=values.length;if(n<2){el.innerHTML='';return}
   const xAt=i=>2+(W-6)*i/(n-1),yAt=v=>H-4-(H-8)*v/max;
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}" aria-hidden="true"><path d="${values.map((v,i)=>(i?'L':'M')+xAt(i).toFixed(1)+','+yAt(v).toFixed(1)).join('')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${xAt(n-1)}" cy="${yAt(values[n-1])}" r="4" fill="${color}" stroke="var(--surface)" stroke-width="2"/></svg>`}
 
@@ -326,14 +352,14 @@ function layout(d){const k=d.kpis,p=d.progression,days=d.daily.map(r=>dayLbl(r.d
     <div class="card hero"><div class="label">Pumpkin Crowns earned</div><div class="value">${fmtN(k.crowns_earned)}</div>
       <div class="note">${fmtN(p.crowns_held)} held by ${fmtN(p.crown_holders)} players in total</div><div id="c-spark" style="margin-top:14px"></div></div>
     <div class="tiles">
-      ${tile('Players',fmtC(k.players),fmtN(k.new_players)+' new')}
-      ${tile('Sessions',fmtC(k.sessions),k.players?(k.sessions/k.players).toFixed(1)+' per player':'')}
-      ${tile('Avg session',fmtDur(k.avg_session_s),'excluding bounces')}
-      ${tile('Runs',fmtC(k.runs),fmtC(k.halloween_runs)+' Halloween')}
-      ${tile('Gold held',fmtC(p.gold_total),'median '+fmtC(p.gold_median)+' per player')}
-      ${tile('Codex seen',p.avg_codex_items.toFixed(1)+' items',p.avg_codex_enemies.toFixed(1)+' enemies on average')}
-      ${tile('On mobile',fmtP(k.touch_share),'of sessions')}
-      ${tile('Signed in with X',fmtP(k.signed_in_share),'of players')}
+      ${tile('Players',fmtC(k.players),fmtN(k.new_players)+' playing for the first time','t-players')}
+      ${tile('Sessions',fmtC(k.sessions),k.players?(k.sessions/k.players).toFixed(1)+' per player':'','t-sessions')}
+      ${tile('Avg session',fmtDur(k.avg_session_s),'bounces left out')}
+      ${tile('Runs',fmtC(k.runs),fmtC(k.runs-k.halloween_runs)+' Classic · '+fmtC(k.halloween_runs)+' Halloween','t-runs')}
+      ${tile('Gold held',fmtC(p.gold_total),'across '+fmtN(p.players)+' saves · median '+fmtC(p.gold_median))}
+      ${tile('Avg codex',p.avg_codex_items.toFixed(1)+' items','and '+p.avg_codex_enemies.toFixed(1)+' enemies per player')}
+      ${tile('On mobile',fmtP(k.touch_share),'of sessions were on a touch screen')}
+      ${tile('Signed in with X',fmtP(k.signed_in_share),'of players this range')}
     </div>
   </div>
   <div class="secs">
@@ -357,6 +383,9 @@ function layout(d){const k=d.kpis,p=d.progression,days=d.daily.map(r=>dayLbl(r.d
   </div>`;
   const draw=()=>{
     spark('c-spark',d.daily.map(r=>r.crowns),HW);
+    spark('t-players',d.daily.map(r=>r.players),C,32);
+    spark('t-sessions',d.daily.map(r=>r.sessions),C,32);
+    spark('t-runs',d.daily.map(r=>r.runs_classic+r.runs_halloween),C,32);
     const anyDaily=d.daily.some(r=>r.players||r.runs_classic||r.runs_halloween);
     if(anyDaily)lineChart('c-players',days,[{name:'Players',color:C,values:d.daily.map(r=>r.players)},{name:'New players',color:HW,values:d.daily.map(r=>r.new_players)}]);else put('c-players',empty());
     if(hasRuns)columnChart('c-runs',days,[{name:'Classic',color:C,values:d.daily.map(r=>r.runs_classic)},{name:'Halloween Endless',color:HW,values:d.daily.map(r=>r.runs_halloween)}],{label:'Runs per day by mode'});else put('c-runs',empty());
@@ -380,10 +409,11 @@ function layout(d){const k=d.kpis,p=d.progression,days=d.daily.map(r=>dayLbl(r.d
   addTable('c-upg',['Upgrade','Level','Players'],p.upgrades.map(u=>[(META.find(m=>m[0]===u.upgrade)||[,u.upgrade])[1],u.level,fmtN(u.n)]));
   addTable('c-heroes',['Hero','Runs','Wins','Crowns'],d.heroes.map(h=>[heroLbl(h.hero),fmtN(h.runs),fmtN(h.wins),fmtN(h.crowns)]));
   return draw}
-const tile=(l,v,n)=>`<div class="tile"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div><div class="note">${esc(n||'')}</div></div>`;
-const card=(id,t,sub,leg,cls)=>`<section class="card ${cls||''}"><h2>${esc(t)}</h2><div class="sub">${esc(sub)}</div>${leg?legend(leg):''}<div class="chart${id==='c-upg'?' scroll':''}" id="${id}"></div><div id="${id}-t"></div></section>`;
+// sp: id of a daily sparkline drawn along the bottom of the tile
+const tile=(l,v,n,sp)=>`<div class="tile"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div><div class="note">${esc(n||'')}</div>${sp?`<div class="tspark" id="${sp}"></div>`:''}</div>`;
+const card=(id,t,sub,leg,cls)=>`<section class="card ${cls||''}"><div class="ch"><div><h2>${esc(t)}</h2><div class="sub">${esc(sub)}</div></div><span id="${id}-t"></span></div>${leg?legend(leg):''}<div class="chart${id==='c-upg'?' scroll':''}" id="${id}"></div></section>`;
 const put=(id,html)=>{document.getElementById(id).innerHTML=html};
-const addTable=(id,cols,rows)=>{if(rows.length)document.getElementById(id+'-t').innerHTML=table(cols,rows)};
+const addTable=(id,cols,rows)=>{const el=document.getElementById(id+'-t');el.innerHTML=tableBtn(el.closest('.card').querySelector('h2').textContent,cols,rows)};
 
 let redraw=null;
 // Shared answer to a failed admin call. Returns true when it showed a gate instead of data.
@@ -510,8 +540,8 @@ const runDetail=x=>x.mode==='halloween'?[x.crowns!=null&&x.crowns+' crowns',x.ni
   :[x.bosses!=null&&x.bosses+'/5 bosses',x.curse&&'curse '+x.curse].filter(Boolean).join(' · ');
 function codexCard(cx){const it=Object.entries(cx.items||{}).filter(([,r])=>r.seen),en=Object.entries(cx.enemies||{}).filter(([,r])=>r.seen);
   const name=k=>heroLbl(k.replace(/^[a-z]+:/,'').replace(/_/g,'-'));
-  return`<section class="card"><h2>Codex</h2><div class="sub">${fmtN(it.length)} items and ${fmtN(en.length)} enemies discovered</div>
-    ${table(['Entry','Kind','Picked / killed'],it.map(([k,r])=>[name(k),'Item',fmtN(r.taken||0)]).concat(en.map(([k,r])=>[name(k),'Enemy',fmtN(r.kills||0)])))}</section>`}
+  return`<section class="card"><div class="ch"><div><h2>Codex</h2><div class="sub">${fmtN(it.length)} items and ${fmtN(en.length)} enemies discovered</div></div>
+    ${tableBtn('Codex',['Entry','Kind','Picked / killed'],it.map(([k,r])=>[name(k),'Item',fmtN(r.taken||0)]).concat(en.map(([k,r])=>[name(k),'Enemy',fmtN(r.kills||0)])))}</div></section>`}
 
 // ===== views: #players, #player/user/<id>, #player/install/<id>, otherwise the overview =====
 function route(){const m=location.hash.match(/^#player\/(user|install)\/([^/]+)$/);
