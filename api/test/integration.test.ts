@@ -119,6 +119,11 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
     });
   });
 
+  test("health reports the environment so /admin can label its data", async () => {
+    const body = await (await app.request(`${BASE}/api/health`)).json();
+    assert.deepEqual(body, { ok: true, service: "crown-survivors-api", env: process.env.VERCEL_ENV ?? "development" });
+  });
+
   describe("admin stats access", () => {
     test("R1 signed out gets 401", async () => {
       assert.equal((await stats()).status, 401);

@@ -46,6 +46,8 @@ h1{font-size:20px;font-weight:650;margin:0;letter-spacing:-.01em}
 h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-spacing:0;margin-top:2px}
 .who{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:13px}
 .who img{width:24px;height:24px;border-radius:50%}
+.env{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--ring);color:var(--ink-2);white-space:nowrap}
+.env.nonprod{background:var(--accent);border-color:var(--accent);color:#fff}
 .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:20px}
 .seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:2px}
 .seg button{border:0;background:none;color:var(--ink-2);font:inherit;font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer}
@@ -114,7 +116,7 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surf
 <div class="wrap">
   <header>
     <h1>Crown Survivors stats<small>Players, runs and progression from first-party telemetry</small></h1>
-    <div class="who" id="who"></div>
+    <div class="who"><span class="env" id="env" hidden></span><span class="who" id="who"></span></div>
   </header>
   <div class="controls">
     <div class="seg" id="ranges" role="group" aria-label="Date range"></div>
@@ -365,6 +367,11 @@ function render(){redraw=layout(st.data);const d=st.data;stamp((st.mock?'Mock ·
 async function who(){const r=await api('/me'),u=r.j&&r.j.user;const el=document.getElementById('who');
   el.innerHTML=u?`<button class="btn" id="signout">Sign out</button>`:'';if(u)document.getElementById('signout').onclick=signOut}
 
+// Which deployment this page reads from. With the Neon integration, previews have their own database branch.
+async function envBadge(){const r=await api('/health'),e=r.j&&r.j.env;if(!e)return;const el=document.getElementById('env');
+  const lbl={production:'Production',preview:'Preview',development:'Local'}[e]||e;
+  el.textContent=lbl;el.className='env'+(e==='production'?'':' nonprod');el.title=e==='production'?'Live player data':'Not the production deployment';el.hidden=false}
+
 // ===== controls =====
 const rg=document.getElementById('ranges');
 function drawRanges(){rg.innerHTML=RANGES.map(r=>`<button aria-pressed="${r.k===st.range}" data-k="${r.k}">${esc(r.n)}</button>`).join('')}
@@ -377,7 +384,7 @@ document.getElementById('refresh').onclick=load;
 let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(redraw&&st.data)redraw()},120)});
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(st.data)render()});
 
-drawRanges();mb.setAttribute('aria-checked',String(st.mock));load();who();
+drawRanges();mb.setAttribute('aria-checked',String(st.mock));load();who();envBadge();
 })();
 </script>
 </body>

@@ -35,7 +35,8 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-app.get("/api/health", (c) => c.json({ ok: true, service: "crown-survivors-api" }));
+// env tells /admin which database it is reading: previews get their own Neon branch (docs/telemetry.md).
+app.get("/api/health", (c) => c.json({ ok: true, service: "crown-survivors-api", env: process.env.VERCEL_ENV ?? "development" }));
 
 /**
  * Top-level sign-in entry the game links to (window.location = ...):

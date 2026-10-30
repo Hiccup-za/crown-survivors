@@ -62,8 +62,19 @@ Limit rows prune themselves (1% of requests delete rows older than 1 h / 2 days)
 (`api/src/admin.ts`; `to` exclusive, days in SAST, at most 120). Only emails listed in `ADMIN_EMAILS` can read it:
 enter one on the page and Better Auth emails a single-use magic link (10 minutes, sent through Resend). Other
 addresses get the same "sent" reply but no email, so no account is created for them. Signing in with X no longer
-grants admin access. The **Mock data** toggle (or `?mock=1`) renders generated data in
+grants admin access. A badge in the header shows which deployment the page reads
+from (`env` from `GET /api/health`): Production, Preview or Local.
+
+The **Mock data** toggle (or `?mock=1`) renders generated data in
 the same shape without calling the API, for layout checks and before real data exists.
+
+### Preview data
+
+Previews use a separate database so testing never touches production stats. With the Neon Vercel integration
+installed, each preview gets its own Neon branch (a copy of production at the time it was created) as its
+`DATABASE_URL`. If `MIGRATE_ON_PREVIEW_BUILD=1` is set for Preview, the build applies pending migrations to that
+branch (`vercel.json` `buildCommand`). Only set it once previews have their own database: otherwise the build would
+migrate production.
 
 ## Starter queries
 
