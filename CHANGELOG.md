@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0] - 2026-10-30
+
+### Added
+- A Players tab on /admin lists everyone who played in the chosen range or on a single day, with search by X handle, name or device id.
+- The Players tab shows the all-time leaderboard, and every row opens that player's profile.
+- Player profiles show gold, shop upgrades, unlocked heroes, codex, leaderboard ranks and recent runs, for X accounts and for players who never signed in.
+- Accounts that played on more than one device show each device's save separately until cloud save ships.
+
+### Changed
+- The /admin dashboard now fills wide screens, lays charts out in as many columns as fit, and works on phones and touch screens.
+
 ## [0.2.0] - 2026-10-30
 
 ### Changed

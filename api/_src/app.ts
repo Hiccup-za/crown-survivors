@@ -5,6 +5,7 @@ import { ALLOWED_ORIGINS, isAllowedReturnUrl, PUBLIC_URL } from "./origins.js";
 import { BOARDS, type Board, getLeaderboard, getMyRank, insertScore, validateScore, RATE_LIMIT_SECONDS } from "./scores.js";
 import { ipHash, recordTelemetry, TELEMETRY_MAX_BYTES, validateTelemetry } from "./telemetry.js";
 import { getAdminStats, isAdmin, MAX_RANGE_DAYS, parseRange } from "./admin.js";
+import { getProfile, isInstallId, isUserId, listPlayers } from "./players.js";
 
 type Vars = { user: Session["user"] | null; session: Session["session"] | null };
 
@@ -143,14 +144,50 @@ app.post("/api/t", async (c) => {
 
 // ---- Admin dashboard (public/admin.html). Only ADMIN_EMAILS, signed in by magic link. ----
 
-app.get("/api/admin/stats", async (c) => {
+app.use("/api/admin/*", async (c, next) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "sign in required" }, 401);
   if (!isAdmin(user)) return c.json({ error: "not an admin" }, 403);
-  const range = parseRange(c.req.query("from"), c.req.query("to"));
-  if (!range) return c.json({ error: `from/to must be YYYY-MM-DD, to after from, at most ${MAX_RANGE_DAYS} days` }, 400);
   c.header("Cache-Control", "private, no-store");
+  await next();
+});
+
+const RANGE_ERROR = `from/to must be YYYY-MM-DD, to after from, at most ${MAX_RANGE_DAYS} days`;
+
+app.get("/api/admin/stats", async (c) => {
+  const range = parseRange(c.req.query("from"), c.req.query("to"));
+  if (!range) return c.json({ error: RANGE_ERROR }, 400);
   return c.json(await getAdminStats(range.from, range.to));
+});
+
+/** Players active in the range (session, run or score), optionally filtered by handle, name or install id. */
+app.get("/api/admin/players", async (c) => {
+  const range = parseRange(c.req.query("from"), c.req.query("to"));
+  if (!range) return c.json({ error: RANGE_ERROR }, 400);
+  const q = c.req.query("q")?.trim().slice(0, 64) || null;
+  return c.json(await listPlayers(range.from, range.to, q));
+});
+
+app.get("/api/admin/players/user/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!isUserId(id)) return c.json({ error: "bad user id" }, 400);
+  const p = await getProfile({ user: id });
+  return p ? c.json(p) : c.json({ error: "no such player" }, 404);
+});
+
+/** An install that ever signed in answers with its account's profile (kind "user"). */
+app.get("/api/admin/players/install/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!isInstallId(id)) return c.json({ error: "install id must be a UUID" }, 400);
+  const p = await getProfile({ install: id });
+  return p ? c.json(p) : c.json({ error: "no such player" }, 404);
+});
+
+/** The public leaderboard plus user_id, so the dashboard can open each player's profile. */
+app.get("/api/admin/leaderboard", async (c) => {
+  const board = parseBoard(c.req.query("board") ?? "fastest");
+  if (!board) return c.json({ error: "board must be fastest|survival|kills" }, 400);
+  return c.json({ board, rows: await getLeaderboard(board, 100, true) });
 });
 
 app.onError((err, c) => {

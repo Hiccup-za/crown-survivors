@@ -40,7 +40,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--page);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1240px;margin:0 auto;padding:24px 16px 64px}
+.wrap{margin:0 auto;padding:24px clamp(12px,2.5vw,40px) 64px}
 header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;margin-bottom:20px}
 h1{font-size:20px;font-weight:650;margin:0;letter-spacing:-.01em}
 h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-spacing:0;margin-top:2px}
@@ -49,7 +49,9 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-
 .env{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--ring);color:var(--ink-2);white-space:nowrap}
 .env.nonprod{background:var(--accent);border-color:var(--accent);color:#fff}
 .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:20px}
-.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:2px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:2px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:none}
 .seg button{border:0;background:none;color:var(--ink-2);font:inherit;font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--ring)}
 .btn{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
@@ -65,11 +67,12 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-
 .hero .value{font-size:56px;font-weight:650;line-height:1.05;letter-spacing:-.02em;margin:6px 0 4px}
 .hero .note{font-size:12px;color:var(--ink-2)}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--ring);border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--ring)}
-.tile{background:var(--surface);padding:14px 16px}
+.tile{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;min-width:0}
 .tile .label{font-size:12px;color:var(--ink-2)}
-.tile .value{font-size:22px;font-weight:600;margin-top:2px}
-.tile .note{font-size:11px;color:var(--muted);margin-top:1px}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.tile .value{font-size:26px;font-weight:650;letter-spacing:-.01em;line-height:1.15;margin-top:6px}
+.tile .note{font-size:12px;color:var(--muted);margin-top:2px}
+.tile .tspark{margin-top:auto;padding-top:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px}
 .grid .wide{grid-column:1/-1}
 .section{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:28px 0 10px}
 .chart{position:relative;width:100%}
@@ -78,9 +81,23 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink-2);margin:-4px 0 10px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 .empty{height:180px;display:grid;place-items:center;color:var(--muted);font-size:13px;background:var(--surface-2);border-radius:8px}
-details.tbl{margin-top:10px;font-size:12px}
-details.tbl summary{color:var(--ink-2);cursor:pointer;width:max-content}
-details.tbl .tw{overflow-x:auto;margin-top:8px}
+/* card header: title and subtitle on the left, the Table button on the right */
+.ch{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.btn.sm{font-size:12px;padding:3px 10px;flex:none}
+/* chart cards fill their row, so side-by-side cards line up and empty states fill the card */
+.sec{display:flex;flex-direction:column}
+.sec>.grid{flex:1}
+.grid>.card{display:flex;flex-direction:column}
+.grid>.card>.chart{flex:1}
+.grid>.card>.chart>.empty{height:100%;min-height:180px}
+/* table modal */
+dialog{border:0;padding:0;border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--ring),0 12px 40px rgba(0,0,0,.35);width:min(760px,92vw);max-height:84vh}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog .in{padding:18px;display:flex;flex-direction:column;max-height:84vh}
+dialog .mh{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+dialog h2{font-size:15px;font-weight:600;margin:0}
+dialog .tw{overflow:auto;min-height:0}
+dialog thead th{position:sticky;top:0;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th,td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
@@ -102,8 +119,67 @@ th{font-weight:600;color:var(--ink-2)}
 .gate input{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 10px;border-radius:8px;min-width:220px}
 .gate .msg{margin:14px 0 0;font-size:13px}
 code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-2);padding:1px 5px;border-radius:4px}
-@media (max-width:900px){.top{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:480px){.hero .value{font-size:48px}.seg button{padding:6px 9px}}
+/* players and profiles */
+a{color:inherit}
+.muted{color:var(--muted)}
+.pbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px}
+.pbar input{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 10px;border-radius:8px}
+.pbar input[type=search]{flex:1;min-width:220px;max-width:380px}
+.pgrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+.card .seg{margin-bottom:10px}
+.tw{overflow-x:auto}
+tr.link{cursor:pointer}
+tr.link:hover td{background:var(--surface-2)}
+tr.link a{text-decoration:none}
+.pl{display:inline-flex;align-items:center;gap:8px}
+.board th:nth-child(2),.board td:nth-child(2){text-align:left}
+.pl img,.av{width:24px;height:24px;border-radius:50%;flex:none;display:inline-block;background:var(--surface-2);object-fit:cover}
+.av.anon{background:repeating-linear-gradient(45deg,var(--surface-2) 0 4px,var(--grid) 4px 8px)}
+.phead{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.phead img.big,.phead .av.big{width:64px;height:64px}
+.phead h2{font-size:18px}
+.phead .sub{margin:2px 0 0}
+.badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);margin-left:8px;vertical-align:2px}
+.back{font-size:13px;color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2);margin:0 0 12px}
+.meter{display:inline-block;width:80px;height:6px;border-radius:3px;background:var(--surface-2);vertical-align:1px;margin-left:8px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--classic);border-radius:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;padding:3px 9px;border-radius:999px;box-shadow:0 0 0 1px var(--ring)}
+.chip.off{color:var(--muted);box-shadow:none;background:var(--surface-2)}
+@media (max-width:900px){.pgrid{grid-template-columns:1fr}}
+@media (min-width:1700px){.top{grid-template-columns:minmax(320px,1fr) 3fr}.pgrid{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}}
+/* Ultrawide (the monitor this is read on is ~3100px at 1x): same sizes, more blocks per row.
+   Tiles in one row, Activity and Harvest Moon side by side, Progression in one row, all three leaderboards at once. */
+@media (min-width:2400px){
+  .top{grid-template-columns:minmax(320px,1fr) 4fr}
+  .tiles{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .secs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px}
+  .sec.prog{grid-column:1/-1}
+  .sec.prog .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .sec.prog .grid .wide{grid-column:auto}
+  .pgrid{grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(0,1fr))}
+}
+@media (max-width:900px){.top{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){
+  .wrap{padding-top:16px}
+  header{margin-bottom:14px}
+  .controls{gap:8px}
+  .controls .seg{width:100%}
+  .controls .seg button{flex:1}
+  .card{padding:14px}
+  .hero .value{font-size:44px}
+  .tile{padding:12px}
+  .tile .value{font-size:19px}
+  .pbar input[type=search]{max-width:none;flex-basis:100%}
+  .phead{gap:12px}
+  .phead img.big,.phead .av.big{width:48px;height:48px}
+  /* players table: drop Devices and Codex; both are on the profile */
+  #p-list th:nth-child(4),#p-list td:nth-child(4),#p-list th:nth-child(6),#p-list td:nth-child(6){display:none}
+  th,td{padding:5px 6px}
+}
+/* finger-sized controls on touch screens */
+@media (pointer:coarse){.seg button,.btn,.pbar input{min-height:40px}}
 </style>
 </head>
 <body class="signed-out">
@@ -113,6 +189,7 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surf
     <div class="who"><span class="env" id="env" hidden></span><span class="who" id="who"></span></div>
   </header>
   <div class="controls">
+    <div class="seg" id="tabs" role="group" aria-label="View"><button data-v="overview">Overview</button><button data-v="players">Players</button></div>
     <div class="seg" id="ranges" role="group" aria-label="Date range"></div>
     <span class="spacer"></span>
     <span class="stamp" id="stamp"></span>
@@ -121,6 +198,7 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surf
   <main id="main"></main>
 </div>
 <div id="tip" role="tooltip"></div>
+<dialog id="tbl-modal" aria-labelledby="tbl-title"><div class="in"><div class="mh"><h2 id="tbl-title"></h2><button class="btn" data-close>Close</button></div><div class="tw" id="tbl-body"></div></div></dialog>
 <script>
 (()=>{
 // ===== config =====
@@ -135,7 +213,7 @@ const ORD=['#1c5cab','#256abf','#2a78d6','#5598e7','#86b6ef']; // ordinal ramp f
 
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const qs=new URLSearchParams(location.search);
-const st={range:store.get('cs_admin_range')||'event',data:null};
+const st={range:store.get('cs_admin_range')||'event',data:null,view:'overview',q:'',day:'',board:'fastest',profile:null,dev:0};
 
 // ===== formatting =====
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -183,8 +261,16 @@ function rpath(x,y,w,h,dir,r=4){r=Math.min(r,dir==='up'?h:w,dir==='up'?w/2:h/2);
     :`M${x},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h-r}Q${x+w},${y+h} ${x+w-r},${y+h}H${x}Z`}
 const legend=items=>'<div class="legend">'+items.map(([c,n])=>'<span><i style="background:'+c+'"></i>'+esc(n)+'</span>').join('')+'</div>';
 const empty=msg=>'<div class="empty">'+esc(msg||'No data in this range yet')+'</div>';
-function table(cols,rows){return'<details class="tbl"><summary>Show table</summary><div class="tw"><table><thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
-  rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div></details>'}
+// Data tables (accessible view of every chart) open in a modal from a Table button in the card header.
+const TABLES={},dlg=document.getElementById('tbl-modal');let tblN=0;
+function tableBtn(title,cols,rows){if(!rows.length)return'';const k='t'+(++tblN);TABLES[k]={title,cols,rows};return`<button class="btn sm" data-tbl="${k}">Table</button>`}
+function openTable(k){const t=TABLES[k];if(!t)return;document.getElementById('tbl-title').textContent=t.title;
+  document.getElementById('tbl-body').innerHTML='<table><thead><tr>'+t.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
+    t.rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+  hideTip();dlg.showModal()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tbl]');if(b)openTable(b.dataset.tbl)});
+// Close on the button or a click on the backdrop (the dialog itself has no padding, so only the backdrop hits it).
+dlg.addEventListener('click',e=>{if(e.target===dlg||e.target.closest('[data-close]'))dlg.close()});
 function yAxis(max,x0,x1,y0,h){let s='';for(let i=0;i<=4;i++){const v=max*i/4,y=y0+h-h*i/4;
   s+=`<line x1="${x0}" x2="${x1}" y1="${y}" y2="${y}" stroke="${i?'var(--grid)':'var(--axis)'}" stroke-width="1"/><text class="tick" x="${x0-8}" y="${y+4}" text-anchor="end">${fmtC(v)}</text>`}return s}
 function xLabels(labels,xAt,y,plotW){const every=Math.max(1,Math.ceil(labels.length*56/plotW));let s='';
@@ -192,14 +278,16 @@ function xLabels(labels,xAt,y,plotW){const every=Math.max(1,Math.ceil(labels.len
 
 // line chart with crosshair; series: [{name,color,values}]
 const LC={};
-function lineChart(id,labels,series,H=220){const el=document.getElementById(id),W=el.clientWidth||600,m={l:44,r:series.length>1?96:16,t:10,b:26},pw=W-m.l-m.r,ph=H-m.t-m.b;
-  const max=niceMax(Math.max(1,...series.flatMap(s=>s.values))),n=labels.length,xAt=i=>m.l+(n<2?pw/2:pw*i/(n-1)),yAt=v=>m.t+ph-ph*v/max;
+function lineChart(id,labels,series,H=220){const el=document.getElementById(id),W=el.clientWidth||600,m={l:44,r:16,t:10,b:26},ph=H-m.t-m.b,n=labels.length;
+  const max=niceMax(Math.max(1,...series.flatMap(s=>s.values))),yAt=v=>m.t+ph-ph*v/max;
+  // direct end labels, unless the chart is narrow or they would collide (the legend still carries identity)
+  const last=series.map(se=>({se,y:yAt(se.values[n-1]||0)}));
+  const ends=series.length>1&&W>=480&&last.every((a,i)=>last.every((b,k)=>k===i||Math.abs(a.y-b.y)>=14));
+  if(ends)m.r=96;const pw=W-m.l-m.r,xAt=i=>m.l+(n<2?pw/2:pw*i/(n-1));
   let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(series.map(x=>x.name).join(', '))} by day">`+yAxis(max,m.l,m.l+pw,m.t,ph)+xLabels(labels,xAt,H-6,pw);
   for(const se of series){s+=`<path d="${se.values.map((v,i)=>(i?'L':'M')+xAt(i).toFixed(1)+','+yAt(v).toFixed(1)).join('')}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`}
-  // direct end labels, unless they would collide (the legend still carries identity)
-  const ends=series.map(se=>({se,y:yAt(se.values[n-1]||0)}));
-  if(series.length>1&&ends.every((a,i)=>ends.every((b,k)=>k===i||Math.abs(a.y-b.y)>=14)))
-    for(const {se,y} of ends)s+=`<circle cx="${xAt(n-1)}" cy="${y}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/><text class="lbl" x="${xAt(n-1)+10}" y="${y+4}">${esc(se.name)}</text>`;
+  if(ends)
+    for(const {se,y} of last)s+=`<circle cx="${xAt(n-1)}" cy="${y}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/><text class="lbl" x="${xAt(n-1)+10}" y="${y+4}">${esc(se.name)}</text>`;
   s+=`<g class="xg" style="display:none"><line class="xl" y1="${m.t}" y2="${m.t+ph}" stroke="var(--axis)" stroke-width="1"/>${series.map(se=>`<circle r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/>`).join('')}</g>`;
   s+=`<rect class="xh" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
   el.innerHTML=s;LC[id]={labels,series,xAt,yAt,n,m,pw};
@@ -223,11 +311,13 @@ function columnChart(id,labels,series,opt={}){const el=document.getElementById(i
   el.innerHTML=s+'</svg>'}
 
 // horizontal bars; rows: [{label,value,color,tip,valueText}]
-function barChart(id,rows,opt={}){const el=document.getElementById(id),W=el.clientWidth||600,lw=opt.labelW||150,vw=opt.valueW||90,rh=30,bh=16,H=rows.length*rh+4,pw=Math.max(40,W-lw-vw);
+// Too narrow for labels beside the bars (phones): labels sit above each bar instead.
+function barChart(id,rows,opt={}){const el=document.getElementById(id),W=el.clientWidth||600,vw=opt.valueW||90,stack=W<(opt.labelW||150)+vw+160,lw=stack?0:opt.labelW||150,
+  rh=stack?42:30,bh=stack?14:16,H=rows.length*rh+4,pw=Math.max(40,W-lw-vw);
   const max=opt.max||Math.max(1,...rows.map(r=>r.value));
-  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opt.label||'')}"><line x1="${lw}" x2="${lw}" y1="0" y2="${H}" stroke="var(--axis)"/>`;
-  rows.forEach((r,i)=>{const y=i*rh+(rh-bh)/2,w=Math.max(r.value?2:0,pw*r.value/max);
-    s+=`<text class="lbl" x="${lw-10}" y="${y+bh/2+4}" text-anchor="end">${esc(r.label)}</text><path d="${rpath(lw,y,w,bh,'right')}" fill="${r.color}"/>`+
+  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opt.label||'')}">`+(stack?'':`<line x1="${lw}" x2="${lw}" y1="0" y2="${H}" stroke="var(--axis)"/>`);
+  rows.forEach((r,i)=>{const y=stack?i*rh+20:i*rh+(rh-bh)/2,w=Math.max(r.value?2:0,pw*r.value/max);
+    s+=(stack?`<text class="lbl" x="0" y="${i*rh+14}">${esc(r.label)}</text>`:`<text class="lbl" x="${lw-10}" y="${y+bh/2+4}" text-anchor="end">${esc(r.label)}</text>`)+`<path d="${rpath(lw,y,w,bh,'right')}" fill="${r.color}"/>`+
       `<text class="val" x="${lw+w+8}" y="${y+bh/2+4}">${esc(r.valueText||fmtN(r.value))}</text>`+
       `<rect x="0" y="${i*rh}" width="${W}" height="${rh}" fill="transparent" data-tip="${esc(r.tip||tipRows(r.label,[[r.color,'Value',fmtN(r.value)]]))}"/>`});
   el.innerHTML=s+'</svg>'}
@@ -245,7 +335,7 @@ function heatmap(id,p){const el=document.getElementById(id),by={};for(const u of
       if(cw>=40&&n)s+=`<text x="${x+cw/2}" y="${y+ch/2+4}" text-anchor="middle" font-size="11" fill="${ci>=7?'#ffffff':'#0b0b0b'}" pointer-events="none">${fmtP(sh)}</text>`}});
   el.innerHTML=s+'</svg>'}
 
-function spark(id,values,color){const el=document.getElementById(id),W=el.clientWidth||240,H=40,max=Math.max(1,...values),n=values.length;if(n<2){el.innerHTML='';return}
+function spark(id,values,color,H=40){const el=document.getElementById(id),W=el.clientWidth||240,max=Math.max(1,...values),n=values.length;if(n<2){el.innerHTML='';return}
   const xAt=i=>2+(W-6)*i/(n-1),yAt=v=>H-4-(H-8)*v/max;
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}" aria-hidden="true"><path d="${values.map((v,i)=>(i?'L':'M')+xAt(i).toFixed(1)+','+yAt(v).toFixed(1)).join('')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${xAt(n-1)}" cy="${yAt(values[n-1])}" r="4" fill="${color}" stroke="var(--surface)" stroke-width="2"/></svg>`}
 
@@ -262,35 +352,40 @@ function layout(d){const k=d.kpis,p=d.progression,days=d.daily.map(r=>dayLbl(r.d
     <div class="card hero"><div class="label">Pumpkin Crowns earned</div><div class="value">${fmtN(k.crowns_earned)}</div>
       <div class="note">${fmtN(p.crowns_held)} held by ${fmtN(p.crown_holders)} players in total</div><div id="c-spark" style="margin-top:14px"></div></div>
     <div class="tiles">
-      ${tile('Players',fmtC(k.players),fmtN(k.new_players)+' new')}
-      ${tile('Sessions',fmtC(k.sessions),k.players?(k.sessions/k.players).toFixed(1)+' per player':'')}
-      ${tile('Avg session',fmtDur(k.avg_session_s),'excluding bounces')}
-      ${tile('Runs',fmtC(k.runs),fmtC(k.halloween_runs)+' Halloween')}
-      ${tile('Gold held',fmtC(p.gold_total),'median '+fmtC(p.gold_median)+' per player')}
-      ${tile('Codex seen',p.avg_codex_items.toFixed(1)+' items',p.avg_codex_enemies.toFixed(1)+' enemies on average')}
-      ${tile('On mobile',fmtP(k.touch_share),'of sessions')}
-      ${tile('Signed in with X',fmtP(k.signed_in_share),'of players')}
+      ${tile('Players',fmtC(k.players),fmtN(k.new_players)+' playing for the first time','t-players')}
+      ${tile('Sessions',fmtC(k.sessions),k.players?(k.sessions/k.players).toFixed(1)+' per player':'','t-sessions')}
+      ${tile('Avg session',fmtDur(k.avg_session_s),'bounces left out')}
+      ${tile('Runs',fmtC(k.runs),fmtC(k.runs-k.halloween_runs)+' Classic · '+fmtC(k.halloween_runs)+' Halloween','t-runs')}
+      ${tile('Gold held',fmtC(p.gold_total),'across '+fmtN(p.players)+' saves · median '+fmtC(p.gold_median))}
+      ${tile('Avg codex',p.avg_codex_items.toFixed(1)+' items','and '+p.avg_codex_enemies.toFixed(1)+' enemies per player')}
+      ${tile('On mobile',fmtP(k.touch_share),'of sessions were on a touch screen')}
+      ${tile('Signed in with X',fmtP(k.signed_in_share),'of players this range')}
     </div>
   </div>
-  <div class="section">Activity</div>
+  <div class="secs">
+  <section class="sec"><div class="section">Activity</div>
   <div class="grid">
     ${card('c-players','Daily players','Distinct players per day, and how many were new',[[C,'Players'],[HW,'New players']])}
     ${card('c-runs','Runs per day','Finished runs by mode',[[C,'Classic'],[HW,'Halloween Endless']])}
-  </div>
-  <div class="section">Harvest Moon</div>
+  </div></section>
+  <section class="sec"><div class="section">Harvest Moon</div>
   <div class="grid">
     ${card('c-funnel','Event funnel','Players reaching each step, share of everyone who played')}
     ${card('c-deaths','What ends Halloween runs','Deaths in Halloween Endless by cause')}
-  </div>
-  <div class="section">Progression</div>
+  </div></section>
+  <section class="sec prog"><div class="section">Progression</div>
   <div class="grid">
     ${card('c-gold','Gold balances','Players by current gold, from their latest save')}
     ${card('c-codex','Codex items seen','Players by number of codex items discovered')}
     ${card('c-upg','Shop upgrade levels','Share of players at each level of each upgrade. The more a cell stands out, the more players.',null,'wide')}
     ${card('c-heroes','Heroes','Runs per hero, with wins and crowns in the tooltip and table',null,'wide')}
+  </div></section>
   </div>`;
   const draw=()=>{
     spark('c-spark',d.daily.map(r=>r.crowns),HW);
+    spark('t-players',d.daily.map(r=>r.players),C,32);
+    spark('t-sessions',d.daily.map(r=>r.sessions),C,32);
+    spark('t-runs',d.daily.map(r=>r.runs_classic+r.runs_halloween),C,32);
     const anyDaily=d.daily.some(r=>r.players||r.runs_classic||r.runs_halloween);
     if(anyDaily)lineChart('c-players',days,[{name:'Players',color:C,values:d.daily.map(r=>r.players)},{name:'New players',color:HW,values:d.daily.map(r=>r.new_players)}]);else put('c-players',empty());
     if(hasRuns)columnChart('c-runs',days,[{name:'Classic',color:C,values:d.daily.map(r=>r.runs_classic)},{name:'Halloween Endless',color:HW,values:d.daily.map(r=>r.runs_halloween)}],{label:'Runs per day by mode'});else put('c-runs',empty());
@@ -314,23 +409,148 @@ function layout(d){const k=d.kpis,p=d.progression,days=d.daily.map(r=>dayLbl(r.d
   addTable('c-upg',['Upgrade','Level','Players'],p.upgrades.map(u=>[(META.find(m=>m[0]===u.upgrade)||[,u.upgrade])[1],u.level,fmtN(u.n)]));
   addTable('c-heroes',['Hero','Runs','Wins','Crowns'],d.heroes.map(h=>[heroLbl(h.hero),fmtN(h.runs),fmtN(h.wins),fmtN(h.crowns)]));
   return draw}
-const tile=(l,v,n)=>`<div class="tile"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div><div class="note">${esc(n||'')}</div></div>`;
-const card=(id,t,sub,leg,cls)=>`<section class="card ${cls||''}"><h2>${esc(t)}</h2><div class="sub">${esc(sub)}</div>${leg?legend(leg):''}<div class="chart${id==='c-upg'?' scroll':''}" id="${id}"></div><div id="${id}-t"></div></section>`;
+// sp: id of a daily sparkline drawn along the bottom of the tile
+const tile=(l,v,n,sp)=>`<div class="tile"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div><div class="note">${esc(n||'')}</div>${sp?`<div class="tspark" id="${sp}"></div>`:''}</div>`;
+const card=(id,t,sub,leg,cls)=>`<section class="card ${cls||''}"><div class="ch"><div><h2>${esc(t)}</h2><div class="sub">${esc(sub)}</div></div><span id="${id}-t"></span></div>${leg?legend(leg):''}<div class="chart${id==='c-upg'?' scroll':''}" id="${id}"></div></section>`;
 const put=(id,html)=>{document.getElementById(id).innerHTML=html};
-const addTable=(id,cols,rows)=>{if(rows.length)document.getElementById(id+'-t').innerHTML=table(cols,rows)};
+const addTable=(id,cols,rows)=>{const el=document.getElementById(id+'-t');el.innerHTML=tableBtn(el.closest('.card').querySelector('h2').textContent,cols,rows)};
 
 let redraw=null;
-async function load(){const {from,to}=rangeDates(st.range);document.getElementById('stamp').textContent='Loading…';
-  main.innerHTML='<div class="empty" style="height:240px">Loading stats…</div>';
-  const r=await api('/admin/stats?from='+from+'&to='+to);
+// Shared answer to a failed admin call. Returns true when it showed a gate instead of data.
+function guard(r,what){
   // Signed out: only the sign-in card shows.
   document.body.classList.toggle('signed-out',r.status===401);
   if(r.status===401){gate('Sign in','',
-    `<form data-link style="width:100%"><div class="row"><input type="email" name="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email"><button class="btn primary" type="submit">Email me a link</button></div><p class="msg" role="status">${linkErr?'That link has expired or was already used. Request a new one.':''}</p></form>`);return stamp('')}
-  if(r.status===403)return gate('No admin access','This account is signed in but its email is not in <code>ADMIN_EMAILS</code> on the API.','<button class="btn primary" data-signout>Sign out</button>'),stamp('');
-  if(r.status!==200||!r.j)return gate('Could not load stats',esc((r.j&&r.j.error)||'The API did not answer. Check your connection and try again.'),'<button class="btn primary" data-retry>Try again</button>'),stamp('');
+    `<form data-link style="width:100%"><div class="row"><input type="email" name="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email"><button class="btn primary" type="submit">Email me a link</button></div><p class="msg" role="status">${linkErr?'That link has expired or was already used. Request a new one.':''}</p></form>`);stamp('');return true}
+  if(r.status===403){gate('No admin access','This account is signed in but its email is not in <code>ADMIN_EMAILS</code> on the API.','<button class="btn primary" data-signout>Sign out</button>');stamp('');return true}
+  if(r.status!==200||!r.j){gate('Could not load '+what,esc((r.j&&r.j.error)||'The API did not answer. Check your connection and try again.'),'<button class="btn primary" data-retry>Try again</button>');stamp('');return true}
+  return false}
+async function loadStats(){const {from,to}=rangeDates(st.range);stamp('Loading…');
+  main.innerHTML='<div class="empty" style="height:240px">Loading stats…</div>';
+  const r=await api('/admin/stats?from='+from+'&to='+to);
+  if(guard(r,'stats'))return;
   st.data=r.j;render()}
 function stamp(t){document.getElementById('stamp').textContent=t}
+
+// ===== players: who played in the range (or on one day), plus the leaderboard; each row opens a profile =====
+const HEROES=['King Cube','Ruby Knight','Mint Mage','Shadow Rogue','Pumpkin Prince']; // CH order in index.html
+const BOARDS=[['fastest','Fastest win'],['survival','Longest run'],['kills','Most kills']];
+const WIDE=matchMedia('(min-width:2400px)'); // keep in sync with the ultrawide CSS block
+WIDE.addEventListener?.('change',()=>{if(st.view==='players')loadPlayers()});
+const profileHref=r=>'#player/'+(r.user_id?'user/'+encodeURIComponent(r.user_id):'install/'+r.install_id);
+const avatar=(src,cls='')=>src?`<img class="${cls}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:`<i class="av ${cls}"></i>`;
+const playerCell=r=>`<a class="pl" href="${profileHref(r)}">`+(r.user_id
+  ?avatar(r.avatar)+`<span><b>${esc(r.name||r.handle||'Player')}</b>${r.handle?` <span class="muted">@${esc(r.handle)}</span>`:''}</span>`
+  :`<i class="av anon"></i><span><b>Anonymous</b> <span class="muted">device ${esc(r.install_id.slice(0,8))}</span></span>`)+'</a>';
+const ago=t=>{const s=(Date.now()-new Date(t))/1000;return s<3600?Math.max(1,Math.round(s/60))+'m ago':s<86400?Math.round(s/3600)+'h ago':Math.round(s/86400)+'d ago'};
+// rows: [{href, cells:[html...]}]; cells are already escaped
+const linkTable=(cols,rows)=>'<div class="tw"><table><thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
+  rows.map(r=>`<tr class="link" data-href="${r.href}">`+r.cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+main.addEventListener('click',e=>{const tr=e.target.closest('tr.link');if(tr&&!e.target.closest('a'))location.hash=tr.dataset.href});
+
+function playersRange(){return st.day?{from:st.day,to:addDays(st.day,1)}:rangeDates(st.range)}
+function loadPlayers(){main.innerHTML=`
+  <div class="pbar">
+    <input type="search" id="p-q" placeholder="Search handle, name or device id" aria-label="Search players" value="${esc(st.q)}">
+    <label class="stamp">Day <input type="date" id="p-day" value="${st.day}" max="${today()}"></label>
+    ${st.day?'<button class="btn" id="p-clear">Whole range</button>':''}
+  </div>
+  <div class="pgrid">
+    <section class="card"><h2>Players</h2><div class="sub" id="p-sub"></div><div id="p-list"></div></section>
+    ${WIDE.matches?BOARDS.map(([k,n])=>`<section class="card"><h2>${esc(n)}</h2><div class="sub">Each player's best run, all time</div><div class="board" id="p-board-${k}"></div></section>`).join('')
+    :`<section class="card"><h2>Leaderboard</h2><div class="sub">Each player's best run, all time</div>
+      <div class="seg" id="p-boards" role="group" aria-label="Board">${BOARDS.map(([k,n])=>`<button data-b="${k}" aria-pressed="${k===st.board}">${esc(n)}</button>`).join('')}</div>
+      <div class="board" id="p-board"></div></section>`}
+  </div>`;
+  let qt;document.getElementById('p-q').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{st.q=e.target.value.trim();fetchPlayers()},250)};
+  document.getElementById('p-day').onchange=e=>{st.day=e.target.value;drawRanges();loadPlayers()};
+  const c=document.getElementById('p-clear');if(c)c.onclick=()=>{st.day='';drawRanges();loadPlayers()};
+  const sw=document.getElementById('p-boards');if(sw)sw.onclick=e=>{const b=e.target.closest('button');if(!b)return;st.board=b.dataset.b;
+    sw.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));fetchBoard(st.board,'p-board')};
+  fetchPlayers();
+  if(WIDE.matches)BOARDS.forEach(([k])=>fetchBoard(k,'p-board-'+k));else fetchBoard(st.board,'p-board')}
+async function fetchPlayers(){const {from,to}=playersRange(),q=st.q;stamp('Loading…');
+  const r=await api('/admin/players?from='+from+'&to='+to+(q?'&q='+encodeURIComponent(q):''));
+  if(st.view!=='players'||q!==st.q)return; // a newer search or view took over
+  if(guard(r,'players'))return;
+  const {rows,truncated}=r.j,list=document.getElementById('p-list');
+  document.getElementById('p-sub').textContent=(st.day?'Active on '+dayLbl(st.day):'Active '+dayLbl(from)+' to '+dayLbl(addDays(to,-1)))+
+    ' · '+fmtN(rows.length)+(truncated?'+':'')+' players'+(q?' matching "'+q+'"':'');
+  list.innerHTML=rows.length?linkTable(['Player','Last active','Runs','Devices','Gold','Codex'],rows.map(p=>({href:profileHref(p),cells:[
+    playerCell(p),esc(ago(p.last_active)),fmtN(p.runs),fmtN(p.devices),p.gold==null?'<span class="muted">no save</span>':fmtN(p.gold),p.codex_items==null?'':fmtN(p.codex_items)]})))
+    +(truncated?'<p class="note" style="margin-top:10px">Showing the 200 most recent. Narrow the range or search to see others.</p>':'')
+    :empty(q?'No players match that search':'Nobody played in this range');
+  stamp('')}
+async function fetchBoard(b,id){const el=document.getElementById(id);el.innerHTML='<div class="empty">Loading…</div>';
+  const r=await api('/admin/leaderboard?board='+b);
+  if(!el.isConnected||(id==='p-board'&&b!==st.board))return; // the view or the picked board changed meanwhile
+  if(r.status!==200||!r.j){el.innerHTML=empty('Could not load the leaderboard');return}
+  const val=x=>b==='kills'?fmtN(x.kills):b==='fastest'?fmtDur(x.time_s)+(x.curse?' · curse '+x.curse:''):fmtDur(x.time_s);
+  el.innerHTML=r.j.rows.length?linkTable(['#','Player',b==='kills'?'Kills':'Time','Hero'],r.j.rows.map(x=>({href:profileHref(x),cells:[
+    fmtN(x.rank),playerCell(x),esc(val(x)),esc(heroLbl(x.hero))]}))):empty('No scores on this board yet')}
+
+// ===== profile: one X account (every device it signed in on) or one anonymous device =====
+async function loadProfile(kind,id){stamp('Loading…');main.innerHTML='<div class="empty" style="height:240px">Loading player…</div>';
+  const r=await api('/admin/players/'+kind+'/'+encodeURIComponent(id));
+  if(st.view!=='profile')return;
+  if(r.status===404){document.body.classList.remove('signed-out');gate('Player not found','No sessions, saves, runs or scores for this id.','<a class="btn primary" href="#players">Back to players</a>');return stamp('')}
+  if(guard(r,'this player'))return;
+  // A device that once signed in opens as its account, so the URL names the account.
+  if(kind==='install'&&r.j.kind==='user')try{history.replaceState(null,'','#player/user/'+encodeURIComponent(r.j.user.id))}catch(e){}
+  st.profile=r.j;st.dev=0;renderProfile();stamp('')}
+function renderProfile(){const p=st.profile,u=p.user,devs=p.devices,d=devs[st.dev]||null,s=d&&d.snapshot;
+  const devName=(x,i)=>(x.touch?'Mobile':'Desktop')+(devs.length>1?' '+(i+1):'');
+  const lastSeen=devs.map(x=>x.last_seen).filter(Boolean).sort().pop();
+  main.innerHTML=`
+  <p><a class="back" href="#players">&lsaquo; Players</a></p>
+  <div class="card phead">${u?avatar(u.avatar,'big'):'<i class="av big anon"></i>'}
+    <div><h2>${u?esc(u.name):'Anonymous player'}<span class="badge">${u?'Signed in with X':'Never signed in'}</span></h2>
+      <div class="sub">${u?(u.handle?`<a href="https://x.com/${encodeURIComponent(u.handle)}" target="_blank" rel="noopener">@${esc(u.handle)}</a> · `:'')+'Account since '+esc(dayLbl(u.created_at.slice(0,10)))
+        :'Progress is saved on this one device only. Device <code>'+esc(d.install_id)+'</code>'}</div>
+      <div class="sub">${fmtN(devs.length)} ${devs.length===1?'device':'devices'}${lastSeen?' · last seen '+esc(ago(lastSeen)):''} · ${fmtN(p.runs.total)} runs recorded</div></div></div>
+  ${devs.length>1?`<div class="seg" id="devs" role="group" aria-label="Device">${devs.map((x,i)=>`<button data-i="${i}" aria-pressed="${i===st.dev}">${esc(devName(x,i))}</button>`).join('')}</div>
+    <p class="note">Each device keeps its own save until cloud save ships. Showing ${esc(devName(d,st.dev))}${d.last_seen?', last seen '+esc(ago(d.last_seen)):''}.</p>`:''}
+  ${!d?empty('No device has reported in yet. Their save uploads the next time they open the game.')
+    :!s?empty('No save from this device yet. It uploads the next time they open the game.')
+    :`<div class="tiles">
+      ${tile('Gold',fmtN(s.gold),'on hand')}
+      ${tile('Runs',fmtN(s.runs),fmtN(s.wins)+' wins')}
+      ${tile('Kills',fmtC(s.kills),'all time')}
+      ${tile('Best time',fmtDur(s.best_s),'max curse '+s.max_curse)}
+      ${tile('Heroes',s.chars.length+' of '+HEROES.length,'unlocked')}
+      ${tile('Codex',fmtN(s.codex_items)+' items',fmtN(s.codex_enemies)+' enemies seen')}
+      ${tile('Pumpkin Crowns',fmtN(s.pumpkin_crowns),'held')}
+      ${tile('Sessions',fmtN(d.sessions),d.first_seen?'since '+dayLbl(d.first_seen.slice(0,10)):'')}
+    </div>`}
+  <div class="grid" style="margin-top:16px">
+    ${s?`<section class="card"><h2>Shop upgrades</h2><div class="sub">Level bought of each upgrade</div><div class="tw"><table><tbody>${META.map(([k,n,max])=>{const l=s.meta[k]||0;
+      return`<tr><td>${esc(n)}</td><td>${l} / ${max}<span class="meter"><i style="width:${Math.min(100,l/max*100)}%"></i></span></td></tr>`}).join('')}</tbody></table></div></section>
+    <section class="card"><h2>Heroes</h2><div class="sub">Unlocked heroes and classic wins with each</div>
+      <div class="chips">${HEROES.map((h,i)=>`<span class="chip${s.chars.includes(i)?'':' off'}">${esc(h)}${s.wins_by[i]?' · '+fmtN(s.wins_by[i])+(s.wins_by[i]===1?' win':' wins'):''}</span>`).join('')}</div></section>`:''}
+    ${p.boards?`<section class="card"><h2>Leaderboard</h2><div class="sub">Best run on each board</div><div class="tw"><table><thead><tr><th>Board</th><th>Rank</th><th>Best</th><th>Hero</th></tr></thead><tbody>${BOARDS.map(([k,n])=>{const b=p.boards[k];
+      return`<tr><td>${esc(n)}</td><td>${b.rank?'#'+fmtN(b.rank)+' <span class="muted">of '+fmtN(b.total)+'</span>':'<span class="muted">not ranked</span>'}</td><td>${b.rank?esc(k==='kills'?fmtN(b.kills):fmtDur(b.time_s)+(k==='fastest'&&b.curse?' · curse '+b.curse:'')):''}</td><td>${b.hero?esc(heroLbl(b.hero)):''}</td></tr>`}).join('')}</tbody></table></div></section>`:''}
+    ${s?codexCard(s.codex):''}
+    <section class="card wide"><h2>Recent runs</h2><div class="sub">${fmtN(p.runs.total)} runs from ${devs.length===1?'this device':'all devices'}: ${fmtN(p.runs.wins)} wins, ${fmtN(p.runs.halloween)} Halloween, ${fmtN(p.runs.gold_earned)} gold earned${p.runs.crowns?', '+fmtN(p.runs.crowns)+' crowns':''}. Latest ${Math.min(p.runs.recent.length,50)} shown.</div>
+      ${p.runs.recent.length?'<div class="tw"><table><thead><tr><th>When</th><th>Mode</th><th>Hero</th><th>Result</th><th>Time</th><th>Kills</th><th>Level</th><th>Gold</th><th>Detail</th></tr></thead><tbody>'+p.runs.recent.map(x=>
+        `<tr><td>${esc(new Date(x.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZone:TZ}))}</td><td>${x.mode==='halloween'?'Halloween':'Classic'}</td><td>${esc(heroLbl(x.hero))}</td><td>${esc(x.result)}</td><td>${fmtDur(x.time_s)}</td><td>${fmtN(x.kills)}</td><td>${x.level}</td><td>${fmtN(x.gold_earned)}</td><td>${esc(runDetail(x))}</td></tr>`).join('')+'</tbody></table></div>'
+        :empty('No runs recorded yet. Runs are recorded from the telemetry release onwards.')}</section>
+  </div>`;
+  const ds=document.getElementById('devs');if(ds)ds.onclick=e=>{const b=e.target.closest('button');if(b){st.dev=Number(b.dataset.i);renderProfile()}}}
+const runDetail=x=>x.mode==='halloween'?[x.crowns!=null&&x.crowns+' crowns',x.night_rank&&'night '+x.night_rank,x.death_cause&&(CAUSE[x.death_cause]||x.death_cause)].filter(Boolean).join(' · ')
+  :[x.bosses!=null&&x.bosses+'/5 bosses',x.curse&&'curse '+x.curse].filter(Boolean).join(' · ');
+function codexCard(cx){const it=Object.entries(cx.items||{}).filter(([,r])=>r.seen),en=Object.entries(cx.enemies||{}).filter(([,r])=>r.seen);
+  const name=k=>heroLbl(k.replace(/^[a-z]+:/,'').replace(/_/g,'-'));
+  return`<section class="card"><div class="ch"><div><h2>Codex</h2><div class="sub">${fmtN(it.length)} items and ${fmtN(en.length)} enemies discovered</div></div>
+    ${tableBtn('Codex',['Entry','Kind','Picked / killed'],it.map(([k,r])=>[name(k),'Item',fmtN(r.taken||0)]).concat(en.map(([k,r])=>[name(k),'Enemy',fmtN(r.kills||0)])))}</div></section>`}
+
+// ===== views: #players, #player/user/<id>, #player/install/<id>, otherwise the overview =====
+function route(){const m=location.hash.match(/^#player\/(user|install)\/([^/]+)$/);
+  st.view=m?'profile':location.hash==='#players'?'players':'overview';redraw=null;
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===(st.view==='overview'?'overview':'players')));
+  rg.hidden=st.view==='profile';drawRanges();
+  if(m)return loadProfile(m[1],decodeURIComponent(m[2]));
+  return st.view==='players'?loadPlayers():loadStats()}
+const load=route;
 function render(){redraw=layout(st.data);const d=st.data;stamp(dayLbl(d.range.from)+' to '+dayLbl(addDays(d.range.to,-1))+' · updated '+new Date(d.generated_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}
 async function who(){const r=await api('/me'),u=r.j&&r.j.user;const el=document.getElementById('who');
   el.innerHTML=u?`<button class="btn" id="signout">Sign out</button>`:'';if(u)document.getElementById('signout').onclick=signOut}
@@ -342,13 +562,17 @@ async function envBadge(){const r=await api('/health'),e=r.j&&r.j.env;if(!e)retu
 
 // ===== controls =====
 const rg=document.getElementById('ranges');
-function drawRanges(){rg.innerHTML=RANGES.map(r=>`<button aria-pressed="${r.k===st.range}" data-k="${r.k}">${esc(r.n)}</button>`).join('')}
-rg.onclick=e=>{const b=e.target.closest('button');if(!b||b.dataset.k===st.range)return;st.range=b.dataset.k;store.set('cs_admin_range',st.range);drawRanges();load()};
+// A single day picked on the Players view overrides the range until cleared.
+const dayOn=()=>st.view==='players'&&st.day;
+function drawRanges(){rg.innerHTML=RANGES.map(r=>`<button aria-pressed="${!dayOn()&&r.k===st.range}" data-k="${r.k}">${esc(r.n)}</button>`).join('')}
+rg.onclick=e=>{const b=e.target.closest('button');if(!b||(b.dataset.k===st.range&&!dayOn()))return;st.range=b.dataset.k;st.day='';store.set('cs_admin_range',st.range);load()};
+document.getElementById('tabs').onclick=e=>{const b=e.target.closest('button');if(b)location.hash=b.dataset.v==='players'?'players':''};
+addEventListener('hashchange',route);
 document.getElementById('refresh').onclick=load;
 let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(redraw&&st.data)redraw()},120)});
-matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(st.data)render()});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(st.view==='overview'&&st.data)render()});
 
-drawRanges();load();who();envBadge();
+load();who();envBadge();
 })();
 </script>
 </body>
