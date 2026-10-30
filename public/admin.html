@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Crown Survivors Stats</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎃</text></svg>">
+<style>
+/* Admin dashboard over the telemetry tables (docs/telemetry.md). Data from GET /api/admin/stats, or mock data. */
+:root{
+  color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--surface-2:#f0efec;
+  --ink:#0b0b0b;--ink-2:#52514e;--muted:#898781;
+  --grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
+  --classic:#2a78d6;--halloween:#eb6834;
+  --accent:#eb6834;--good:#006300;--critical:#d03b3b;
+  --tip-bg:#0b0b0b;--tip-ink:#f0efec;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --page:#0d0d0d;--surface:#1a1a19;--surface-2:#262624;
+    --ink:#f0efec;--ink-2:#c3c2b7;--muted:#898781;
+    --grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+    --classic:#3987e5;--halloween:#d95926;
+    --accent:#d95926;--good:#0ca30c;
+    --tip-bg:#f0efec;--tip-ink:#0b0b0b;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--surface-2:#262624;
+  --ink:#f0efec;--ink-2:#c3c2b7;--muted:#898781;
+  --grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+  --classic:#3987e5;--halloween:#d95926;
+  --accent:#d95926;--good:#0ca30c;
+  --tip-bg:#f0efec;--tip-ink:#0b0b0b;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 16px 64px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;margin-bottom:20px}
+h1{font-size:20px;font-weight:650;margin:0;letter-spacing:-.01em}
+h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-spacing:0;margin-top:2px}
+.who{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:13px}
+.who img{width:24px;height:24px;border-radius:50%}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:20px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:2px}
+.seg button{border:0;background:none;color:var(--ink-2);font:inherit;font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--ring)}
+.switch{display:inline-flex;align-items:center;gap:8px;border:0;background:none;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;padding:4px}
+.switch .track{width:34px;height:20px;border-radius:10px;background:var(--axis);position:relative;transition:background .15s}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch[aria-checked="true"] .track{background:var(--accent)}
+.switch[aria-checked="true"] .track::after{transform:translateX(14px)}
+.btn{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--ink);color:var(--page);border-color:var(--ink)}
+.spacer{flex:1}
+.stamp{font-size:12px;color:var(--muted)}
+.banner{background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:13px}
+.banner b{font-weight:650}
+.card{background:var(--surface);border-radius:12px;box-shadow:0 0 0 1px var(--ring);padding:18px;min-width:0}
+.card h2{font-size:14px;font-weight:600;margin:0}
+.card .sub{font-size:12px;color:var(--ink-2);margin:2px 0 12px}
+.top{display:grid;grid-template-columns:minmax(260px,1.1fr) 2fr;gap:16px;margin-bottom:16px}
+.hero .label{font-size:13px;color:var(--ink-2)}
+.hero .value{font-size:56px;font-weight:650;line-height:1.05;letter-spacing:-.02em;margin:6px 0 4px}
+.hero .note{font-size:12px;color:var(--ink-2)}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--ring);border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--ring)}
+.tile{background:var(--surface);padding:14px 16px}
+.tile .label{font-size:12px;color:var(--ink-2)}
+.tile .value{font-size:22px;font-weight:600;margin-top:2px}
+.tile .note{font-size:11px;color:var(--muted);margin-top:1px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid .wide{grid-column:1/-1}
+.section{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:28px 0 10px}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;overflow:visible}
+.chart.scroll{overflow-x:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink-2);margin:-4px 0 10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.empty{height:180px;display:grid;place-items:center;color:var(--muted);font-size:13px;background:var(--surface-2);border-radius:8px}
+details.tbl{margin-top:10px;font-size:12px}
+details.tbl summary{color:var(--ink-2);cursor:pointer;width:max-content}
+details.tbl .tw{overflow-x:auto;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--ink-2)}
+.tick{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.lbl{fill:var(--ink-2);font-size:12px}
+.val{fill:var(--ink);font-size:12px;font-weight:600}
+#tip{position:fixed;pointer-events:none;z-index:10;background:var(--tip-bg);color:var(--tip-ink);font-size:12px;line-height:1.4;padding:8px 10px;border-radius:8px;max-width:260px;opacity:0;transition:opacity .08s;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+#tip .t{font-weight:600;margin-bottom:2px}
+#tip .r{display:flex;align-items:center;gap:6px;justify-content:space-between}
+#tip .r span:first-child{display:flex;align-items:center;gap:6px}
+#tip i{display:inline-block;width:8px;height:8px;border-radius:2px}
+#tip b{font-weight:600;font-variant-numeric:tabular-nums}
+.gate{max-width:440px;margin:60px auto;text-align:center}
+.gate h2{font-size:18px;margin:0 0 8px}
+.gate p{color:var(--ink-2);margin:0 0 18px}
+.gate .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+@media (max-width:900px){.top{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.hero .value{font-size:48px}.seg button{padding:6px 9px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Crown Survivors stats<small>Players, runs and progression from first-party telemetry</small></h1>
+    <div class="who" id="who"></div>
+  </header>
+  <div class="controls">
+    <div class="seg" id="ranges" role="group" aria-label="Date range"></div>
+    <button class="switch" id="mock" role="switch" aria-checked="false"><span class="track"></span>Mock data</button>
+    <span class="spacer"></span>
+    <span class="stamp" id="stamp"></span>
+    <button class="btn" id="refresh">Refresh</button>
+  </div>
+  <main id="main"></main>
+</div>
+<div id="tip" role="tooltip"></div>
+<script>
+(()=>{
+// ===== config =====
+const API='/api',TZ='Africa/Johannesburg';
+const EVENT={id:'harvest-2026',name:'Harvest Moon',from:'2026-10-28',to:'2026-11-08'}; // keep in sync with api/src/events.ts
+const RANGES=[{k:'event',n:EVENT.name},{k:'7',n:'7 days'},{k:'30',n:'30 days'},{k:'90',n:'90 days'}];
+// shop upgrades in game order, with max level (META in index.html)
+const META=[['might','Might',10],['hp','Vitality',10],['armor','Plating',3],['speed','Swiftness',5],['magnet','Attraction',5],['greed','Greed',5],['reroll','Reroll',3],['choice','Insight',1],['revive','Revive',1]];
+const HEROES=['king-cube','ruby-knight','mint-mage','shadow-rogue','pumpkin-prince'];
+const CAUSE={horde:'Horde',boss:'Ritual boss',gourd:'Night Gourd',other:'Other'};
+const SEQ=['#cde2fb','#b7d3f6','#9ec5f4','#86b6ef','#6da7ec','#5598e7','#3987e5','#2a78d6','#256abf','#1c5cab','#184f95','#104281','#0d366b'];
+const ORD=['#1c5cab','#256abf','#2a78d6','#5598e7','#86b6ef']; // ordinal ramp for the funnel (steps 550 -> 250)
+
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const qs=new URLSearchParams(location.search);
+const st={range:store.get('cs_admin_range')||'event',mock:qs.has('mock')?qs.get('mock')!=='0':store.get('cs_admin_mock')==='1',data:null};
+
+// ===== formatting =====
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtN=n=>Math.round(n).toLocaleString('en-US');
+const fmtC=n=>{const a=Math.abs(n);return a>=1e6?(n/1e6).toFixed(a>=1e7?0:1).replace(/\.0$/,'')+'M':a>=1e4?(n/1e3).toFixed(a>=1e5?0:1).replace(/\.0$/,'')+'K':fmtN(n)};
+const fmtP=x=>(x*100).toFixed(x>0&&x<.1?1:0)+'%';
+const fmtDur=s=>{s=Math.round(s);const m=Math.floor(s/60);return m?m+'m '+String(s%60).padStart(2,'0')+'s':s+'s'};
+const dayLbl=d=>new Date(d+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+const heroLbl=h=>h.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join(' ');
+const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(new Date());
+const addDays=(d,n)=>{const t=new Date(d+'T00:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
+function rangeDates(k){if(k==='event')return{from:EVENT.from,to:EVENT.to};const to=addDays(today(),1);return{from:addDays(to,-Number(k)),to}}
+
+// ===== auth: token from the X handoff (#lb_token), else the game's saved sign-in =====
+function token(){const m=location.hash.match(/lb_token=([^&]+)/);
+  if(m){store.set('cs_admin_tok',decodeURIComponent(m[1]));try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
+  const own=store.get('cs_admin_tok');if(own)return own;
+  try{return JSON.parse(store.get('crownsurv_classic_lb')||'{}').tok||null}catch(e){return null}}
+const TOK=token();
+async function api(path){const h={};if(TOK)h.Authorization='Bearer '+TOK;
+  try{const r=await fetch(API+path,{headers:h,credentials:'include'});let j=null;try{j=await r.json()}catch(e){}return{status:r.status,j}}catch(e){return{status:0,j:null}}}
+const signInUrl=()=>'/auth/x?returnTo='+encodeURIComponent(location.origin+location.pathname);
+
+// ===== mock data: same shape as GET /api/admin/stats (api/src/admin.ts) =====
+function rng(seed){let a=0;for(const c of seed)a=Math.imul(a^c.charCodeAt(0),2654435761)>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function mockStats(from,to){const R=rng(from+to),j=(a,b)=>a+(b-a)*R(),days=[];for(let d=from;d<to;d=addDays(d,1))days.push(d);
+  const daily=days.map(d=>{const ev=d>=EVENT.from&&d<EVENT.to,k=ev?(Date.parse(d)-Date.parse(EVENT.from))/864e5:0,dow=new Date(d+'T12:00:00Z').getUTCDay(),wk=dow===0||dow===6?1.25:1;
+    const players=Math.round((140+(ev?520*Math.exp(-k/7)+190:0))*wk*j(.9,1.1)),runs_halloween=ev?Math.round(players*j(1.7,2.4)):0;
+    return{day:d,players,new_players:Math.round(players*(ev&&k<2?.42:.16)*j(.8,1.2)),sessions:Math.round(players*j(1.45,1.8)),
+      runs_classic:Math.round(players*(ev?.9:2.3)*j(.85,1.15)),runs_halloween,crowns:Math.round(runs_halloween*(.1+k*.012)*j(.8,1.2))}});
+  const sum=k=>daily.reduce((a,r)=>a+r[k],0),players=Math.min(sum('players'),Math.round(Math.max(...daily.map(r=>r.players))*j(2.4,3))),hr=sum('runs_halloween'),runs=sum('runs_classic')+hr,crowns=sum('crowns');
+  const split=(n,ws)=>{const t=ws.reduce((a,b)=>a+b,0);return ws.map(w=>Math.round(n*w/t))};
+  const dn=split(hr*.93,[52,27,15,6]);
+  const hw=split(runs,[34,22,18,14,12]);
+  const gb=split(players,[6,14,22,17,18,11,8,4]),cb=split(players,[9,21,31,22,12,5]);
+  const upgrades=[];for(const [k,,max] of META){const ws=[];const fall=max>3?j(.6,.82):j(.3,.6);for(let l=0;l<=max;l++)ws.push(Math.pow(fall,l)*(l===0?j(1.2,2):1));split(players,ws).forEach((n,level)=>upgrades.push({upgrade:k,level,n}))}
+  const played=hr?Math.round(players*j(.66,.76)):0;
+  return{range:{from,to,tz:TZ},generated_at:new Date().toISOString(),
+    kpis:{players,new_players:Math.min(players,sum('new_players')),sessions:sum('sessions'),avg_session_s:j(360,520),runs,halloween_runs:hr,crowns_earned:crowns,touch_share:j(.52,.62),signed_in_share:j(.14,.22)},
+    daily,deaths:['horde','boss','gourd','other'].map((cause,i)=>({cause,n:dn[i]})).filter(r=>r.n>0),
+    heroes:HEROES.map((hero,i)=>({hero,runs:hw[i],wins:Math.round(hw[i]*j(.03,.08)),crowns:Math.round(crowns*[.3,.2,.16,.12,.22][i])})).sort((a,b)=>b.runs-a.runs),
+    progression:{players,gold_total:players*j(1800,2600),gold_median:j(900,1400),crowns_held:Math.round(crowns*j(1.05,1.2)),crown_holders:Math.round(played*j(.38,.46)),
+      avg_codex_items:j(19,26),avg_codex_enemies:j(12,17),avg_heroes:j(1.8,2.6),
+      gold_buckets:['0','1-99','100-499','500-999','1K-2.5K','2.5K-5K','5K-10K','10K+'].map((label,i)=>({label,n:gb[i]})),
+      codex_buckets:['0-9','10-19','20-29','30-39','40-49','50+'].map((label,i)=>({label,n:cb[i]})),upgrades},
+    funnel:[{stage:'Played the game',n:players},{stage:'Played Halloween Endless',n:played},{stage:'Cleared a ritual',n:Math.round(played*j(.7,.8))},{stage:'Earned a Pumpkin Crown',n:Math.round(played*j(.38,.46))},{stage:'Earned 3+ crowns',n:Math.round(played*j(.13,.19))}]}}
+
+// ===== tooltip =====
+const tip=document.getElementById('tip');
+function showTip(html,x,y){tip.innerHTML=html;tip.style.opacity=1;const w=tip.offsetWidth,h=tip.offsetHeight;
+  let l=x+14,t=y+14;if(l+w>innerWidth-8)l=x-w-14;if(t+h>innerHeight-8)t=y-h-14;tip.style.left=Math.max(8,l)+'px';tip.style.top=Math.max(8,t)+'px'}
+const hideTip=()=>{tip.style.opacity=0};
+const tipRows=(title,rows)=>'<div class="t">'+esc(title)+'</div>'+rows.map(([c,k,v])=>'<div class="r"><span>'+(c?'<i style="background:'+c+'"></i>':'')+esc(k)+'</span><b>'+esc(v)+'</b></div>').join('');
+document.addEventListener('pointermove',e=>{const el=e.target.closest&&e.target.closest('[data-tip]');if(el)showTip(el.dataset.tip,e.clientX,e.clientY);else if(!e.target.closest('.xh'))hideTip()});
+document.addEventListener('pointerleave',hideTip);
+
+// ===== chart helpers (inline SVG) =====
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function niceMax(v,ticks=4){if(v<=0)return 1;const raw=v/ticks,p=Math.pow(10,Math.floor(Math.log10(raw))),s=[1,2,2.5,5,10].map(m=>m*p).find(m=>m>=raw);return s*ticks}
+// rect with 4px rounded data-end; dir 'up' (column) or 'right' (bar)
+function rpath(x,y,w,h,dir,r=4){r=Math.min(r,dir==='up'?h:w,dir==='up'?w/2:h/2);if(w<=0||h<=0)return'';
+  return dir==='up'?`M${x},${y+h}V${y+r}Q${x},${y} ${x+r},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h}Z`
+    :`M${x},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h-r}Q${x+w},${y+h} ${x+w-r},${y+h}H${x}Z`}
+const legend=items=>'<div class="legend">'+items.map(([c,n])=>'<span><i style="background:'+c+'"></i>'+esc(n)+'</span>').join('')+'</div>';
+const empty=msg=>'<div class="empty">'+esc(msg||'No data in this range yet')+'</div>';
+function table(cols,rows){return'<details class="tbl"><summary>Show table</summary><div class="tw"><table><thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+
+  rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div></details>'}
+function yAxis(max,x0,x1,y0,h){let s='';for(let i=0;i<=4;i++){const v=max*i/4,y=y0+h-h*i/4;
+  s+=`<line x1="${x0}" x2="${x1}" y1="${y}" y2="${y}" stroke="${i?'var(--grid)':'var(--axis)'}" stroke-width="1"/><text class="tick" x="${x0-8}" y="${y+4}" text-anchor="end">${fmtC(v)}</text>`}return s}
+function xLabels(labels,xAt,y,plotW){const every=Math.max(1,Math.ceil(labels.length*56/plotW));let s='';
+  labels.forEach((l,i)=>{if(i%every===0)s+=`<text class="tick" x="${xAt(i)}" y="${y}" text-anchor="middle">${esc(l)}</text>`});return s}
+
+// line chart with crosshair; series: [{name,color,values}]
+const LC={};
+function lineChart(id,labels,series,H=220){const el=document.getElementById(id),W=el.clientWidth||600,m={l:44,r:series.length>1?96:16,t:10,b:26},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const max=niceMax(Math.max(1,...series.flatMap(s=>s.values))),n=labels.length,xAt=i=>m.l+(n<2?pw/2:pw*i/(n-1)),yAt=v=>m.t+ph-ph*v/max;
+  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(series.map(x=>x.name).join(', '))} by day">`+yAxis(max,m.l,m.l+pw,m.t,ph)+xLabels(labels,xAt,H-6,pw);
+  for(const se of series){s+=`<path d="${se.values.map((v,i)=>(i?'L':'M')+xAt(i).toFixed(1)+','+yAt(v).toFixed(1)).join('')}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`}
+  // direct end labels, unless they would collide (the legend still carries identity)
+  const ends=series.map(se=>({se,y:yAt(se.values[n-1]||0)}));
+  if(series.length>1&&ends.every((a,i)=>ends.every((b,k)=>k===i||Math.abs(a.y-b.y)>=14)))
+    for(const {se,y} of ends)s+=`<circle cx="${xAt(n-1)}" cy="${y}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/><text class="lbl" x="${xAt(n-1)+10}" y="${y+4}">${esc(se.name)}</text>`;
+  s+=`<g class="xg" style="display:none"><line class="xl" y1="${m.t}" y2="${m.t+ph}" stroke="var(--axis)" stroke-width="1"/>${series.map(se=>`<circle r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/>`).join('')}</g>`;
+  s+=`<rect class="xh" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/></svg>`;
+  el.innerHTML=s;LC[id]={labels,series,xAt,yAt,n,m,pw};
+  const svg=el.querySelector('svg'),g=svg.querySelector('.xg'),hit=svg.querySelector('.xh');
+  hit.addEventListener('pointermove',e=>{const r=svg.getBoundingClientRect(),px=(e.clientX-r.left)*W/r.width,i=Math.max(0,Math.min(n-1,Math.round((px-m.l)/pw*(n-1))));
+    g.style.display='';const x=xAt(i);g.querySelector('.xl').setAttribute('x1',x);g.querySelector('.xl').setAttribute('x2',x);
+    g.querySelectorAll('circle').forEach((c,k)=>{c.setAttribute('cx',x);c.setAttribute('cy',yAt(series[k].values[i]))});
+    showTip(tipRows(labels[i],series.map(se=>[se.color,se.name,fmtN(se.values[i])])),e.clientX,e.clientY)});
+  hit.addEventListener('pointerleave',()=>{g.style.display='none';hideTip()})}
+
+// stacked columns; series: [{name,color,values}]
+function columnChart(id,labels,series,opt={}){const el=document.getElementById(id),W=el.clientWidth||600,H=opt.h||220,m={l:44,r:12,t:10,b:26},pw=W-m.l-m.r,ph=H-m.t-m.b,n=labels.length;
+  const tot=labels.map((_,i)=>series.reduce((a,se)=>a+se.values[i],0)),max=niceMax(Math.max(1,...tot)),band=pw/n,bw=Math.max(2,Math.min(24,band-2)),xAt=i=>m.l+band*i+band/2,hOf=v=>ph*v/max;
+  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opt.label||'')}">`+yAxis(max,m.l,m.l+pw,m.t,ph)+xLabels(labels,xAt,H-6,pw);
+  labels.forEach((l,i)=>{let y=m.t+ph;const top=series.map((se,k)=>se.values[i]>0?k:-1).filter(k=>k>=0).pop();
+    series.forEach((se,k)=>{const v=se.values[i];if(!v)return;const h=hOf(v);y-=h;
+      // 2px surface gap between stacked segments
+      const hh=Math.max(.5,h-(k===top?0:2));s+=`<path d="${k===top?rpath(xAt(i)-bw/2,y,bw,hh,'up'):`M${xAt(i)-bw/2},${y+(h-hh)}h${bw}v${hh}h${-bw}Z`}" fill="${se.color}"/>`});
+    const rows=series.map(se=>[se.color,se.name,fmtN(se.values[i])]);if(series.length>1)rows.push(['','Total',fmtN(tot[i])]);
+    s+=`<rect x="${m.l+band*i}" y="${m.t}" width="${band}" height="${ph}" fill="transparent" data-tip="${esc(tipRows(opt.tipTitle?opt.tipTitle(i):l,rows))}"/>`});
+  el.innerHTML=s+'</svg>'}
+
+// horizontal bars; rows: [{label,value,color,tip,valueText}]
+function barChart(id,rows,opt={}){const el=document.getElementById(id),W=el.clientWidth||600,lw=opt.labelW||150,vw=opt.valueW||90,rh=30,bh=16,H=rows.length*rh+4,pw=Math.max(40,W-lw-vw);
+  const max=opt.max||Math.max(1,...rows.map(r=>r.value));
+  let s=`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opt.label||'')}"><line x1="${lw}" x2="${lw}" y1="0" y2="${H}" stroke="var(--axis)"/>`;
+  rows.forEach((r,i)=>{const y=i*rh+(rh-bh)/2,w=Math.max(r.value?2:0,pw*r.value/max);
+    s+=`<text class="lbl" x="${lw-10}" y="${y+bh/2+4}" text-anchor="end">${esc(r.label)}</text><path d="${rpath(lw,y,w,bh,'right')}" fill="${r.color}"/>`+
+      `<text class="val" x="${lw+w+8}" y="${y+bh/2+4}">${esc(r.valueText||fmtN(r.value))}</text>`+
+      `<rect x="0" y="${i*rh}" width="${W}" height="${rh}" fill="transparent" data-tip="${esc(r.tip||tipRows(r.label,[[r.color,'Value',fmtN(r.value)]]))}"/>`});
+  el.innerHTML=s+'</svg>'}
+
+// upgrade heatmap: rows = upgrades, cols = levels, cell = share of players at that level
+function heatmap(id,p){const el=document.getElementById(id),by={};for(const u of p.upgrades)(by[u.upgrade]=by[u.upgrade]||{})[u.level]=u.n;
+  // low shares recede toward the surface: light steps on light, dark steps on dark
+  const dark=css('color-scheme')==='dark',maxL=Math.max(...META.map(x=>x[2])),lw=96,cw=Math.max(34,Math.min(64,((el.clientWidth||600)-lw)/(maxL+1))),ch=28,W=lw+cw*(maxL+1),H=META.length*ch+24;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:${W}px" role="img" aria-label="Share of players at each upgrade level">`;
+  for(let l=0;l<=maxL;l++)s+=`<text class="tick" x="${lw+cw*l+cw/2}" y="14" text-anchor="middle">${l}</text>`;
+  META.forEach(([k,name,max],r)=>{const row=by[k]||{},tot=Object.values(row).reduce((a,b)=>a+b,0)||1,y=20+r*ch;
+    s+=`<text class="lbl" x="${lw-10}" y="${y+ch/2+4}" text-anchor="end">${esc(name)}</text>`;
+    for(let l=0;l<=max;l++){const n=row[l]||0,sh=n/tot,step=Math.min(SEQ.length-1,Math.round(sh*(SEQ.length-1))),ci=n?(dark?SEQ.length-1-step:step):-1,fill=ci<0?'var(--surface-2)':SEQ[ci],x=lw+cw*l;
+      s+=`<rect x="${x+1}" y="${y+1}" width="${cw-2}" height="${ch-2}" rx="3" fill="${fill}" data-tip="${esc(tipRows(name+' level '+l,[['','Players',fmtN(n)],['','Share',fmtP(sh)]]))}"/>`;
+      if(cw>=40&&n)s+=`<text x="${x+cw/2}" y="${y+ch/2+4}" text-anchor="middle" font-size="11" fill="${ci>=7?'#ffffff':'#0b0b0b'}" pointer-events="none">${fmtP(sh)}</text>`}});
+  el.innerHTML=s+'</svg>'}
+
+function spark(id,values,color){const el=document.getElementById(id),W=el.clientWidth||240,H=40,max=Math.max(1,...values),n=values.length;if(n<2){el.innerHTML='';return}
+  const xAt=i=>2+(W-6)*i/(n-1),yAt=v=>H-4-(H-8)*v/max;
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}" aria-hidden="true"><path d="${values.map((v,i)=>(i?'L':'M')+xAt(i).toFixed(1)+','+yAt(v).toFixed(1)).join('')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${xAt(n-1)}" cy="${yAt(values[n-1])}" r="4" fill="${color}" stroke="var(--surface)" stroke-width="2"/></svg>`}
+
+// ===== page =====
+const main=document.getElementById('main');
+function gate(title,body,actions){main.innerHTML=`<div class="gate card"><h2>${esc(title)}</h2><p>${body}</p><div class="row">${actions}</div></div>`;bindGate()}
+function bindGate(){main.querySelectorAll('[data-mock]').forEach(b=>b.onclick=()=>setMock(true));main.querySelectorAll('[data-retry]').forEach(b=>b.onclick=load)}
+const mockBtn='<button class="btn" data-mock>View mock data</button>';
+
+function layout(d){const k=d.kpis,p=d.progression,days=d.daily.map(r=>dayLbl(r.day)),C=css('--classic'),HW=css('--halloween'),hasRuns=k.runs>0,hasSnap=p.players>0;
+  main.innerHTML=(st.mock?`<div class="banner"><b>Mock data.</b> Generated in your browser for layout and reporting tests. Turn off "Mock data" to see real telemetry.</div>`:'')+`
+  <div class="top">
+    <div class="card hero"><div class="label">Pumpkin Crowns earned</div><div class="value">${fmtN(k.crowns_earned)}</div>
+      <div class="note">${fmtN(p.crowns_held)} held by ${fmtN(p.crown_holders)} players in total</div><div id="c-spark" style="margin-top:14px"></div></div>
+    <div class="tiles">
+      ${tile('Players',fmtC(k.players),fmtN(k.new_players)+' new')}
+      ${tile('Sessions',fmtC(k.sessions),k.players?(k.sessions/k.players).toFixed(1)+' per player':'')}
+      ${tile('Avg session',fmtDur(k.avg_session_s),'excluding bounces')}
+      ${tile('Runs',fmtC(k.runs),fmtC(k.halloween_runs)+' Halloween')}
+      ${tile('Gold held',fmtC(p.gold_total),'median '+fmtC(p.gold_median)+' per player')}
+      ${tile('Codex seen',p.avg_codex_items.toFixed(1)+' items',p.avg_codex_enemies.toFixed(1)+' enemies on average')}
+      ${tile('On mobile',fmtP(k.touch_share),'of sessions')}
+      ${tile('Signed in with X',fmtP(k.signed_in_share),'of players')}
+    </div>
+  </div>
+  <div class="section">Activity</div>
+  <div class="grid">
+    ${card('c-players','Daily players','Distinct players per day, and how many were new',[[C,'Players'],[HW,'New players']])}
+    ${card('c-runs','Runs per day','Finished runs by mode',[[C,'Classic'],[HW,'Halloween Endless']])}
+  </div>
+  <div class="section">Harvest Moon</div>
+  <div class="grid">
+    ${card('c-funnel','Event funnel','Players reaching each step, share of everyone who played')}
+    ${card('c-deaths','What ends Halloween runs','Deaths in Halloween Endless by cause')}
+  </div>
+  <div class="section">Progression</div>
+  <div class="grid">
+    ${card('c-gold','Gold balances','Players by current gold, from their latest save')}
+    ${card('c-codex','Codex items seen','Players by number of codex items discovered')}
+    ${card('c-upg','Shop upgrade levels','Share of players at each level of each upgrade. The more a cell stands out, the more players.',null,'wide')}
+    ${card('c-heroes','Heroes','Runs per hero, with wins and crowns in the tooltip and table',null,'wide')}
+  </div>`;
+  const draw=()=>{
+    spark('c-spark',d.daily.map(r=>r.crowns),HW);
+    const anyDaily=d.daily.some(r=>r.players||r.runs_classic||r.runs_halloween);
+    if(anyDaily)lineChart('c-players',days,[{name:'Players',color:C,values:d.daily.map(r=>r.players)},{name:'New players',color:HW,values:d.daily.map(r=>r.new_players)}]);else put('c-players',empty());
+    if(hasRuns)columnChart('c-runs',days,[{name:'Classic',color:C,values:d.daily.map(r=>r.runs_classic)},{name:'Halloween Endless',color:HW,values:d.daily.map(r=>r.runs_halloween)}],{label:'Runs per day by mode'});else put('c-runs',empty());
+    const f0=d.funnel[0].n;
+    if(f0)barChart('c-funnel',d.funnel.map((s,i)=>({label:s.stage,value:s.n,color:ORD[i],valueText:fmtC(s.n)+' · '+fmtP(s.n/f0),tip:tipRows(s.stage,[[ORD[i],'Players',fmtN(s.n)],['','Of all players',fmtP(s.n/f0)]].concat(i?[['','Of previous step',fmtP(d.funnel[i-1].n?s.n/d.funnel[i-1].n:0)]]:[]))})),{labelW:180,valueW:110,label:'Event funnel'});else put('c-funnel',empty());
+    const dt=d.deaths.reduce((a,r)=>a+r.n,0);
+    if(dt)barChart('c-deaths',d.deaths.map(r=>({label:CAUSE[r.cause]||r.cause,value:r.n,color:HW,valueText:fmtP(r.n/dt),tip:tipRows(CAUSE[r.cause]||r.cause,[[HW,'Deaths',fmtN(r.n)],['','Share',fmtP(r.n/dt)]])})),{labelW:110,valueW:56,label:'Halloween deaths by cause'});else put('c-deaths',empty('No Halloween deaths in this range yet'));
+    if(hasSnap){columnChart('c-gold',p.gold_buckets.map(b=>b.label),[{name:'Players',color:C,values:p.gold_buckets.map(b=>b.n)}],{h:200,label:'Players by gold balance',tipTitle:i=>p.gold_buckets[i].label+' gold'});
+      columnChart('c-codex',p.codex_buckets.map(b=>b.label),[{name:'Players',color:C,values:p.codex_buckets.map(b=>b.n)}],{h:200,label:'Players by codex items seen',tipTitle:i=>p.codex_buckets[i].label+' items seen'});
+      heatmap('c-upg',p)}else['c-gold','c-codex','c-upg'].forEach(id=>put(id,empty()));
+    if(d.heroes.length)barChart('c-heroes',d.heroes.map(h=>({label:heroLbl(h.hero),value:h.runs,color:C,valueText:fmtC(h.runs),tip:tipRows(heroLbl(h.hero),[[C,'Runs',fmtN(h.runs)],['','Classic wins',fmtN(h.wins)],['','Pumpkin Crowns',fmtN(h.crowns)]])})),{labelW:130,valueW:60,label:'Runs per hero'});else put('c-heroes',empty());
+  };
+  draw();
+  // tables (accessible view of every chart)
+  addTable('c-players',['Day','Players','New players','Sessions'],d.daily.map(r=>[r.day,fmtN(r.players),fmtN(r.new_players),fmtN(r.sessions)]));
+  addTable('c-runs',['Day','Classic','Halloween','Crowns'],d.daily.map(r=>[r.day,fmtN(r.runs_classic),fmtN(r.runs_halloween),fmtN(r.crowns)]));
+  addTable('c-funnel',['Step','Players','Share'],d.funnel.map(s=>[s.stage,fmtN(s.n),d.funnel[0].n?fmtP(s.n/d.funnel[0].n):'']));
+  addTable('c-deaths',['Cause','Deaths'],d.deaths.map(r=>[CAUSE[r.cause]||r.cause,fmtN(r.n)]));
+  addTable('c-gold',['Gold','Players'],p.gold_buckets.map(b=>[b.label,fmtN(b.n)]));
+  addTable('c-codex',['Items seen','Players'],p.codex_buckets.map(b=>[b.label,fmtN(b.n)]));
+  addTable('c-upg',['Upgrade','Level','Players'],p.upgrades.map(u=>[(META.find(m=>m[0]===u.upgrade)||[,u.upgrade])[1],u.level,fmtN(u.n)]));
+  addTable('c-heroes',['Hero','Runs','Wins','Crowns'],d.heroes.map(h=>[heroLbl(h.hero),fmtN(h.runs),fmtN(h.wins),fmtN(h.crowns)]));
+  return draw}
+const tile=(l,v,n)=>`<div class="tile"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div><div class="note">${esc(n||'')}</div></div>`;
+const card=(id,t,sub,leg,cls)=>`<section class="card ${cls||''}"><h2>${esc(t)}</h2><div class="sub">${esc(sub)}</div>${leg?legend(leg):''}<div class="chart${id==='c-upg'?' scroll':''}" id="${id}"></div><div id="${id}-t"></div></section>`;
+const put=(id,html)=>{document.getElementById(id).innerHTML=html};
+const addTable=(id,cols,rows)=>{if(rows.length)document.getElementById(id+'-t').innerHTML=table(cols,rows)};
+
+let redraw=null;
+async function load(){const {from,to}=rangeDates(st.range);document.getElementById('stamp').textContent='Loading…';
+  if(st.mock){st.data=mockStats(from,to);render();return}
+  main.innerHTML='<div class="empty" style="height:240px">Loading stats…</div>';
+  const r=await api('/admin/stats?from='+from+'&to='+to);
+  if(r.status===401)return gate('Sign in to view stats','This dashboard is for Crown Survivors admins. Sign in with the X account listed in <code>ADMIN_HANDLES</code>.',`<a class="btn primary" href="${signInUrl()}">Sign in with X</a>${mockBtn}`),stamp('');
+  if(r.status===403){const me=await api('/me'),h=me.j&&me.j.user&&me.j.user.handle;return gate('No admin access',(h?'@'+esc(h)+' is':'This account is')+' signed in but not in <code>ADMIN_HANDLES</code> on the API.',mockBtn),stamp('')}
+  if(r.status!==200||!r.j)return gate('Could not load stats',esc((r.j&&r.j.error)||'The API did not answer. Check your connection and try again.'),'<button class="btn primary" data-retry>Try again</button>'+mockBtn),stamp('');
+  st.data=r.j;render()}
+function stamp(t){document.getElementById('stamp').textContent=t}
+function render(){redraw=layout(st.data);const d=st.data;stamp((st.mock?'Mock · ':'')+dayLbl(d.range.from)+' to '+dayLbl(addDays(d.range.to,-1))+' · updated '+new Date(d.generated_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}
+async function who(){if(!TOK&&st.mock)return;const r=await api('/me'),u=r.j&&r.j.user;const el=document.getElementById('who');
+  el.innerHTML=u?(u.avatar?`<img src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer">`:'')+esc(u.handle?'@'+u.handle:u.name):''}
+
+// ===== controls =====
+const rg=document.getElementById('ranges');
+function drawRanges(){rg.innerHTML=RANGES.map(r=>`<button aria-pressed="${r.k===st.range}" data-k="${r.k}">${esc(r.n)}</button>`).join('')}
+rg.onclick=e=>{const b=e.target.closest('button');if(!b||b.dataset.k===st.range)return;st.range=b.dataset.k;store.set('cs_admin_range',st.range);drawRanges();load()};
+const mb=document.getElementById('mock');
+function setMock(on){st.mock=on;store.set('cs_admin_mock',on?'1':'0');mb.setAttribute('aria-checked',String(on));
+  const u=new URL(location.href);if(on)u.searchParams.set('mock','1');else u.searchParams.delete('mock');try{history.replaceState(null,'',u)}catch(e){}load();who()}
+mb.onclick=()=>setMock(!st.mock);
+document.getElementById('refresh').onclick=load;
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(redraw&&st.data)redraw()},120)});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(st.data)render()});
+
+drawRanges();mb.setAttribute('aria-checked',String(st.mock));load();who();
+})();
+</script>
+</body>
+</html>

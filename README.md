@@ -23,6 +23,7 @@ Set these in the Vercel project (Production and Preview as needed). Do **not** c
 | `X_CLIENT_ID` | X app OAuth 2.0 Client ID |
 | `X_CLIENT_SECRET` | X app OAuth 2.0 Client Secret |
 | `EXTRA_ORIGINS` | Optional comma-separated extra CORS / trusted origins |
+| `ADMIN_HANDLES` | Comma-separated X handles (no @) allowed to open the `/admin` stats dashboard |
 
 Default allowed origins: `https://crown-survivors.vercel.app`, `http://localhost:8799`, `http://127.0.0.1:8799`, `http://localhost:3000`.
 

@@ -3,6 +3,8 @@ import { cors } from "hono/cors";
 import { auth, type Session } from "./auth.js";
 import { ALLOWED_ORIGINS, isAllowedReturnUrl } from "./origins.js";
 import { BOARDS, type Board, getLeaderboard, getMyRank, insertScore, validateScore, RATE_LIMIT_SECONDS } from "./scores.js";
+import { ipHash, recordTelemetry, TELEMETRY_MAX_BYTES, validateTelemetry } from "./telemetry.js";
+import { getAdminStats, isAdmin, MAX_RANGE_DAYS, parseRange } from "./admin.js";
 
 type Vars = { user: Session["user"] | null; session: Session["session"] | null };
 
@@ -116,6 +118,38 @@ app.get("/api/me/rank", async (c) => {
   const { row, total } = await getMyRank(board, user.id);
   c.header("Cache-Control", "private, no-store");
   return c.json({ board, total, rank: row?.rank ?? null, row });
+});
+
+// ---- First-party telemetry (docs/telemetry.md). Anonymous by install id; linked to the X user when signed in. ----
+
+app.post("/api/t", async (c) => {
+  const text = await c.req.text();
+  if (text.length > TELEMETRY_MAX_BYTES) return c.json({ error: "payload too large" }, 413);
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return c.json({ error: "invalid JSON" }, 400);
+  }
+  const v = validateTelemetry(body);
+  if (!v.ok) return c.json({ error: v.error }, 400);
+  // Vercel sets x-forwarded-for itself (client values are overwritten), so it is safe to key limits on.
+  const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip");
+  const res = await recordTelemetry(c.get("user")?.id ?? null, ipHash(ip), v.value);
+  if ("limited" in res) return c.json({ error: res.limited }, 429);
+  return c.json({ ok: true, run: res.run });
+});
+
+// ---- Admin dashboard (public/admin.html). Only X handles in ADMIN_HANDLES. ----
+
+app.get("/api/admin/stats", async (c) => {
+  const user = c.get("user");
+  if (!user) return c.json({ error: "sign in required" }, 401);
+  if (!isAdmin((user as { handle?: string | null }).handle)) return c.json({ error: "not an admin" }, 403);
+  const range = parseRange(c.req.query("from"), c.req.query("to"));
+  if (!range) return c.json({ error: `from/to must be YYYY-MM-DD, to after from, at most ${MAX_RANGE_DAYS} days` }, 400);
+  c.header("Cache-Control", "private, no-store");
+  return c.json(await getAdminStats(range.from, range.to));
 });
 
 app.onError((err, c) => {
