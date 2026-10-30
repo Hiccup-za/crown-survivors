@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1] - 2026-10-31
+
+### Fixed
+- Most Crowns on the Harvest Moon boards is now each player's total for the event, so every Pumpkin Crown counts, not just the crowns from their best run. Crowns already earned this event are included.
+- The Most Crowns row shows the hero from the player's latest run that earned a crown, and a tied total goes to whoever reached it first.
+- A run that earns a crown while signed out is always offered for posting after sign-in.
+
 ## [0.7.0] - 2026-10-30
 
 ### Added

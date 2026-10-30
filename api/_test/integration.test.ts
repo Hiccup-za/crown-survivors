@@ -414,4 +414,52 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       assert.equal(await count(`SELECT count(*) AS n FROM player_save_devices`), 0);
     });
   });
+
+  describe("event boards", () => {
+    const EV = "harvest-2026";
+    const run = (user: string, hero: string, crowns: number, rituals: number, kills: number, first: number | null, at: string) =>
+      pool.query(
+        `INSERT INTO event_scores (event_id, user_id, hero, time_s, kills, crowns, rituals, first_crown_s, created_at)
+         VALUES ($1, $2, $3, 600, $4, $5, $6, $7, $8)`,
+        [EV, user, hero, kills, crowns, rituals, first, at],
+      );
+    type Row = { rank: number; handle: string; hero: string; crowns: number; rituals: number; kills: number; first_crown_s: number | null };
+    const board = async (b: string) =>
+      ((await (await app.request(`${BASE}/api/events/${EV}/leaderboard?board=${b}`)).json()) as { rows: Row[] }).rows;
+
+    beforeEach(async () => {
+      await pool.query(`INSERT INTO "user" (id, name, email, handle) VALUES
+        ('u1', 'Player One', 'u1@x.invalid', 'playerone'), ('u2', 'Second', 'u2@x.invalid', 'second'), ('u3', 'Third', 'u3@x.invalid', 'third')`);
+      await pool.query(`INSERT INTO session (id, "expiresAt", token, "userId") VALUES ('s1', now() + interval '1 day', 'tok-1', 'u1')`);
+      // u1: a crown then death late in Night 2, a crown then death early in Night 2 (new hero), then a run with no crown.
+      await run("u1", "king-cube", 1, 7, 1771, 239, "2026-10-31 00:12+02");
+      await run("u1", "pumpkin-prince", 1, 4, 900, 250, "2026-10-31 00:30+02");
+      await run("u1", "king-cube", 0, 2, 300, null, "2026-10-31 00:40+02");
+      await run("u2", "king-cube", 1, 5, 1827, 302, "2026-10-31 00:29+02");
+      await run("u3", "king-cube", 0, 1, 50, null, "2026-10-31 00:35+02");
+    });
+
+    test("most crowns totals every run's crowns and shows the hero of the latest crowning run", async () => {
+      assert.deepEqual(
+        (await board("crowns")).map((r) => [r.rank, r.handle, r.crowns, r.rituals, r.hero]),
+        [[1, "playerone", 2, 13, "pumpkin-prince"], [2, "second", 1, 5, "king-cube"], [3, "third", 0, 1, "king-cube"]],
+      );
+      const me = (await (await app.request(`${BASE}/api/events/${EV}/me/rank?board=crowns`, { headers: { Authorization: "Bearer tok-1" } })).json()) as {
+        rank: number; total: number; row: Row;
+      };
+      assert.deepEqual([me.rank, me.total, me.row.crowns, me.row.hero], [1, 3, 2, "pumpkin-prince"]);
+    });
+
+    test("a tied crown total goes to whoever reached it first", async () => {
+      // u3 matches u1's 2 crowns and 13 rituals, but their second crown came later.
+      await run("u3", "king-cube", 1, 5, 10, 400, "2026-10-31 00:50+02");
+      await run("u3", "king-cube", 1, 7, 10, 400, "2026-10-31 01:00+02");
+      assert.deepEqual((await board("crowns")).slice(0, 2).map((r) => [r.rank, r.handle, r.crowns, r.rituals]), [[1, "playerone", 2, 13], [1, "third", 2, 13]]);
+    });
+
+    test("fastest crown and most kills still rank each player's best single run", async () => {
+      assert.deepEqual((await board("fastest")).map((r) => [r.handle, r.first_crown_s, r.hero]), [["playerone", 239, "king-cube"], ["second", 302, "king-cube"]]);
+      assert.deepEqual((await board("kills")).map((r) => [r.handle, r.kills]), [["second", 1827], ["playerone", 1771], ["third", 50]]);
+    });
+  });
 });

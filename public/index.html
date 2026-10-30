@@ -1068,7 +1068,7 @@ const lbSave=()=>{try{localStorage.setItem(LBK,JSON.stringify(LBS))}catch(e){}};
 const lbIn=()=>!!(LB_API&&LBS.tok&&LBS.user);
 const lb={want:null,board:'fastest',ev:null,data:{},me:{},scroll:0,t0:0,back:'title',rank:null,drag:null};
 // event boards (lb.ev = event id): [board, tab, value column, footer]. Board set is a placeholder until Christopher picks (docs/halloween-event.md)
-const EVB=[['crowns','MOST CROWNS','RITUALS','Most Pumpkin Crowns in one run · then rituals'],['fastest','FASTEST CROWN','TIME','Fastest first Night Gourd kill'],['kills','MOST KILLS','KILLS','Most kills in a single Halloween run']];
+const EVB=[['crowns','MOST CROWNS','RITUALS','Total Pumpkin Crowns this event · then rituals'],['fastest','FASTEST CROWN','TIME','Fastest first Night Gourd kill'],['kills','MOST KILLS','KILLS','Most kills in a single Halloween run']];
 const lbP=ev=>ev?'/events/'+ev:'',lbK=(b,ev)=>ev?ev+':'+b:b,evById=id=>EVL.find(e=>e.id===id)||null;
 let lbT={k:1,ox:0,oy:0},lbCard=null;
 const fmtT=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'),fmtN=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');
@@ -1097,7 +1097,8 @@ async function lbSubmit(sc,b){const P=lbP(sc.ev),old=b?await api(P+'/me/rank?boa
  const from=old&&old.ok&&old.j?old.j.rank:null;return{board:b,ev:sc.ev||null,n:nw.j.rank,from,row:nw.j.row}}
 // event best-tracking (LBS.evb[event]): c = [crowns, rituals, kills], f = first crown s, k = kills
 const hwC=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
-function hwBetter(sc){const B=(LBS.evb||{})[sc.ev]||{};if(!B.c||hwC([sc.crowns,sc.rituals,sc.kills],B.c)>0)return'crowns';if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))return'fastest';if(sc.kills>(B.k||0))return'kills';return null}
+// crowns is a running total, so any crown counts
+function hwBetter(sc){const B=(LBS.evb||{})[sc.ev]||{};if(sc.crowns>0||!B.c||hwC([sc.crowns,sc.rituals,sc.kills],B.c)>0)return'crowns';if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))return'fastest';if(sc.kills>(B.k||0))return'kills';return null}
 function hwRecord(sc){const A=LBS.evb=LBS.evb||{},B=A[sc.ev]=A[sc.ev]||{},c=[sc.crowns,sc.rituals,sc.kills];if(!B.c||hwC(c,B.c)>0)B.c=c;if(sc.first_crown_s!=null&&(B.f==null||sc.first_crown_s<B.f))B.f=sc.first_crown_s;B.k=Math.max(B.k||0,sc.kills);lbSave()}
 function hwPost(){const g=G,h=g.hw,E=evById(h.ev)||{},o=g.over,sc={ev:h.ev,theme:E.theme,hero:HERO_ID[g.char],ci:g.char,time_s:Math.min(86400,Math.floor(g.t)),kills:Math.min(1e6,g.kills|0),crowns:h.crowns,rituals:h.cleared,first_crown_s:h.first};
  const b=hwBetter(sc);hwRecord(sc);if(lbIn())lbSubmit(sc,b).then(res=>{if(res&&(res.from==null||res.n<res.from))o.lb=res});else if(b&&sc.time_s>=60&&evState(E)==='live')o.pend=Object.assign({board:b},sc)}
@@ -1177,7 +1178,7 @@ function drawLB(){menuBg();lbBegin();const b=lb.board,E=lb.ev&&evById(lb.ev),k=l
  else if(rows.length)txt('TOP 50',195,594,10,'#8b6a3a','center',false);
  x.fillStyle='#c9a66b';x.fillRect(28,610,326,2);
  if(!lbIn()){txt(foot[b],195,638,10,'#8b6a3a','center',false);txt('Sign in to post scores & see your rank',195,678,10,'#8b6a3a','center',false);xButton(133,704,230,46,()=>lbSignIn(null),15)}
- else if(meR&&meR.row){if(!meVis){txt('YOUR BEST',195,624,9,'#8b6a3a','center',false);lbRow(636,46,meR.rank,meR.row,true,b)}}
+ else if(meR&&meR.row){if(!meVis){txt(E&&b==='crowns'?'YOUR TOTAL':'YOUR BEST',195,624,9,'#8b6a3a','center',false);lbRow(636,46,meR.rank,meR.row,true,b)}}
  else if(D.st==='ok')txt(E?(evState(E)!=='live'?'This event has ended':b==='fastest'?'Earn a Pumpkin Crown to get on this board':'Finish a Halloween run to get on this board'):b==='fastest'?'Win a run to get on this board':'Finish a run to get on this board',195,654,11,'#8b6a3a','center',false);
  button('BACK',27,704,96,46,()=>{lb.rank=null;go(lb.back)},'#8b5a2b',14);
  if(lbIn()){const fl=wrapTxt(foot[b],212,10);fl.forEach((l,i)=>txt(l,135,727+(i-(fl.length-1)/2)*14,10,'#8b6a3a','left',false))}
