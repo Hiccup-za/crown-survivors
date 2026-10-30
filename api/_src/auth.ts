@@ -1,9 +1,10 @@
 import { betterAuth } from "better-auth";
-import { bearer, magicLink } from "better-auth/plugins";
+import { anonymous, bearer, magicLink } from "better-auth/plugins";
 import { pool } from "./db.js";
 import { ALLOWED_ORIGINS, PUBLIC_URL } from "./origins.js";
 import { isAdminEmail } from "./admin.js";
 import { sendEmail } from "./email.js";
+import { GUEST_SESSION_DAYS, guestName, mergeGuest } from "./guests.js";
 
 /** X profile -> our user fields. Exported for tests. */
 export function mapXProfile(profile: { data: { name?: string; username?: string; profile_image_url?: string } }) {
@@ -48,6 +49,18 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24,
   },
+  databaseHooks: {
+    session: {
+      create: {
+        // A guest's token is the only way back into its account, so guest sessions last years, not 30 days.
+        // The 30-day refresh never shortens them: it only runs once fewer than 29 days are left.
+        before: async (session, ctx) =>
+          ctx?.path === "/sign-in/anonymous" ? { data: { ...session, expiresAt: new Date(Date.now() + GUEST_SESSION_DAYS * 864e5) } } : undefined,
+      },
+    },
+  },
+  // Production only (Better Auth's default). Per instance, so it slows a flood of guest accounts rather than capping it.
+  rateLimit: { customRules: { "/sign-in/anonymous": { window: 60 * 60, max: 10 } } },
   advanced: {
     // Game and API share crown-survivors.vercel.app — first-party cookies (Lax).
     useSecureCookies: !isLocalHttp,
@@ -56,8 +69,20 @@ export const auth = betterAuth({
       : { sameSite: "lax", secure: true },
   },
   plugins: [
-    // Bearer fallback: token from /auth/handoff when cookies are unavailable.
+    // Bearer fallback: token from /auth/handoff when cookies are unavailable. Before anonymous, so a guest's Bearer
+    // token is its session when /auth/x starts the X sign-in.
     bearer(),
+    // Guests: POST /api/auth/sign-in/anonymous makes an account with a generated name (api/_src/guests.ts).
+    anonymous({
+      generateName: () => guestName(),
+      // mergeGuest deletes the guest itself, in the same transaction that moves its data.
+      disableDeleteAnonymousUser: true,
+      // Only signing in with X absorbs a guest. An /admin magic link in the same browser leaves the guest alone.
+      onLinkAccount: async ({ anonymousUser, newUser, ctx }) => {
+        if (!ctx.path?.startsWith("/callback/")) return;
+        await mergeGuest(anonymousUser.user.id, newUser.user.id);
+      },
+    }),
     // /admin sign-in. Links only go to ADMIN_EMAILS; anyone else gets the same "sent" reply and no email,
     // so no other account can be created this way (the user row is made on verify).
     magicLink({

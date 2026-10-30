@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { auth, type Session } from "./auth.js";
@@ -7,6 +8,8 @@ import { ipHash, recordTelemetry, TELEMETRY_MAX_BYTES, validateTelemetry } from 
 import { getAdminStats, isAdmin, MAX_RANGE_DAYS, MAX_RANGE_HOURS, parseHours, parseRange } from "./admin.js";
 import { getProfile, isInstallId, isUserId, listPlayers } from "./players.js";
 import { getSave, pushSave, SAVE_MAX_BYTES, validatePush } from "./save.js";
+import { mergedGuests } from "./guests.js";
+import { getMyProfile } from "./profile.js";
 import { acceptsScores, eventState, findEvent } from "./events.js";
 import {
   EVENT_BOARDS,
@@ -50,6 +53,34 @@ app.use("*", async (c, next) => {
 app.get("/api/health", (c) => c.json({ ok: true, service: "crown-survivors-api", env: process.env.VERCEL_ENV ?? "development" }));
 
 /**
+ * The request's headers with the session as Better Auth's signed session cookie. Better Auth applies the bearer
+ * plugin's token-to-cookie swap only after every before-hook has run, so the anonymous plugin's /sign-in/social
+ * hook, which records the guest to merge, would not see a guest that arrived as a Bearer token.
+ */
+async function withSessionCookie(c: Context): Promise<Headers> {
+  const headers = new Headers(c.req.raw.headers);
+  const session = c.get("session") as Session["session"] | null;
+  if (!session) return headers;
+  const ctx = await auth.$context;
+  const sig = createHmac("sha256", ctx.secret).update(session.token).digest("base64");
+  headers.set("cookie", `${ctx.authCookies.sessionToken.name}=${encodeURIComponent(`${session.token}.${sig}`)}`);
+  return headers;
+}
+
+/** Starts Sign in with X; the response redirects to X and carries Better Auth's OAuth state cookie. */
+async function startX(c: Context, returnTo: string): Promise<{ url?: string; cookies: string[] }> {
+  const base = PUBLIC_URL ?? new URL(c.req.url).origin;
+  const callbackURL = `${base}/auth/handoff?returnTo=${encodeURIComponent(returnTo)}`;
+  const res = await auth.api.signInSocial({
+    body: { provider: "twitter", callbackURL, errorCallbackURL: callbackURL },
+    headers: await withSessionCookie(c),
+    asResponse: true,
+  });
+  const data = (await res.json()) as { url?: string };
+  return { url: data.url, cookies: res.headers.getSetCookie() };
+}
+
+/**
  * Top-level sign-in entry the game links to (window.location = ...):
  *   GET /auth/x?returnTo=<game url>
  * Runs the OAuth dance first-party on this domain, then /auth/handoff sends the
@@ -59,18 +90,31 @@ app.get("/api/health", (c) => c.json({ ok: true, service: "crown-survivors-api",
 app.get("/auth/x", async (c) => {
   const returnTo = c.req.query("returnTo");
   if (!isAllowedReturnUrl(returnTo)) return c.json({ error: "returnTo must be a game URL" }, 400);
-  const base = PUBLIC_URL ?? new URL(c.req.url).origin;
-  const callbackURL = `${base}/auth/handoff?returnTo=${encodeURIComponent(returnTo)}`;
-  const res = await auth.api.signInSocial({
-    body: { provider: "twitter", callbackURL, errorCallbackURL: callbackURL },
-    headers: c.req.raw.headers,
-    asResponse: true,
-  });
-  const data = (await res.json()) as { url?: string };
-  if (!data.url) return c.json({ error: "could not start sign-in" }, 500);
-  const out = new Response(null, { status: 302, headers: { Location: data.url } });
-  for (const cookie of res.headers.getSetCookie()) out.headers.append("Set-Cookie", cookie);
+  const { url, cookies } = await startX(c, returnTo);
+  if (!url) return c.json({ error: "could not start sign-in" }, 500);
+  const out = new Response(null, { status: 302, headers: { Location: url } });
+  for (const cookie of cookies) out.headers.append("Set-Cookie", cookie);
   return out;
+});
+
+/**
+ * The same for a guest: POST /auth/x {returnTo} with the guest's Bearer token answers {url} for the game to open.
+ * A navigation cannot carry the token, and the token is what tells the X callback which guest to merge.
+ */
+app.post("/auth/x", async (c) => {
+  let body: { returnTo?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid JSON" }, 400);
+  }
+  const returnTo = typeof body?.returnTo === "string" ? body.returnTo : undefined;
+  if (!isAllowedReturnUrl(returnTo)) return c.json({ error: "returnTo must be a game URL" }, 400);
+  const { url, cookies } = await startX(c, returnTo);
+  if (!url) return c.json({ error: "could not start sign-in" }, 500);
+  for (const cookie of cookies) c.header("Set-Cookie", cookie, { append: true });
+  c.header("Cache-Control", "private, no-store");
+  return c.json({ url });
 });
 
 app.get("/auth/handoff", (c) => {
@@ -82,11 +126,24 @@ app.get("/auth/handoff", (c) => {
   return c.redirect(url.toString(), 302);
 });
 
-/** Current user (handle/avatar) or null. */
-app.get("/api/me", (c) => {
-  const u = c.get("user");
+/** Current user (handle/avatar) or null. guest: a generated-name account; merged: guests this account absorbed. */
+app.get("/api/me", async (c) => {
+  const u = c.get("user") as (Session["user"] & { handle?: string | null; isAnonymous?: boolean | null }) | null;
   if (!u) return c.json({ user: null });
-  return c.json({ user: { id: u.id, name: u.name, handle: (u as { handle?: string | null }).handle ?? null, avatar: u.image ?? null } });
+  const guest = !!u.isAnonymous;
+  return c.json({
+    user: { id: u.id, name: u.name, handle: u.handle ?? null, avatar: u.image ?? null, guest, merged: guest ? [] : await mergedGuests(u.id) },
+  });
+});
+
+/** The player's own profile: account and standing on every Classic and event board. */
+app.get("/api/me/profile", async (c) => {
+  const user = c.get("user");
+  if (!user) return c.json({ error: "sign in required" }, 401);
+  const p = await getMyProfile(user.id);
+  if (!p) return c.json({ error: "no such player" }, 404);
+  c.header("Cache-Control", "private, no-store");
+  return c.json(p);
 });
 
 function parseBoard(v: string | undefined): Board | null {

@@ -155,3 +155,10 @@ test("the Vercel entrypoint exports every method the app routes use", () => {
   for (const m of app.matchAll(/allowMethods: \[([^\]]*)\]/g)) for (const x of m[1].matchAll(/"(\w+)"/g)) used.add(x[1]);
   for (const m of used) assert.match(index, new RegExp(`export const ${m} = handler`), `api/index.ts must export ${m}`);
 });
+
+test("guestName builds adjective, noun and a three-digit number", async () => {
+  const { guestName } = await import("../_src/guests.js");
+  assert.equal(guestName(() => 0), "Brave Knight 100");
+  assert.equal(guestName((n) => n - 1), "Spooky Golem 999");
+  for (let i = 0; i < 50; i++) assert.match(guestName(), /^[A-Z][a-z]+ [A-Z][a-z]+ [1-9]\d{2}$/);
+});

@@ -1,3 +1,4 @@
+import type pg from "pg";
 import { pool } from "./db.js";
 import { type Snapshot, validateSnapshot } from "./telemetry.js";
 
@@ -178,15 +179,37 @@ export function mergeSaves(cloud: Save, device: Save, base: Save): Save {
 
 // ---- storage ----
 
-const COLS = `gold, pumpkin_crowns, runs, wins, kills, best_s, max_curse, meta, chars, wins_by, pumpkin_by, codex,
+export const COLS = `gold, pumpkin_crowns, runs, wins, kills, best_s, max_curse, meta, chars, wins_by, pumpkin_by, codex,
   char, curse, tut, muted, gore, last_event, lb_best, lb_ranks`;
 
-type SaveRow = Omit<Save, "kills"> & { kills: string | number; version: number };
-const fromRow = ({ version, ...r }: SaveRow): { save: Save; version: number } => ({ save: { ...r, kills: Number(r.kills) }, version });
+export type SaveRow = Omit<Save, "kills"> & { kills: string | number; version: number };
+export const fromRow = ({ version, ...r }: SaveRow): { save: Save; version: number } => ({ save: { ...r, kills: Number(r.kills) }, version });
 
 export async function getSave(userId: string): Promise<{ save: Save; version: number } | null> {
   const { rows } = await pool.query<SaveRow>(`SELECT version, ${COLS} FROM player_saves WHERE user_id = $1`, [userId]);
   return rows[0] ? fromRow(rows[0]) : null;
+}
+
+/** Writes the user's save at this version. install_id is the device that changed it. */
+export async function writeSave(c: pg.PoolClient, userId: string, version: number, installId: string, save: Save): Promise<void> {
+  const codexItems = Object.values(save.codex.items).filter((r) => r.seen).length;
+  const codexEnemies = Object.values(save.codex.enemies).filter((r) => r.seen).length;
+  await c.query(
+    `INSERT INTO player_saves (user_id, version, install_id, codex_items, codex_enemies, ${COLS})
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+     ON CONFLICT (user_id) DO UPDATE SET
+       version = EXCLUDED.version, install_id = EXCLUDED.install_id, codex_items = EXCLUDED.codex_items,
+       codex_enemies = EXCLUDED.codex_enemies, gold = EXCLUDED.gold, pumpkin_crowns = EXCLUDED.pumpkin_crowns,
+       runs = EXCLUDED.runs, wins = EXCLUDED.wins, kills = EXCLUDED.kills, best_s = EXCLUDED.best_s,
+       max_curse = EXCLUDED.max_curse, meta = EXCLUDED.meta, chars = EXCLUDED.chars, wins_by = EXCLUDED.wins_by,
+       pumpkin_by = EXCLUDED.pumpkin_by, codex = EXCLUDED.codex, char = EXCLUDED.char, curse = EXCLUDED.curse,
+       tut = EXCLUDED.tut, muted = EXCLUDED.muted, gore = EXCLUDED.gore, last_event = EXCLUDED.last_event,
+       lb_best = EXCLUDED.lb_best, lb_ranks = EXCLUDED.lb_ranks, updated_at = now()`,
+    [userId, version, installId, codexItems, codexEnemies, save.gold, save.pumpkin_crowns, save.runs, save.wins, save.kills,
+      save.best_s, save.max_curse, JSON.stringify(save.meta), JSON.stringify(save.chars), JSON.stringify(save.wins_by),
+      JSON.stringify(save.pumpkin_by), JSON.stringify(save.codex), save.char, save.curse, save.tut, save.muted, save.gore,
+      save.last_event, JSON.stringify(save.lb_best), JSON.stringify(save.lb_ranks)],
+  );
 }
 
 /**
@@ -224,27 +247,7 @@ export async function pushSave(userId: string, p: SavePush): Promise<{ limited: 
     const cloud = now?.save ?? emptySave();
     const save = mergeSaves(cloud, p.save, base);
     let version = now?.version ?? 0;
-    if (!now || canon(save) !== canon(cloud)) {
-      version++;
-      const codexItems = Object.values(save.codex.items).filter((r) => r.seen).length;
-      const codexEnemies = Object.values(save.codex.enemies).filter((r) => r.seen).length;
-      await c.query(
-        `INSERT INTO player_saves (user_id, version, install_id, codex_items, codex_enemies, ${COLS})
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
-         ON CONFLICT (user_id) DO UPDATE SET
-           version = EXCLUDED.version, install_id = EXCLUDED.install_id, codex_items = EXCLUDED.codex_items,
-           codex_enemies = EXCLUDED.codex_enemies, gold = EXCLUDED.gold, pumpkin_crowns = EXCLUDED.pumpkin_crowns,
-           runs = EXCLUDED.runs, wins = EXCLUDED.wins, kills = EXCLUDED.kills, best_s = EXCLUDED.best_s,
-           max_curse = EXCLUDED.max_curse, meta = EXCLUDED.meta, chars = EXCLUDED.chars, wins_by = EXCLUDED.wins_by,
-           pumpkin_by = EXCLUDED.pumpkin_by, codex = EXCLUDED.codex, char = EXCLUDED.char, curse = EXCLUDED.curse,
-           tut = EXCLUDED.tut, muted = EXCLUDED.muted, gore = EXCLUDED.gore, last_event = EXCLUDED.last_event,
-           lb_best = EXCLUDED.lb_best, lb_ranks = EXCLUDED.lb_ranks, updated_at = now()`,
-        [userId, version, p.install_id, codexItems, codexEnemies, save.gold, save.pumpkin_crowns, save.runs, save.wins, save.kills,
-          save.best_s, save.max_curse, JSON.stringify(save.meta), JSON.stringify(save.chars), JSON.stringify(save.wins_by),
-          JSON.stringify(save.pumpkin_by), JSON.stringify(save.codex), save.char, save.curse, save.tut, save.muted, save.gore,
-          save.last_event, JSON.stringify(save.lb_best), JSON.stringify(save.lb_ranks)],
-      );
-    }
+    if (!now || canon(save) !== canon(cloud)) await writeSave(c, userId, ++version, p.install_id, save);
     await c.query(
       `INSERT INTO player_save_devices (user_id, install_id, base_version, sent) VALUES ($1, $2, $3, $4)
        ON CONFLICT (user_id, install_id) DO UPDATE SET base_version = EXCLUDED.base_version, sent = EXCLUDED.sent, updated_at = now()`,

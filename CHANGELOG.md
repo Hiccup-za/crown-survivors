@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0] - 2026-10-31
+
+### Added
+- A player profile: tap your name at the bottom of the title screen, or the name chip on the leaderboard and events screens, to see your avatar, name and handle, your rank and best on every Classic and Harvest Moon board, and your lifetime stats. Tap a board row to open that board.
+- Guest accounts: players who don't want to sign in with X can play as a guest with a generated name, like "Mossy Knight 372", and post to every leaderboard. The option sits next to Sign in with X on the profile, the leaderboard, the new best card and the Halloween game over screen.
+- A guest who later signs in with X keeps everything: their scores, Pumpkin Crowns and saved progress move to the X account, counted once.
+
+### Changed
+- Sign out moved from the title screen to the profile.
+
+### Fixed
+- Signing out now also ends the session on the server, not just on the device.
+- Your own row on the leaderboard is highlighted for players without an X handle too.
+
 ## [0.8.0] - 2026-10-31
 
 ### Added
