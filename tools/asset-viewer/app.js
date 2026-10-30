@@ -425,7 +425,9 @@ function buildTree() {
   const tree = $('tree'), open = new Set([...tree.querySelectorAll('details[open]')].map(d => d.dataset.g));
   const first = !tree.children.length;
   tree.innerHTML = '';
-  const groups = [...new Set(st.assets.map(a => a.group))];
+  const ORDER = ['Heroes', 'Weapon attacks', 'Classic enemies', 'Enemy attacks', 'Classic bosses', 'Boss attacks', 'Halloween enemies', 'Halloween bosses', 'Ritual boss attacks'];
+  const rank = g => { const i = ORDER.indexOf(g); return i < 0 ? ORDER.length : i; };
+  const groups = [...new Set(st.assets.map(a => a.group))].sort((a, b) => rank(a) - rank(b));
   for (const g of groups) {
     const items = st.assets.filter(a => a.group === g && visible(a));
     if (!items.length) continue;
@@ -474,6 +476,15 @@ function fit() {
 }
 
 // ---------- timeline ----------
+// sprite <-> attack sandbox links: bosses and shooters link to their attacks, heroes to their starting weapon
+function attackOf(a) {
+  const m = /^(boss-(\d+)|hb-(\w+)|en-(imp|harpy)|hw-(sknight)|hero-(\d+))$/.exec(a.id);
+  if (!m) return null;
+  const id = m[2] != null ? 'atk-b' + m[2] : m[3] ? 'atk-hb-' + m[3] : m[4] || m[5] ? 'atk-' + (m[4] || m[5]) : 'atk-w-' + ((R.CH || [])[+m[6]] || {}).w;
+  return st.assets.find(k => k.id === id) || null;
+}
+const spriteOf = a => a.sim ? st.assets.find(k => !k.sim && attackOf(k) === a && !/^hero-/.test(k.id)) || st.assets.find(k => !k.sim && attackOf(k) === a) : null;
+function goAttack(atk, i) { select(atk.id); setClip(i); st.playing = true; }
 function buildClips() {
   const el = $('clips');
   el.innerHTML = '';
@@ -484,6 +495,25 @@ function buildClips() {
     b.onclick = () => setClip(i);
     el.append(b);
   });
+  const atk = attackOf(st.a), back = spriteOf(st.a);
+  if (atk) {
+    el.insertAdjacentHTML('beforeend', '<span class="clipsep">Attacks</span>');
+    atk.clips.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.className = 'clip atk';
+      b.title = 'Play this attack live in the combat sandbox';
+      b.textContent = '⚡ ' + c.name;
+      b.onclick = () => goAttack(atk, i);
+      el.append(b);
+    });
+  }
+  if (back) {
+    const b = document.createElement('button');
+    b.className = 'clip back';
+    b.textContent = '◀ ' + back.name + ' sprite';
+    b.onclick = () => select(back.id);
+    el.append(b);
+  }
 }
 function setClip(i) {
   if (!st.a || i >= st.a.clips.length) return;
@@ -541,6 +571,7 @@ function buildInspector() {
   const ramps = a.kit && R.RAMP ? `<div class="sec"><h3>Kit v2 ramps</h3>${Object.entries(R.RAMP).map(([n, cs]) => `<div class="ramp"><b>${n}</b><div class="sw">${cs.map(swatch).join('')}</div></div>`).join('')}</div>` : '';
   el.innerHTML = `
   <div class="sec"><p class="title">${esc(a.name)}</p><span class="tag">${esc(a.group)}</span>${a.desc ? `<p class="desc">${esc(a.desc)}</p>` : ''}<div class="src">${esc(a.src)}</div></div>
+  ${attackOf(a) ? `<div class="sec"><h3>Attacks</h3><div class="exp">${attackOf(a).clips.map((c, i) => `<button class="btn atkbtn" data-i="${i}">⚡ ${esc(c.name)}</button>`).join('')}</div></div>` : ''}
   <div class="sec"><h3>Display</h3>
     ${ctl('Facing', seg('face', [[-1, '◀ Left'], [1, 'Right ▶']], !!a.flip), !!a.flip, a.flip ? '' : 'The game never flips this asset')}
     ${ctl('Hit flash', seg('flash', [[0, 'Off'], [1, 'On']], !!a.flash), !!a.flash)}
@@ -567,6 +598,7 @@ function buildInspector() {
   });
   el.querySelectorAll('.sw button').forEach(b => b.onclick = () => { navigator.clipboard?.writeText(b.dataset.c); toast('Copied ' + b.dataset.c); });
   el.querySelectorAll('#xs button').forEach(b => b.onclick = () => { exportScale = +b.dataset.s; buildInspector(); });
+  el.querySelectorAll('.atkbtn').forEach(b => b.onclick = () => goAttack(attackOf(a), +b.dataset.i));
   $('xFrame').onclick = () => exportPng(false);
   $('xSheet').onclick = () => exportPng(true);
 }
