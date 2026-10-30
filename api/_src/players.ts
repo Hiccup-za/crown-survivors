@@ -33,7 +33,7 @@ export interface PlayerRow {
   last_active: string;
   runs: number; // runs in the range
   devices: number;
-  gold: number | null; // from the most recent save, null when none arrived yet
+  gold: number | null; // from the cloud save, else the most recent device save; null when none arrived yet
   total_runs: number | null;
   codex_items: number | null;
 }
@@ -67,9 +67,12 @@ export async function listPlayers(from: string, to: string, q: string | null): P
      FROM p
      LEFT JOIN "user" u ON u.id = p.user_id
      LEFT JOIN LATERAL (
-       SELECT ps.gold, ps.runs, ps.codex_items FROM player_snapshots ps
-       WHERE ps.install_id = p.install_id OR ps.install_id IN (SELECT install_id FROM iu WHERE iu.user_id = p.user_id)
-       ORDER BY ps.last_seen DESC LIMIT 1
+       SELECT * FROM (
+         SELECT cs.gold, cs.runs, cs.codex_items, 0 AS pri, cs.updated_at AS at FROM player_saves cs WHERE cs.user_id = p.user_id
+         UNION ALL
+         SELECT ps.gold, ps.runs, ps.codex_items, 1, ps.last_seen FROM player_snapshots ps
+         WHERE ps.install_id = p.install_id OR ps.install_id IN (SELECT install_id FROM iu WHERE iu.user_id = p.user_id)
+       ) x ORDER BY pri, at DESC LIMIT 1
      ) snap ON true
      WHERE $3::text IS NULL
         OR u.handle ILIKE '%' || $3 || '%' OR u.name ILIKE '%' || $3 || '%'
@@ -109,6 +112,8 @@ export interface Profile {
       night_rank: number | null; death_cause: string | null; build: Record<string, Record<string, number>>;
     }[];
   };
+  /** The account's one cloud save (player_saves); null for anonymous players and accounts that never synced. */
+  save: (Device["snapshot"] & { version: number; install_id: string; updated_at: string }) | null;
   /** Leaderboard standing per board; null for anonymous players. */
   boards: Record<Board, { rank: number | null; total: number; time_s: number | null; kills: number | null; curse: number | null; hero: string | null }> | null;
 }
@@ -175,7 +180,15 @@ export async function getProfile(id: { user: string } | { install: string }): Pr
   if (!user && devs.every((d) => !d.sessions && !d.snapshot) && runs.rows[0].total === 0) return null;
 
   let boards: Profile["boards"] = null;
+  let save: Profile["save"] = null;
   if (user) {
+    const cs = await pool.query<NonNullable<Profile["save"]>>(
+      `SELECT gold, pumpkin_crowns, runs, wins, kills::float8 AS kills, best_s, max_curse, codex_items, codex_enemies, meta, chars,
+         wins_by, pumpkin_by, codex, version, install_id::text, updated_at, updated_at AS last_seen
+       FROM player_saves WHERE user_id = $1`,
+      [user.id],
+    );
+    save = cs.rows[0] ?? null;
     const ranks = await Promise.all(BOARDS.map((b) => getMyRank(b, user!.id)));
     boards = Object.fromEntries(
       BOARDS.map((b, i) => {
@@ -185,5 +198,5 @@ export async function getProfile(id: { user: string } | { install: string }): Pr
     ) as Profile["boards"];
   }
 
-  return { kind: user ? "user" : "install", user, devices: devs, runs: { ...runs.rows[0], recent: recent.rows }, boards };
+  return { kind: user ? "user" : "install", user, devices: devs, runs: { ...runs.rows[0], recent: recent.rows }, save, boards };
 }

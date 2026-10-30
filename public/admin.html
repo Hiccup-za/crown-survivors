@@ -497,8 +497,9 @@ async function loadProfile(kind,id){stamp('Loading…');main.innerHTML='<div cla
   if(guard(r,'this player'))return;
   // A device that once signed in opens as its account, so the URL names the account.
   if(kind==='install'&&r.j.kind==='user')try{history.replaceState(null,'','#player/user/'+encodeURIComponent(r.j.user.id))}catch(e){}
-  st.profile=r.j;st.dev=0;renderProfile();stamp('')}
-function renderProfile(){const p=st.profile,u=p.user,devs=p.devices,d=devs[st.dev]||null,s=d&&d.snapshot;
+  st.profile=r.j;st.dev=r.j.save?-1:0;renderProfile();stamp('')}
+// st.dev -1 is the account's cloud save; 0.. are the devices, whose last uploads stay as history
+function renderProfile(){const p=st.profile,u=p.user,devs=p.devices,cs=p.save,cloud=st.dev===-1&&!!cs,d=cloud?null:devs[st.dev]||null,s=cloud?cs:d&&d.snapshot;
   const devName=(x,i)=>(x.touch?'Mobile':'Desktop')+(devs.length>1?' '+(i+1):'');
   const lastSeen=devs.map(x=>x.last_seen).filter(Boolean).sort().pop();
   main.innerHTML=`
@@ -508,9 +509,10 @@ function renderProfile(){const p=st.profile,u=p.user,devs=p.devices,d=devs[st.de
       <div class="sub">${u?(u.handle?`<a href="https://x.com/${encodeURIComponent(u.handle)}" target="_blank" rel="noopener">@${esc(u.handle)}</a> · `:'')+'Account since '+esc(dayLbl(u.created_at.slice(0,10)))
         :'Progress is saved on this one device only. Device <code>'+esc(d.install_id)+'</code>'}</div>
       <div class="sub">${fmtN(devs.length)} ${devs.length===1?'device':'devices'}${lastSeen?' · last seen '+esc(ago(lastSeen)):''} · ${fmtN(p.runs.total)} runs recorded</div></div></div>
-  ${devs.length>1?`<div class="seg" id="devs" role="group" aria-label="Device">${devs.map((x,i)=>`<button data-i="${i}" aria-pressed="${i===st.dev}">${esc(devName(x,i))}</button>`).join('')}</div>
-    <p class="note">Each device keeps its own save until cloud save ships. Showing ${esc(devName(d,st.dev))}${d.last_seen?', last seen '+esc(ago(d.last_seen)):''}.</p>`:''}
-  ${!d?empty('No device has reported in yet. Their save uploads the next time they open the game.')
+  ${devs.length>1||cs?`<div class="seg" id="devs" role="group" aria-label="Save">${cs?`<button data-i="-1" aria-pressed="${cloud}">Cloud save</button>`:''}${devs.map((x,i)=>`<button data-i="${i}" aria-pressed="${i===st.dev}">${esc(devName(x,i))}</button>`).join('')}</div>
+    <p class="note">${cloud?'The account\'s one save, merged from every device. Version '+fmtN(cs.version)+', last changed '+esc(ago(cs.updated_at))+'. Pick a device to see its last upload.'
+      :(cs?'Last save this device uploaded, kept as history. ':'This account has not synced yet, so each device has its own save. ')+(d?'Showing '+esc(devName(d,st.dev))+(d.last_seen?', last seen '+esc(ago(d.last_seen)):'')+'.':'')}</p>`:''}
+  ${!cloud&&!d?empty('No device has reported in yet. Their save uploads the next time they open the game.')
     :!s?empty('No save from this device yet. It uploads the next time they open the game.')
     :`<div class="tiles">
       ${tile('Gold',fmtN(s.gold),'on hand')}
@@ -520,7 +522,7 @@ function renderProfile(){const p=st.profile,u=p.user,devs=p.devices,d=devs[st.de
       ${tile('Heroes',s.chars.length+' of '+HEROES.length,'unlocked')}
       ${tile('Codex',fmtN(s.codex_items)+' items',fmtN(s.codex_enemies)+' enemies seen')}
       ${tile('Pumpkin Crowns',fmtN(s.pumpkin_crowns),'held')}
-      ${tile('Sessions',fmtN(d.sessions),d.first_seen?'since '+dayLbl(d.first_seen.slice(0,10)):'')}
+      ${cloud?tile('Synced','v'+fmtN(cs.version),'last change '+ago(cs.updated_at)):tile('Sessions',fmtN(d.sessions),d.first_seen?'since '+dayLbl(d.first_seen.slice(0,10)):'')}
     </div>`}
   <div class="grid" style="margin-top:16px">
     ${s?`<section class="card"><h2>Shop upgrades</h2><div class="sub">Level bought of each upgrade</div><div class="tw"><table><tbody>${META.map(([k,n,max])=>{const l=s.meta[k]||0;

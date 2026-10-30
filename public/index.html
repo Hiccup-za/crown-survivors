@@ -23,7 +23,7 @@ const LB_API='/api';// same-origin leaderboard API; empty = leaderboard hidden
 const KEY='crownsurv_classic_v1';
 const DEF={gold:0,meta:{might:0,hp:0,speed:0,magnet:0,greed:0,revive:0,reroll:0,choice:0,armor:0},chars:[0],char:0,curse:0,maxCurse:0,best:0,wins:0,runs:0,kills:0,tut:false,muted:false,gore:false,winsBy:{},codex:{items:{},enemies:{}}};
 let S;try{const L=JSON.parse(localStorage.getItem(KEY)||'{}');S=Object.assign({},DEF,L);S.meta=Object.assign({},DEF.meta,L.meta);S.winsBy=Object.assign({},L.winsBy);S.codex=Object.assign({},DEF.codex,L.codex||{});S.codex.items=Object.assign({},DEF.codex.items,(L.codex&&L.codex.items)||{});S.codex.enemies=Object.assign({},DEF.codex.enemies,(L.codex&&L.codex.enemies)||{})}catch(e){S=JSON.parse(JSON.stringify(DEF))}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const rawSave=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};let onSave=null;const save=()=>{rawSave();if(onSave)onSave()};
 const codexEnsure=()=>{if(!S.codex)S.codex={items:{},enemies:{}};if(!S.codex.items)S.codex.items={};if(!S.codex.enemies)S.codex.enemies={}};
 const codexItemKey=(kind,k)=>kind+':'+k;
 const codexItemRec=(kind,k)=>{codexEnsure();const id=codexItemKey(kind,k);return S.codex.items[id]||(S.codex.items[id]={seen:0,taken:0})};
@@ -662,7 +662,7 @@ const lb={want:null,board:'fastest',data:{},me:{},scroll:0,t0:0,back:'title',ran
 let lbT={k:1,ox:0,oy:0},lbCard=null;
 const fmtT=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'),fmtN=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 async function api(path,opt={}){if(!LB_API)return null;const ac=typeof AbortController!=='undefined'?new AbortController():null,tm=setTimeout(()=>ac&&ac.abort(),7000);
- try{const h={};if(opt.body)h['Content-Type']='application/json';if(LBS.tok)h.Authorization='Bearer '+LBS.tok;const r=await fetch(LB_API+path,{method:opt.method||'GET',body:opt.body,headers:h,credentials:'include',signal:ac&&ac.signal});
+ try{const h={};if(opt.body)h['Content-Type']='application/json';if(LBS.tok)h.Authorization='Bearer '+LBS.tok;const r=await fetch(LB_API+path,{method:opt.method||'GET',body:opt.body,headers:h,credentials:'include',signal:ac&&ac.signal,keepalive:!!opt.keep});
   let j=null;try{j=await r.json()}catch(e){}return{ok:r.ok,status:r.status,j}}catch(e){return null}finally{clearTimeout(tm)}}
 const avs={};function avImg(u){if(!u)return null;if(!avs[u]){const i=new Image();i.referrerPolicy='no-referrer';i.src=u;avs[u]=i}const i=avs[u];return i.complete&&i.naturalWidth?i:null}
 function avatar(cx,cy,r,url){x.beginPath();x.arc(cx,cy,r+2*U,0,7);x.fillStyle=LINK;x.fill();const im=avImg(url);x.save();x.beginPath();x.arc(cx,cy,r,0,7);x.clip();
@@ -808,7 +808,7 @@ addEventListener('pointerup',e=>{const d=chs.drag;chs.drag=null;if(!d||d.moved||
 cv.addEventListener('wheel',e=>{if(scene==='lb'){lb.scroll+=e.deltaY/lbT.k;e.preventDefault()}else if(scene==='codex'){codex.scroll+=e.deltaY/lbT.k;e.preventDefault()}else if(scene==='chars'){chs.scroll=Math.max(0,Math.min(chs.maxS,chs.scroll+e.deltaY));e.preventDefault()}},{passive:false});
 if(LB_API){const m=location.hash.match(/lb_token=([^&]+)/),er=/lb_error=/.test(location.hash);if(m||er){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
  if(m){LBS.tok=decodeURIComponent(m[1]);lbSave()}else if(er){LBS.pend=null;lbSave();toast={t:'Sign-in cancelled',l:1.8};try{sessionStorage.removeItem('cs_sx')}catch(e){}}
- if(LBS.tok)lbRefreshMe().then(async()=>{try{if(lbIn()&&sessionStorage.getItem('cs_sx')){sessionStorage.removeItem('cs_sx');dbTrack('signin_x',{})}}catch(e){}if(!lbIn()||!LBS.pend)return;const p=LBS.pend;LBS.pend=null;lbSave();const res=await lbSubmit(p,p.board);if(res)lbShowRank(res);else openLB('title',p.board)})}
+ if(LBS.tok)lbRefreshMe().then(async()=>{if(lbIn())sySync();try{if(lbIn()&&sessionStorage.getItem('cs_sx')){sessionStorage.removeItem('cs_sx');dbTrack('signin_x',{})}}catch(e){}if(!lbIn()||!LBS.pend)return;const p=LBS.pend;LBS.pend=null;lbSave();const res=await lbSubmit(p,p.board);if(res)lbShowRank(res);else openLB('title',p.board)})}
 // ===== telemetry ===== first-party progression + runs to our own API (docs/telemetry.md). Random install id, no PII; the Databuddy events above are separate
 const TK='crownsurv_tid',tUuid=()=>{try{return crypto.randomUUID()}catch(e){const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;const h=[...b].map(v=>v.toString(16).padStart(2,'0')).join('');return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20)}};
 let TID;try{TID=localStorage.getItem(TK);if(!TID){TID=tUuid();localStorage.setItem(TK,TID)}}catch(e){TID=tUuid()}
@@ -819,6 +819,38 @@ function tSend(run){if(!LB_API)return;const snap=tSnap(),k=JSON.stringify(snap);
  try{fetch(LB_API+'/t',{method:'POST',headers:h,credentials:'include',keepalive:true,body:JSON.stringify({v:1,install_id:TID,session_id:TSID,touch:TTOUCH,snap,run:run||null})}).catch(()=>{})}catch(e){}}
 function tRun(r){const g=G;tSend(Object.assign({time_s:Math.floor(g.t),kills:g.kills|0,level:g.lvl|0||1,build:{w:g.w,ps:g.ps,evo:g.evo,inf:g.inf||{}}},r))}
 tSend();addEventListener('visibilitychange',()=>{if(document.hidden)tSend()});
+// ===== cloud save ===== signed-in players keep one save per X account (docs/remaining-tasks.md). Each push is merged
+// three-way on the server against base, the last save this device synced. owner is the account the local save belongs to:
+// progress made signed out stays with it, and is set aside (stash) while a different account plays on this device
+const SYK='crownsurv_sync',SY0=()=>({owner:null,base:null,ver:null,stash:{}});
+let SY;try{SY=Object.assign(SY0(),JSON.parse(localStorage.getItem(SYK)||'{}'))}catch(e){SY=SY0()}
+const sySave=()=>{try{localStorage.setItem(SYK,JSON.stringify(SY))}catch(e){}};
+const syKey=v=>JSON.stringify(v,(k,o)=>o&&typeof o==='object'&&!Array.isArray(o)?Object.keys(o).sort().reduce((r,k)=>(r[k]=o[k],r),{}):o);
+const toCloud=()=>JSON.parse(JSON.stringify(Object.assign(tSnap(),{wins_by:S.winsBy||{},pumpkin_by:S.pumpkinBy||{},char:S.char|0,curse:S.curse|0,tut:!!S.tut,muted:!!S.muted,gore:!!S.gore,
+ last_event:S.lastEvent||null,lb_best:{f:LBS.best.f||null,s:LBS.best.s|0,k:LBS.best.k|0},lb_ranks:LBS.ranks||{}})));
+function applyCloud(c){Object.assign(S,{gold:c.gold,pumpkinCrowns:c.pumpkin_crowns,runs:c.runs,wins:c.wins,kills:c.kills,best:c.best_s,maxCurse:c.max_curse,meta:Object.assign({},DEF.meta,c.meta),
+ chars:c.chars.slice(),winsBy:Object.assign({},c.wins_by),pumpkinBy:Object.assign({},c.pumpkin_by),codex:{items:Object.assign({},c.codex.items),enemies:Object.assign({},c.codex.enemies)},
+ char:c.char,curse:c.curse,tut:c.tut,muted:c.muted,gore:c.gore,lastEvent:c.last_event});
+ LBS.best={s:c.lb_best.s,k:c.lb_best.k};if(c.lb_best.f)LBS.best.f=c.lb_best.f;LBS.ranks=Object.assign({},c.lb_ranks);rawSave();lbSave()}
+let syBusy=false,syAgain=false,syT=0;
+function sySoon(){if(!lbIn())return;clearTimeout(syT);syT=setTimeout(sySync,2000)}
+// keep: also send if the page is closing. Failures keep the changes for the next try (next save, back online, next visit)
+async function sySync(keep){clearTimeout(syT);if(!lbIn())return;if(syBusy){syAgain=true;return}syBusy=true;
+ try{const u=LBS.user.id;
+  if(SY.owner!==u){// local save belongs to another account: set its unsynced progress aside, then load this account's
+   if(SY.owner){const cur=toCloud();if(!SY.base||syKey(cur)!==syKey(SY.base))SY.stash[SY.owner]={save:cur,base:SY.base,ver:SY.ver};
+    const st=SY.stash[u];delete SY.stash[u];if(st)applyCloud(st.save);else{S=JSON.parse(JSON.stringify(DEF));LBS.best={};LBS.ranks={};rawSave();lbSave()}
+    SY.base=st?st.base:null;SY.ver=st?st.ver:null}
+   SY.owner=u;sySave()}
+  const sent=toCloud(),k=syKey(sent),clean=SY.base&&k===syKey(SY.base);
+  const r=clean?await api('/save'):await api('/save',{method:'PUT',body:JSON.stringify({install_id:TID,save:sent,base:SY.base,base_version:SY.ver}),keep});
+  // Apply only if nothing changed meanwhile; otherwise the next push builds on what was sent (the server tracks it)
+  if(r&&r.ok&&r.j&&r.j.save&&lbIn()&&LBS.user.id===u&&SY.owner===u&&syKey(toCloud())===k){applyCloud(r.j.save);SY.base=toCloud();SY.ver=r.j.version;sySave()}
+  else if(clean&&r&&r.ok&&r.j&&r.j.save===null&&SY.owner===u){SY.base=null;SY.ver=null;sySave();syAgain=true}// no cloud save (anymore): push this one
+ }finally{syBusy=false;if(syAgain){syAgain=false;sySoon()}}}
+onSave=sySoon;
+const _endRunSy=endRun;endRun=function(win){const was=G&&G.over;_endRunSy(win);if(!was&&G&&G.over)sySync()};
+addEventListener('visibilitychange',()=>{if(document.hidden)sySync(true);else sySync()});addEventListener('online',()=>sySync());
 window.__cs={get joy(){return joy},get mt(){return mt},setHp:f=>{G.p.hp=G.p.mhp*f},cards:()=>cards(),INF,WP,PS,CH,get btns(){return btns},BOSS,spawnBoss:i=>{G.bossI=i+1;spawnBoss(i)},setPhase:n=>{G.phase=n},setT:t=>{G.t=t},get G(){return G},get S(){return S},get scene(){return scene},start:()=>{scene='play';startRun()},auto:(on=true)=>{G.auto=on},god:(on=true)=>{G.god=on},speed:n=>speedMul=n,go:s=>{scene=s},
  pickAuto:()=>{if(G&&G.choice){const c=G.choice;c.t=1;const cs=c.cards;const e=cs.find(q=>q.kind==='e')||cs.find(q=>q.kind==='w'&&q.lv>1)||cs[Math.random()*cs.length|0];choose(e);return true}return false},addGold:n=>{S.gold+=n;save()},event:(id,on)=>{if(on==null)delete evForce[id];else evForce[id]=!!on}};
 })();

@@ -102,7 +102,8 @@ function codexMap<C extends string>(v: unknown, count: C): Record<string, { seen
   return out;
 }
 
-function validateSnapshot(s: unknown): V<Snapshot> {
+/** Save snapshot in the player_snapshots format. Also the base of the cloud save validator (save.ts). */
+export function validateSnapshot(s: unknown): V<Snapshot> {
   if (!isObj(s)) return { ok: false, error: "snap must be an object" };
   if (!isInt(s.gold, 0, 2_000_000_000)) return { ok: false, error: "snap.gold out of range" };
   if (!isInt(s.pumpkin_crowns, 0, 1_000_000)) return { ok: false, error: "snap.pumpkin_crowns out of range" };

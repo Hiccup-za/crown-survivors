@@ -51,7 +51,7 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
     emails = [];
     resendStatus = 200;
     await pool.query(`TRUNCATE "user", verification, telemetry_runs, telemetry_sessions, player_snapshots,
-      telemetry_limits, telemetry_ip_installs CASCADE`);
+      telemetry_limits, telemetry_ip_installs, player_saves, player_save_devices, save_limits CASCADE`);
   });
 
   const requestLink = (email: string, callbackURL = "/admin") =>
@@ -202,6 +202,27 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       assert.equal(wildcard.rows.length, 0, "% is matched literally");
     });
 
+    test("the cloud save is the account's one save in the list and the profile; device saves stay as history", async () => {
+      assert.equal((await (await get("/players/user/u1")).json()).save, null, "no cloud save until the account syncs");
+      await pool.query(
+        `INSERT INTO player_saves (user_id, version, install_id, gold, pumpkin_crowns, runs, wins, kills, best_s, max_curse, codex_items,
+           codex_enemies, meta, chars, wins_by, pumpkin_by, codex, char, curse, tut, muted, gore, last_event, lb_best, lb_ranks, updated_at)
+         VALUES ('u1', 3, $1, 1400, 0, 8, 2, 200, 300, 1, 12, 5, '{"might":3}', '[0,1]', '{}', '{}', '{"items":{},"enemies":{}}',
+           1, 0, true, false, false, NULL, '{"f":null,"s":300,"k":120}', '{}', '2026-10-04 12:00+02')`,
+        [A1],
+      );
+      const u1 = (await (await get("/players?from=2026-10-01&to=2026-10-08")).json()).rows.find((r: { user_id: string }) => r.user_id === "u1");
+      assert.equal(u1.gold, 1400, "the cloud save wins over a more recently seen device");
+      assert.equal(u1.total_runs, 8);
+      const p = await (await get("/players/user/u1")).json();
+      assert.equal(p.save.gold, 1400);
+      assert.equal(p.save.kills, 200);
+      assert.equal(p.save.version, 3);
+      assert.equal(p.save.install_id, A1);
+      assert.equal(p.devices.length, 2);
+      assert.equal(p.devices[0].snapshot.gold, 900);
+    });
+
     test("a user profile has every device's save, runs and leaderboard standing", async () => {
       const p = await (await get("/players/user/u1")).json();
       assert.equal(p.kind, "user");
@@ -276,6 +297,105 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       assert.deepEqual(await (await ping(1, ip, true)).json(), { ok: true, run: true });
       assert.deepEqual(await (await ping(1, ip, true)).json(), { ok: true, run: false });
       assert.equal(await count(`SELECT count(*) AS n FROM telemetry_runs`), 1);
+    });
+  });
+
+  describe("cloud save", () => {
+    const DEV_A = "aaaaaaaa-0000-4000-8000-000000000001";
+    const DEV_B = "bbbbbbbb-0000-4000-8000-000000000002";
+    const save = (o: Record<string, unknown> = {}) => ({
+      gold: 0, pumpkin_crowns: 0, runs: 0, wins: 0, kills: 0, best_s: 0, max_curse: 0, meta: {}, chars: [0], wins_by: {},
+      pumpkin_by: {}, codex: { items: {}, enemies: {} }, char: 0, curse: 0, tut: false, muted: false, gore: false,
+      last_event: null, lb_best: { f: null, s: 0, k: 0 }, lb_ranks: {}, ...o,
+    });
+    type Res = { save: ReturnType<typeof save>; version: number };
+    const auth = { Authorization: "Bearer tok-1" };
+    const get = (headers: Record<string, string> = auth) => app.request(`${BASE}/api/save`, { headers });
+    const put = (body: unknown, headers: Record<string, string> = auth) =>
+      app.request(`${BASE}/api/save`, { method: "PUT", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+    const push = async (install_id: string, s: unknown, base: unknown = null, base_version: number | null = null) => {
+      const res = await put({ install_id, save: s, base, base_version });
+      assert.equal(res.status, 200);
+      return (await res.json()) as Res;
+    };
+
+    beforeEach(async () => {
+      await pool.query(`INSERT INTO "user" (id, name, email, handle) VALUES ('u1', 'Player One', 'u1@x.invalid', 'playerone')`);
+      await pool.query(`INSERT INTO session (id, "expiresAt", token, "userId") VALUES ('s1', now() + interval '1 day', 'tok-1', 'u1')`);
+    });
+
+    test("signed-out requests get 401", async () => {
+      assert.equal((await get({})).status, 401);
+      assert.equal((await put({ install_id: DEV_A, save: save(), base: null, base_version: null }, {})).status, 401);
+    });
+
+    test("an account with no save gets nulls", async () => {
+      assert.deepEqual(await (await get()).json(), { save: null, version: null });
+    });
+
+    test("a never-linked device's first push becomes the save, in audit columns", async () => {
+      const s = save({ gold: 340, runs: 7, kills: 900, meta: { might: 2 }, chars: [0, 1], char: 1, muted: true,
+        codex: { items: { "w:bolt": { seen: 1, taken: 3 } }, enemies: { blob: { seen: 1, kills: 50 } } } });
+      const r = await push(DEV_A, s);
+      assert.equal(r.version, 1);
+      assert.deepEqual(r.save, s);
+      assert.deepEqual(await (await get()).json(), { save: s, version: 1 });
+      const row = (await pool.query(`SELECT install_id::text, gold, runs, kills, codex_items, codex_enemies, char, muted FROM player_saves WHERE user_id = 'u1'`)).rows[0];
+      assert.deepEqual(row, { install_id: DEV_A, gold: 340, runs: 7, kills: "900", codex_items: 1, codex_enemies: 1, char: 1, muted: true });
+    });
+
+    test("a second never-linked device is merged in once", async () => {
+      await push(DEV_A, save({ runs: 10, gold: 100 }));
+      const r = await push(DEV_B, save({ runs: 4, gold: 50 }));
+      assert.equal(r.save.runs, 14);
+      assert.equal(r.save.gold, 150);
+      assert.equal(r.version, 2);
+    });
+
+    test("devices playing at the same time both keep their progress", async () => {
+      const v1 = await push(DEV_A, save({ runs: 10 }));
+      const linked = await push(DEV_B, save()); // B links with nothing new and receives the cloud save
+      assert.equal(linked.version, 1);
+      const b = await push(DEV_B, save({ runs: 13 }), linked.save, linked.version);
+      const a = await push(DEV_A, save({ runs: 12 }), v1.save, v1.version);
+      assert.equal(b.save.runs, 13);
+      assert.equal(a.save.runs, 15);
+    });
+
+    test("a push repeated after a lost response is not counted twice", async () => {
+      const v1 = await push(DEV_A, save({ runs: 10 }));
+      await push(DEV_A, save({ runs: 12 }), v1.save, v1.version); // response lost: device still has base v1
+      const r = await push(DEV_A, save({ runs: 13 }), v1.save, v1.version);
+      assert.equal(r.save.runs, 13);
+    });
+
+    test("a push with nothing new does not bump the version", async () => {
+      const v1 = await push(DEV_A, save({ runs: 3 }));
+      const r = await push(DEV_A, v1.save, v1.save, v1.version);
+      assert.equal(r.version, 1);
+      assert.equal(await count(`SELECT count(*) AS n FROM player_save_devices WHERE user_id = 'u1'`), 1);
+    });
+
+    test("bad bodies get 400, oversized 413", async () => {
+      assert.equal((await put({ install_id: DEV_A, save: save({ curse: 9 }), base: null, base_version: null })).status, 400);
+      assert.equal((await put({ install_id: DEV_A, save: save(), base: save(), base_version: null })).status, 400);
+      const big = await app.request(`${BASE}/api/save`, { method: "PUT", headers: auth, body: "x".repeat(128 * 1024 + 1) });
+      assert.equal(big.status, 413);
+    });
+
+    test("the 121st push in a window gets 429 and changes nothing", async () => {
+      await push(DEV_A, save({ runs: 1 }));
+      await pool.query(`UPDATE save_limits SET hits = 120 WHERE user_id = 'u1'`);
+      const res = await put({ install_id: DEV_A, save: save({ runs: 2 }), base: null, base_version: null });
+      assert.equal(res.status, 429);
+      assert.equal(((await (await get()).json()) as Res).save.runs, 1);
+    });
+
+    test("deleting the account deletes its save", async () => {
+      await push(DEV_A, save({ runs: 1 }));
+      await pool.query(`DELETE FROM "user" WHERE id = 'u1'`);
+      assert.equal(await count(`SELECT count(*) AS n FROM player_saves`), 0);
+      assert.equal(await count(`SELECT count(*) AS n FROM player_save_devices`), 0);
     });
   });
 });

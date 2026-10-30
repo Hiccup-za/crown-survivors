@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0] - 2026-10-30
+
+### Added
+- Cloud save: players signed in with X keep one save across all their devices, including gold, upgrades, heroes, codex, stats, settings and leaderboard bests.
+- Saves already on several devices are merged on first sign-in, so nobody loses progress, and duplicate purchases come back as gold.
+- Progress made offline or while signed out syncs to its account later, and progress from another account on the same device is kept aside until that account signs in again.
+- Admin player profiles open on the account's cloud save, with each device's last upload still available as history.
+- A guide to the browser end-to-end harness used to test cloud save, for turning it into an official test.
+
+### Changed
+- The admin player list shows an account's cloud save numbers when it has one.
+
 ## [0.3.0] - 2026-10-30
 
 ### Added
