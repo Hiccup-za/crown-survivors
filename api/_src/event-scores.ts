@@ -2,8 +2,8 @@ import { pool } from "./db.js";
 import { RATE_LIMIT_SECONDS } from "./scores.js";
 
 // Event boards (Halloween Endless). Boards are a placeholder set until Christopher picks them.
-export type EventBoard = "crowns" | "fastest" | "kills";
-export const EVENT_BOARDS: EventBoard[] = ["crowns", "fastest", "kills"];
+export type EventBoard = "crowns" | "fastest" | "survival" | "kills";
+export const EVENT_BOARDS: EventBoard[] = ["crowns", "fastest", "survival", "kills"];
 
 export interface EventScoreInput {
   hero: string;
@@ -69,6 +69,7 @@ export async function insertEventScore(eventId: string, userId: string, s: Event
 // Best-run boards: which rows count, how to pick each user's best row, and the ranking order.
 const BOARD_SQL: Record<Exclude<EventBoard, "crowns">, { where: string; order: string }> = {
   fastest: { where: "first_crown_s IS NOT NULL", order: "first_crown_s ASC, created_at ASC" },
+  survival: { where: "true", order: "time_s DESC, created_at ASC" },
   kills: { where: "true", order: "kills DESC, created_at ASC" },
 };
 
@@ -127,10 +128,15 @@ const SELECT_COLS = `
   r.rank::int AS rank, u.handle, u.name, u.image AS avatar,
   r.hero, r.time_s, r.kills, r.crowns, r.rituals, r.first_crown_s, r.created_at`;
 
-export async function getEventLeaderboard(eventId: string, board: EventBoard, limit: number): Promise<EventLeaderboardRow[]> {
-  const { rows } = await pool.query<EventLeaderboardRow>(
+export async function getEventLeaderboard(
+  eventId: string,
+  board: EventBoard,
+  limit: number,
+  withUserId = false,
+): Promise<(EventLeaderboardRow & { user_id?: string })[]> {
+  const { rows } = await pool.query<EventLeaderboardRow & { user_id?: string }>(
     `WITH ${rankedCte(board)}
-     SELECT ${SELECT_COLS}
+     SELECT ${SELECT_COLS}${withUserId ? ", r.user_id" : ""}
      FROM ranked r JOIN "user" u ON u.id = r.user_id
      ORDER BY r.rank, r.created_at
      LIMIT $2`,

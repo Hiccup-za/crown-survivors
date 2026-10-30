@@ -276,6 +276,15 @@ app.get("/api/events/:id/leaderboard", async (c) => {
   return c.json({ event: ev.id, state: eventState(ev), board, rows });
 });
 
+/** An event board plus user_id, so the dashboard can open each player's profile. */
+app.get("/api/admin/events/:id/leaderboard", async (c) => {
+  const ev = findEvent(c.req.param("id"));
+  if (!ev) return c.json({ error: "unknown event" }, 404);
+  const board = parseEventBoard(c.req.query("board") ?? "crowns");
+  if (!board) return c.json({ error: EVENT_BOARD_ERR }, 400);
+  return c.json({ event: ev.id, board, rows: await getEventLeaderboard(ev.id, board, 100, true) });
+});
+
 app.get("/api/events/:id/me/rank", async (c) => {
   const ev = findEvent(c.req.param("id"));
   if (!ev) return c.json({ error: "unknown event" }, 404);
