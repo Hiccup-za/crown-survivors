@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { isAdmin, isAdminEmail, parseRange } from "../src/admin.js";
 import { ipHash, validateTelemetry } from "../src/telemetry.js";
 import { publicUrl } from "../src/origins.js";
+import { targetError } from "../scripts/db.js";
 
 function withAdmins(value: string | undefined, fn: () => void) {
   const prev = process.env.ADMIN_EMAILS;
@@ -120,4 +121,19 @@ test("publicUrl uses the branch URL on Vercel previews and BETTER_AUTH_URL elsew
   assert.equal(publicUrl({ VERCEL_ENV: "production", VERCEL_BRANCH_URL: branch, BETTER_AUTH_URL: prod }), prod);
   assert.equal(publicUrl({ VERCEL_ENV: "preview", BETTER_AUTH_URL: prod }), prod);
   assert.equal(publicUrl({ BETTER_AUTH_URL: "http://localhost:3000" }), "http://localhost:3000");
+});
+
+test("db script refuses empty or hostless URLs and unconfirmed remote writes", () => {
+  const neon = "postgresql://u:p@ep-x.eu-west-2.aws.neon.tech/neondb?sslmode=require";
+  assert.match(targetError(undefined, { write: false })!, /empty or unset/);
+  assert.match(targetError("", { write: false })!, /empty or unset/);
+  assert.match(targetError("  ", { write: false })!, /empty or unset/);
+  assert.match(targetError("postgresql:///neondb", { write: false })!, /no host/);
+  assert.match(targetError("postgresql://localhost", { write: false })!, /no database name/);
+  assert.match(targetError("mysql://localhost/db", { write: false })!, /not a postgres URL/);
+  assert.equal(targetError(neon, { write: false }), null);
+  assert.match(targetError(neon, { write: true })!, /--confirm-host ep-x\.eu-west-2\.aws\.neon\.tech/);
+  assert.match(targetError(neon, { write: true, confirmHost: "ep-y.eu-west-2.aws.neon.tech" })!, /--confirm-host/);
+  assert.equal(targetError(neon, { write: true, confirmHost: "ep-x.eu-west-2.aws.neon.tech" }), null);
+  assert.equal(targetError("postgresql://localhost:5432/crown_test", { write: true }), null);
 });

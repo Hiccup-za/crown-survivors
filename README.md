@@ -57,6 +57,8 @@ cd api && npx vercel dev       # game + API on one origin (usually http://localh
 
 Tests: `DATABASE_URL=postgresql://localhost:5432/crown_test npm test` runs the unit tests and the integration tests (Hono app + Postgres, Resend stubbed). Point it at a throwaway database with migrations applied: the integration tests truncate tables. Without `DATABASE_URL` the integration suite is skipped. CI (`.github/workflows/test.yml`) runs them on every pull request and on demand.
 
+Ad-hoc SQL: use `npm run db --prefix api -- "<sql>"` instead of raw `psql`. It refuses an empty or host-less URL (`psql ""` silently connects to your local default database), prints the host, database and applied migrations before running, runs read-only unless `--write`, and remote writes also need `--confirm-host <host>`. `--url-env NAME` reads a different variable and `-f file.sql` reads SQL from a file. Vercel will not return sensitive variables with `vercel env pull`, so get production URLs from Neon by branch name (`neonctl connection-string production`).
+
 Serve the game locally (optional): `npx serve public -p 8799` — add that origin via `EXTRA_ORIGINS` if you point the game at a separate API URL.
 
 ## Deploy (Vercel)

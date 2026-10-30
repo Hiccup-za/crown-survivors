@@ -7,6 +7,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
     "migrate": "tsx scripts/migrate.ts",
+    "db": "tsx scripts/db.ts",
     "dev": "vercel dev"
   },
   "engines": {
