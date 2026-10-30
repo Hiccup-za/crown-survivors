@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read-only token; the job uses no secrets.
+permissions:
+  contents: read
+
 jobs:
   api:
     runs-on: ubuntu-latest

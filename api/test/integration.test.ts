@@ -4,6 +4,12 @@ import { after, before, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 
 const DB = process.env.DATABASE_URL;
+// The suite truncates tables, so refuse anything that is not a local *_test database (e.g. production Neon).
+if (DB) {
+  const u = new URL(DB);
+  if (!["localhost", "127.0.0.1"].includes(u.hostname) || !u.pathname.endsWith("_test"))
+    throw new Error(`Integration tests truncate tables: DATABASE_URL must be a local *_test database, got ${u.hostname}${u.pathname}`);
+}
 const BASE = "http://localhost:3000";
 const ADMIN = "admin@example.com";
 
