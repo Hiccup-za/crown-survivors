@@ -13,7 +13,7 @@ export interface GameEvent {
 
 export const EVENTS: GameEvent[] = [
   // Harvest Moon: Pumpkin Prince + Halloween Endless (EVENTS.harvest in public/index.html).
-  { id: "harvest-2026", name: "Harvest Moon", startAt: "2026-10-28T00:00:00+02:00", endAt: "2026-11-08T00:00:00+02:00", theme: "halloween" },
+  { id: "harvest-2026", name: "Harvest Moon", startAt: "2026-10-31T00:00:00+02:00", endAt: "2026-11-08T00:00:00+02:00", theme: "halloween" },
 ];
 
 /** Runs still in progress when an event closes may post for this long after endAt. */

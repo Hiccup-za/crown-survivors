@@ -64,10 +64,13 @@ const CH=[{n:'King Cube',d:'Balanced royal. Starts with Scepter Bolt.',c:'#e0a52
  {n:'Ruby Knight',d:'Tanky brawler. Starts with Royal Aura.',c:'#c8452f',k:'#7d2618',w:'aura',hp:140,spd:.9,p:500,perk:'+1 Armor'},
  {n:'Mint Mage',d:'Glass cannon. Starts with Thunder Block.',c:'#5fae7a',k:'#2f6b44',w:'zap',hp:80,spd:1,p:1600,perk:'+20% Area'},
  {n:'Shadow Rogue',d:'Fast & lucky. Starts with Crown Boomerang.',c:'#4a3a5a',k:'#1a1020',w:'boom',hp:90,spd:1.2,p:1000,perk:'+15% Crit'},
- {n:'Pumpkin Prince',d:'Splash specialist. Starts with Magic Pumpkin.',c:'#e87820',k:'#9a4510',w:'pumpkin',hp:95,spd:1,p:2000,perk:'+15% Splash',ev:'harvest'}];
+ {n:'Pumpkin Prince',d:'Splash specialist. Starts with Magic Pumpkin.',c:'#e87820',k:'#9a4510',w:'pumpkin',hp:95,spd:1,p:0,perk:'+15% Splash',ev:'harvest',night:1}];
+// Night heroes (CH[].night) can't be bought: completing that Night in their event's Endless mode unlocks them. A crown means Night 1 was cleared
+const nightUnlock=n=>CH.map((c,i)=>i).filter(i=>CH[i].night&&CH[i].night<=n&&!S.chars.includes(i));
+const nightBackfill=()=>{const u=S.pumpkinCrowns>0?nightUnlock(1):[];S.chars.push(...u);return u.length};if(nightBackfill())rawSave();
 // Limited-time events, keyed by the id heroes use (CH[].ev). Event heroes can only be bought while their event is live; owned ones stay playable.
 // While live the title wears the theme's skin and offers its Endless mode. id/startAt/endAt/theme must match api/src/events.ts. SAST; endAt exclusive.
-const EVENTS={harvest:{n:'Harvest Moon',ic:'🎃',c:'#e87820',id:'harvest-2026',startAt:'2026-10-28T00:00:00+02:00',endAt:'2026-11-08T00:00:00+02:00',theme:'halloween'}},evForce={};
+const EVENTS={harvest:{n:'Harvest Moon',ic:'🎃',c:'#e87820',id:'harvest-2026',startAt:'2026-10-31T00:00:00+02:00',endAt:'2026-11-08T00:00:00+02:00',theme:'halloween'}},evForce={};
 const EVL=Object.keys(EVENTS).map(k=>Object.assign(EVENTS[k],{key:k}));
 // QA overrides: __cs.event(key,on) forces one event on/off; ?event=<id> forces it live and ?event=ended forces every event over (URL ignored on production)
 const EVQ=location.hostname==='crown-survivors.vercel.app'?null:new URLSearchParams(location.search).get('event');
@@ -444,7 +447,8 @@ function hwBossDown(e){const g=G,h=g.hw;h.live=h.live.filter(o=>o!==e);shake=20;
  if(h.live.length)return;
  h.cleared++;g.tele=[];g.eb=[];g.gems.push({x:e.x,y:e.y,v:0,k:'chest'});g.p.hp=Math.min(g.p.mhp,g.p.hp+g.p.mhp*.25);
  if(h.step===2&&!g.slotW){g.slotW=5;g.slotP=5;setTimeout(()=>{if(G===g&&!g.over)banner('HARVEST BOON! +2 SLOTS','#7dff6a')},2600)}
- if(h.step===3){h.step=0;h.rank++;bloodWash();setTimeout(()=>{if(G===g&&!g.over)banner('NIGHT RANK '+h.rank+'!','#c9a0ff')},2600)}
+ if(h.step===3){h.step=0;h.rank++;bloodWash();setTimeout(()=>{if(G===g&&!g.over)banner('NIGHT RANK '+h.rank+'!','#c9a0ff')},2600);
+  const un=nightUnlock(h.rank-1);if(un.length){S.chars.push(...un);save();un.forEach(i=>dbTrack('hero_unlock',{hero:HERO_ID[i]}));setTimeout(()=>{if(G===g&&!g.over){banner(CH[un[0]].n.toUpperCase()+' UNLOCKED!','#ffb13d');sfx.buy()}},4600)}}
  else{h.step++;banner(['THE PATCH FALLS QUIET...','THE HOLLOW IS STILLED...','THE HARVEST IS IN...'][h.step-1],'#fff3c4')}}
 function hwEnd(){const g=G,h=g.hw,q=!!h.quit,s=h.hit,why=!s?'other':s.hb?(s.hb==='gourd'?'gourd':'boss'):s.by||'horde',gold=Math.round(g.gold+g.kills/30+h.crowns*HW.crownGold);g.over={win:false,gold,t:0};
  dbTrack('run_end',Object.assign({mode:'halloween',hero:HERO_ID[g.char],result:q?'quit':'death',time_s:Math.floor(g.t),kills:g.kills|0,embers_collected:h.got|0,rituals_cleared:h.cleared|0,night_rank_max:h.rank|0,crowns_this_run:h.crowns|0,minibosses_killed:h.mini|0,night_gourd_kills:h.gourds|0},q?{}:{death_reason:why}));
@@ -952,6 +956,7 @@ const fmtD=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short
 const evWhen=id=>{const E=EVENTS[id],st=evState(E);return st==='live'?'LIVE · ENDS '+fmtD(Date.parse(E.endAt)-1):st==='soon'?'STARTS '+fmtD(E.startAt):'ENDED'};
 function pickHero(i){const c=CH[i];if(S.chars.includes(i)){S.char=i;save();return}
  if(c.ev&&!eventOn(c.ev)){const E=EVENTS[c.ev];toast={t:E.n+' event only · '+(evState(E)==='soon'?'starts '+fmtD(E.startAt):'event over'),l:1.8};return}
+ if(c.night){toast={t:'Complete Night '+c.night+' to unlock',l:1.8};return}
  if(S.gold>=c.p){const r=chs.rows.find(r=>r.i===i);S.gold-=c.p;S.chars.push(i);S.char=i;save();dbTrack('hero_unlock',{hero:HERO_ID[i]});sfx.buy();vib(30);for(let j=0;j<30;j++)uiParts.push({x:W/2,y:r?r.y+r.h/2:H/2,vx:rnd(-200,200),vy:rnd(-250,-50),l:1,c:['#ffd23f','#c8452f','#5fae7a'][j%3]})}
  else toast={t:'Need '+(c.p-S.gold)+' more gold',l:1.2}}
 function drawChars(){menuBg();const EV=evLive(),hw=!!EV&&runMode==='halloween',{px,pw}=panel(.05,.9);pix('CHOOSE HERO',W/2,H*.05+32*U,20,hw?'#ffb13d':pal.gold,1.5);
@@ -972,6 +977,7 @@ function drawChars(){menuBg();const EV=evLive(),hw=!!EV&&runMode==='halloween',{
   if(E){rr(X0+cw-52*U,y+6*U,44*U,14*U,7*U,E.c,pal.ink,1.5);txt('EVENT',X0+cw-30*U,y+13*U,8,pal.paper,'center',false)}
   if(!own){rr(X0,y,cw,rh,10*U,'rgba(40,25,10,.55)');
    if(E&&!live){txt(E.ic+' EVENT ONLY',px+pw/2,y+rh*.4,15,pal.paper);txt(evState(E)==='soon'?'Starts '+fmtD(E.startAt):'Event over',px+pw/2,y+rh*.72,10,pal.paper,'center',false)}
+   else if(c.night){txt('🔒 COMPLETE NIGHT '+c.night,px+pw/2,y+rh*.4,15,pal.paper);txt('IN HALLOWEEN ENDLESS',px+pw/2,y+rh*.74,10,'#ffd23f')}
    else{txt('🔒 '+c.p+' gold',px+pw/2,y+rh*(E?.4:.5),16,S.gold>=c.p?pal.gold:pal.paper);if(E)txt('LIMITED TIME',px+pw/2,y+rh*.74,10,'#ffd23f')}}
   const vy=Math.max(y,top);chs.rows.push({i,x:X0,y:vy,w:cw,h:Math.min(y+rh,top+vh)-vy})}
  x.restore();
@@ -1260,7 +1266,7 @@ const toCloud=()=>JSON.parse(JSON.stringify(Object.assign(tSnap(),{wins_by:S.win
  last_event:S.lastEvent||null,lb_best:{f:LBS.best.f||null,s:LBS.best.s|0,k:LBS.best.k|0},lb_ranks:LBS.ranks||{}})));
 function applyCloud(c){Object.assign(S,{gold:c.gold,pumpkinCrowns:c.pumpkin_crowns,runs:c.runs,wins:c.wins,kills:c.kills,best:c.best_s,maxCurse:c.max_curse,meta:Object.assign({},DEF.meta,c.meta),
  chars:c.chars.slice(),winsBy:Object.assign({},c.wins_by),pumpkinBy:Object.assign({},c.pumpkin_by),codex:{items:Object.assign({},c.codex.items),enemies:Object.assign({},c.codex.enemies)},
- char:c.char,curse:c.curse,tut:c.tut,muted:c.muted,gore:c.gore,lastEvent:c.last_event});
+ char:c.char,curse:c.curse,tut:c.tut,muted:c.muted,gore:c.gore,lastEvent:c.last_event});nightBackfill();
  LBS.best={s:c.lb_best.s,k:c.lb_best.k};if(c.lb_best.f)LBS.best.f=c.lb_best.f;LBS.ranks=Object.assign({},c.lb_ranks);rawSave();lbSave()}
 let syBusy=false,syAgain=false,syT=0;
 function sySoon(){if(!lbIn())return;clearTimeout(syT);syT=setTimeout(sySync,2000)}

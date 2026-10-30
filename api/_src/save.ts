@@ -16,8 +16,8 @@ const PRUNE_ODDS = 0.01;
 export const META_BASE: Record<string, number> = {
   might: 90, hp: 75, armor: 180, speed: 90, magnet: 60, greed: 120, reroll: 150, choice: 600, revive: 750,
 };
-/** Hero prices by index (CH[i].p in public/index.html). Keep in sync with the game. */
-export const HERO_PRICE = [0, 500, 1600, 1000, 2000];
+/** Hero prices by index (CH[i].p in public/index.html). Keep in sync with the game. The Pumpkin Prince is earned, not bought. */
+export const HERO_PRICE = [0, 500, 1600, 1000, 0];
 
 const BOARDS = ["fastest", "survival", "kills"] as const;
 
