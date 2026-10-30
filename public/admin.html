@@ -7,7 +7,7 @@
 <title>Crown Survivors Stats</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎃</text></svg>">
 <style>
-/* Admin dashboard over the telemetry tables (docs/telemetry.md). Data from GET /api/admin/stats, or mock data. */
+/* Admin dashboard over the telemetry tables (docs/telemetry.md). Data from GET /api/admin/stats. */
 :root{
   color-scheme:light;
   --page:#f9f9f7;--surface:#fcfcfb;--surface-2:#f0efec;
@@ -52,18 +52,11 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-2);letter-
 .seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:2px}
 .seg button{border:0;background:none;color:var(--ink-2);font:inherit;font-size:13px;padding:6px 12px;border-radius:6px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--ring)}
-.switch{display:inline-flex;align-items:center;gap:8px;border:0;background:none;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;padding:4px}
-.switch .track{width:34px;height:20px;border-radius:10px;background:var(--axis);position:relative;transition:background .15s}
-.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
-.switch[aria-checked="true"] .track{background:var(--accent)}
-.switch[aria-checked="true"] .track::after{transform:translateX(14px)}
 .btn{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
 .btn:hover{background:var(--surface-2)}
 .btn.primary{background:var(--ink);color:var(--page);border-color:var(--ink)}
 .spacer{flex:1}
 .stamp{font-size:12px;color:var(--muted)}
-.banner{background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:13px}
-.banner b{font-weight:650}
 .card{background:var(--surface);border-radius:12px;box-shadow:0 0 0 1px var(--ring);padding:18px;min-width:0}
 .card h2{font-size:14px;font-weight:600;margin:0}
 .card .sub{font-size:12px;color:var(--ink-2);margin:2px 0 12px}
@@ -101,6 +94,7 @@ th{font-weight:600;color:var(--ink-2)}
 #tip .r span:first-child{display:flex;align-items:center;gap:6px}
 #tip i{display:inline-block;width:8px;height:8px;border-radius:2px}
 #tip b{font-weight:600;font-variant-numeric:tabular-nums}
+.signed-out header,.signed-out .controls{display:none}
 .gate{max-width:440px;margin:60px auto;text-align:center}
 .gate h2{font-size:18px;margin:0 0 8px}
 .gate p{color:var(--ink-2);margin:0 0 18px}
@@ -112,7 +106,7 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surf
 @media (max-width:480px){.hero .value{font-size:48px}.seg button{padding:6px 9px}}
 </style>
 </head>
-<body>
+<body class="signed-out">
 <div class="wrap">
   <header>
     <h1>Crown Survivors stats<small>Players, runs and progression from first-party telemetry</small></h1>
@@ -120,7 +114,6 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surf
   </header>
   <div class="controls">
     <div class="seg" id="ranges" role="group" aria-label="Date range"></div>
-    <button class="switch" id="mock" role="switch" aria-checked="false"><span class="track"></span>Mock data</button>
     <span class="spacer"></span>
     <span class="stamp" id="stamp"></span>
     <button class="btn" id="refresh">Refresh</button>
@@ -136,14 +129,13 @@ const EVENT={id:'harvest-2026',name:'Harvest Moon',from:'2026-10-28',to:'2026-11
 const RANGES=[{k:'event',n:EVENT.name},{k:'7',n:'7 days'},{k:'30',n:'30 days'},{k:'90',n:'90 days'}];
 // shop upgrades in game order, with max level (META in index.html)
 const META=[['might','Might',10],['hp','Vitality',10],['armor','Plating',3],['speed','Swiftness',5],['magnet','Attraction',5],['greed','Greed',5],['reroll','Reroll',3],['choice','Insight',1],['revive','Revive',1]];
-const HEROES=['king-cube','ruby-knight','mint-mage','shadow-rogue','pumpkin-prince'];
 const CAUSE={horde:'Horde',boss:'Ritual boss',gourd:'Night Gourd',other:'Other'};
 const SEQ=['#cde2fb','#b7d3f6','#9ec5f4','#86b6ef','#6da7ec','#5598e7','#3987e5','#2a78d6','#256abf','#1c5cab','#184f95','#104281','#0d366b'];
 const ORD=['#1c5cab','#256abf','#2a78d6','#5598e7','#86b6ef']; // ordinal ramp for the funnel (steps 550 -> 250)
 
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const qs=new URLSearchParams(location.search);
-const st={range:store.get('cs_admin_range')||'event',mock:qs.has('mock')?qs.get('mock')!=='0':store.get('cs_admin_mock')==='1',data:null};
+const st={range:store.get('cs_admin_range')||'event',data:null};
 
 // ===== formatting =====
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -169,33 +161,9 @@ async function sendLink(f){const email=f.email.value.trim(),msg=f.querySelector(
   const back=location.pathname;
   const r=await api('/auth/sign-in/magic-link',{email,callbackURL:back,errorCallbackURL:back});
   btn.disabled=false;
-  msg.textContent=r.status===200?'If '+email+' is an admin address, a sign-in link is on its way. It expires in 10 minutes.'
+  msg.textContent=r.status===200?'Sent'
     :r.status===429?'Too many tries. Wait a minute and try again.':'Could not send the link. Try again.'}
 async function signOut(){await api('/auth/sign-out',{});document.getElementById('who').innerHTML='';load()}
-
-// ===== mock data: same shape as GET /api/admin/stats (api/src/admin.ts) =====
-function rng(seed){let a=0;for(const c of seed)a=Math.imul(a^c.charCodeAt(0),2654435761)>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function mockStats(from,to){const R=rng(from+to),j=(a,b)=>a+(b-a)*R(),days=[];for(let d=from;d<to;d=addDays(d,1))days.push(d);
-  const daily=days.map(d=>{const ev=d>=EVENT.from&&d<EVENT.to,k=ev?(Date.parse(d)-Date.parse(EVENT.from))/864e5:0,dow=new Date(d+'T12:00:00Z').getUTCDay(),wk=dow===0||dow===6?1.25:1;
-    const players=Math.round((140+(ev?520*Math.exp(-k/7)+190:0))*wk*j(.9,1.1)),runs_halloween=ev?Math.round(players*j(1.7,2.4)):0;
-    return{day:d,players,new_players:Math.round(players*(ev&&k<2?.42:.16)*j(.8,1.2)),sessions:Math.round(players*j(1.45,1.8)),
-      runs_classic:Math.round(players*(ev?.9:2.3)*j(.85,1.15)),runs_halloween,crowns:Math.round(runs_halloween*(.1+k*.012)*j(.8,1.2))}});
-  const sum=k=>daily.reduce((a,r)=>a+r[k],0),players=Math.min(sum('players'),Math.round(Math.max(...daily.map(r=>r.players))*j(2.4,3))),hr=sum('runs_halloween'),runs=sum('runs_classic')+hr,crowns=sum('crowns');
-  const split=(n,ws)=>{const t=ws.reduce((a,b)=>a+b,0);return ws.map(w=>Math.round(n*w/t))};
-  const dn=split(hr*.93,[52,27,15,6]);
-  const hw=split(runs,[34,22,18,14,12]);
-  const gb=split(players,[6,14,22,17,18,11,8,4]),cb=split(players,[9,21,31,22,12,5]);
-  const upgrades=[];for(const [k,,max] of META){const ws=[];const fall=max>3?j(.6,.82):j(.3,.6);for(let l=0;l<=max;l++)ws.push(Math.pow(fall,l)*(l===0?j(1.2,2):1));split(players,ws).forEach((n,level)=>upgrades.push({upgrade:k,level,n}))}
-  const played=hr?Math.round(players*j(.66,.76)):0;
-  return{range:{from,to,tz:TZ},generated_at:new Date().toISOString(),
-    kpis:{players,new_players:Math.min(players,sum('new_players')),sessions:sum('sessions'),avg_session_s:j(360,520),runs,halloween_runs:hr,crowns_earned:crowns,touch_share:j(.52,.62),signed_in_share:j(.14,.22)},
-    daily,deaths:['horde','boss','gourd','other'].map((cause,i)=>({cause,n:dn[i]})).filter(r=>r.n>0),
-    heroes:HEROES.map((hero,i)=>({hero,runs:hw[i],wins:Math.round(hw[i]*j(.03,.08)),crowns:Math.round(crowns*[.3,.2,.16,.12,.22][i])})).sort((a,b)=>b.runs-a.runs),
-    progression:{players,gold_total:players*j(1800,2600),gold_median:j(900,1400),crowns_held:Math.round(crowns*j(1.05,1.2)),crown_holders:Math.round(played*j(.38,.46)),
-      avg_codex_items:j(19,26),avg_codex_enemies:j(12,17),avg_heroes:j(1.8,2.6),
-      gold_buckets:['0','1-99','100-499','500-999','1K-2.5K','2.5K-5K','5K-10K','10K+'].map((label,i)=>({label,n:gb[i]})),
-      codex_buckets:['0-9','10-19','20-29','30-39','40-49','50+'].map((label,i)=>({label,n:cb[i]})),upgrades},
-    funnel:[{stage:'Played the game',n:players},{stage:'Played Halloween Endless',n:played},{stage:'Cleared a ritual',n:Math.round(played*j(.7,.8))},{stage:'Earned a Pumpkin Crown',n:Math.round(played*j(.38,.46))},{stage:'Earned 3+ crowns',n:Math.round(played*j(.13,.19))}]}}
 
 // ===== tooltip =====
 const tip=document.getElementById('tip');
@@ -283,14 +251,13 @@ function spark(id,values,color){const el=document.getElementById(id),W=el.client
 
 // ===== page =====
 const main=document.getElementById('main');
-function gate(title,body,actions){main.innerHTML=`<div class="gate card"><h2>${esc(title)}</h2><p>${body}</p><div class="row">${actions}</div></div>`;bindGate()}
-function bindGate(){main.querySelectorAll('[data-mock]').forEach(b=>b.onclick=()=>setMock(true));main.querySelectorAll('[data-retry]').forEach(b=>b.onclick=load);
+function gate(title,body,actions){main.innerHTML=`<div class="gate card"><h2>${esc(title)}</h2>${body?`<p>${body}</p>`:''}<div class="row">${actions}</div></div>`;bindGate()}
+function bindGate(){main.querySelectorAll('[data-retry]').forEach(b=>b.onclick=load);
   main.querySelectorAll('[data-signout]').forEach(b=>b.onclick=signOut);
   const f=main.querySelector('form[data-link]');if(f)f.onsubmit=e=>{e.preventDefault();sendLink(f)}}
-const mockBtn='<button class="btn" data-mock>View mock data</button>';
 
 function layout(d){const k=d.kpis,p=d.progression,days=d.daily.map(r=>dayLbl(r.day)),C=css('--classic'),HW=css('--halloween'),hasRuns=k.runs>0,hasSnap=p.players>0;
-  main.innerHTML=(st.mock?`<div class="banner"><b>Mock data.</b> Generated in your browser for layout and reporting tests. Turn off "Mock data" to see real telemetry.</div>`:'')+`
+  main.innerHTML=`
   <div class="top">
     <div class="card hero"><div class="label">Pumpkin Crowns earned</div><div class="value">${fmtN(k.crowns_earned)}</div>
       <div class="note">${fmtN(p.crowns_held)} held by ${fmtN(p.crown_holders)} players in total</div><div id="c-spark" style="margin-top:14px"></div></div>
@@ -354,16 +321,17 @@ const addTable=(id,cols,rows)=>{if(rows.length)document.getElementById(id+'-t').
 
 let redraw=null;
 async function load(){const {from,to}=rangeDates(st.range);document.getElementById('stamp').textContent='Loading…';
-  if(st.mock){st.data=mockStats(from,to);render();return}
   main.innerHTML='<div class="empty" style="height:240px">Loading stats…</div>';
   const r=await api('/admin/stats?from='+from+'&to='+to);
-  if(r.status===401){gate('Sign in to view stats','This dashboard is for Crown Survivors admins. Enter your admin email and we will send you a sign-in link.',
-    `<form data-link style="width:100%"><div class="row"><input type="email" name="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email"><button class="btn primary" type="submit">Email me a link</button>${mockBtn}</div><p class="msg" role="status">${linkErr?'That link has expired or was already used. Request a new one.':''}</p></form>`);return stamp('')}
-  if(r.status===403)return gate('No admin access','This account is signed in but its email is not in <code>ADMIN_EMAILS</code> on the API.','<button class="btn primary" data-signout>Sign out</button>'+mockBtn),stamp('');
-  if(r.status!==200||!r.j)return gate('Could not load stats',esc((r.j&&r.j.error)||'The API did not answer. Check your connection and try again.'),'<button class="btn primary" data-retry>Try again</button>'+mockBtn),stamp('');
+  // Signed out: only the sign-in card shows.
+  document.body.classList.toggle('signed-out',r.status===401);
+  if(r.status===401){gate('Sign in','',
+    `<form data-link style="width:100%"><div class="row"><input type="email" name="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email"><button class="btn primary" type="submit">Email me a link</button></div><p class="msg" role="status">${linkErr?'That link has expired or was already used. Request a new one.':''}</p></form>`);return stamp('')}
+  if(r.status===403)return gate('No admin access','This account is signed in but its email is not in <code>ADMIN_EMAILS</code> on the API.','<button class="btn primary" data-signout>Sign out</button>'),stamp('');
+  if(r.status!==200||!r.j)return gate('Could not load stats',esc((r.j&&r.j.error)||'The API did not answer. Check your connection and try again.'),'<button class="btn primary" data-retry>Try again</button>'),stamp('');
   st.data=r.j;render()}
 function stamp(t){document.getElementById('stamp').textContent=t}
-function render(){redraw=layout(st.data);const d=st.data;stamp((st.mock?'Mock · ':'')+dayLbl(d.range.from)+' to '+dayLbl(addDays(d.range.to,-1))+' · updated '+new Date(d.generated_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}
+function render(){redraw=layout(st.data);const d=st.data;stamp(dayLbl(d.range.from)+' to '+dayLbl(addDays(d.range.to,-1))+' · updated '+new Date(d.generated_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}
 async function who(){const r=await api('/me'),u=r.j&&r.j.user;const el=document.getElementById('who');
   el.innerHTML=u?`<button class="btn" id="signout">Sign out</button>`:'';if(u)document.getElementById('signout').onclick=signOut}
 
@@ -376,15 +344,11 @@ async function envBadge(){const r=await api('/health'),e=r.j&&r.j.env;if(!e)retu
 const rg=document.getElementById('ranges');
 function drawRanges(){rg.innerHTML=RANGES.map(r=>`<button aria-pressed="${r.k===st.range}" data-k="${r.k}">${esc(r.n)}</button>`).join('')}
 rg.onclick=e=>{const b=e.target.closest('button');if(!b||b.dataset.k===st.range)return;st.range=b.dataset.k;store.set('cs_admin_range',st.range);drawRanges();load()};
-const mb=document.getElementById('mock');
-function setMock(on){st.mock=on;store.set('cs_admin_mock',on?'1':'0');mb.setAttribute('aria-checked',String(on));
-  const u=new URL(location.href);if(on)u.searchParams.set('mock','1');else u.searchParams.delete('mock');try{history.replaceState(null,'',u)}catch(e){}load();who()}
-mb.onclick=()=>setMock(!st.mock);
 document.getElementById('refresh').onclick=load;
 let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(redraw&&st.data)redraw()},120)});
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(st.data)render()});
 
-drawRanges();mb.setAttribute('aria-checked',String(st.mock));load();who();envBadge();
+drawRanges();load();who();envBadge();
 })();
 </script>
 </body>

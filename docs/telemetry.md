@@ -63,10 +63,7 @@ Limit rows prune themselves (1% of requests delete rows older than 1 h / 2 days)
 enter one on the page and Better Auth emails a single-use magic link (10 minutes, sent through Resend). Other
 addresses get the same "sent" reply but no email, so no account is created for them. Signing in with X no longer
 grants admin access. A badge in the header shows which deployment the page reads
-from (`env` from `GET /api/health`): Production, Preview or Local.
-
-The **Mock data** toggle (or `?mock=1`) renders generated data in
-the same shape without calling the API, for layout checks and before real data exists.
+from (`env` from `GET /api/health`): Production, Preview or Local. Signed out, the page shows only the sign-in card.
 
 ### Preview data
 
