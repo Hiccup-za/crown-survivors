@@ -2,7 +2,7 @@
 
 Status as of 2026-10-30, after admin player profiles shipped (#13).
 
-## 1. Cloud save and device sync (built on `feature/cloud-save`; migration 005 not yet applied to production)
+## 1. Cloud save and device sync (built on `feature/cloud-save`, PR #14; migration 005 applied to production 2026-10-30)
 
 Fixes the reported "no device sync" issue: progress lives only in each browser's localStorage (`crownsurv_classic_v1`).
 Applies to players signed in with X. Players who never sign in keep local-only saves per device.
