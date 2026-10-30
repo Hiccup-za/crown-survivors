@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2] - 2026-10-30
+
+### Changed
+- The README is now a short overview with a quick start, and the full setup, deploy, API and event details live in a new development guide under `docs/`.
+
+### Removed
+- The Flight Games section from the README.
+
 ## [0.4.1] - 2026-10-30
 
 ### Fixed
