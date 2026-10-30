@@ -145,12 +145,13 @@ Reward: Pumpkin Crown, 30 embers, chest, heal 25%.
 
 ## Event leaderboards (Chunk 4), **boards Need Christopher**
 
-Table `event_scores` (migration `002_event_scores.sql`), scoped by `event_id`. Each user's best row per board,
-ranked the same way as Classic.
+Table `event_scores` (migration `002_event_scores.sql`), scoped by `event_id`. Most Crowns is a running total per user: every crown from every run counts, the row shows the hero of the
+latest crowning run, and a tie goes to whoever reached the total first. The other boards rank each user's best
+single run, the same way as Classic.
 
 | Board | Ranks by | Value column |
 | --- | --- | --- |
-| `crowns` MOST CROWNS | crowns ↓, rituals cleared ↓, kills ↓ | rituals cleared |
+| `crowns` MOST CROWNS | total crowns ↓, total rituals cleared ↓ | total rituals cleared |
 | `fastest` FASTEST CROWN | time of first Night Gourd kill ↑ (runs with ≥1 crown) | time |
 | `kills` MOST KILLS | kills ↓ | kills |
 

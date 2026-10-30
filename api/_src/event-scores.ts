@@ -53,15 +53,35 @@ export async function insertEventScore(eventId: string, userId: string, s: Event
   return rows[0]?.id ?? null;
 }
 
-// Per board: which rows count, how to pick each user's best row, and the ranking order.
-const BOARD_SQL: Record<EventBoard, { where: string; order: string }> = {
-  crowns: { where: "true", order: "crowns DESC, rituals DESC, kills DESC, created_at ASC" },
+// Best-run boards: which rows count, how to pick each user's best row, and the ranking order.
+const BOARD_SQL: Record<Exclude<EventBoard, "crowns">, { where: string; order: string }> = {
   fastest: { where: "first_crown_s IS NOT NULL", order: "first_crown_s ASC, created_at ASC" },
   kills: { where: "true", order: "kills DESC, created_at ASC" },
 };
 
-/** CTE yielding each user's single best row for the event ($1) with its rank on the board. */
+/**
+ * Crowns is a running total: every crown from every run counts. Each user's row sums their runs, shows the hero
+ * of their latest crowning run (latest run if none crowned), and is dated by that run, so ties go to who got there first.
+ */
+const CROWNS_CTE = `
+    best AS (
+      SELECT s.user_id,
+        (array_agg(s.hero ORDER BY s.crowns > 0 DESC, s.created_at DESC))[1] AS hero,
+        sum(s.time_s)::int AS time_s, sum(s.kills)::int AS kills, sum(s.crowns)::int AS crowns,
+        sum(s.rituals)::int AS rituals, min(s.first_crown_s) AS first_crown_s,
+        coalesce(max(s.created_at) FILTER (WHERE s.crowns > 0), max(s.created_at)) AS created_at
+      FROM event_scores s
+      WHERE s.event_id = $1
+      GROUP BY s.user_id
+    ),
+    ranked AS (
+      SELECT b.*, RANK() OVER (ORDER BY crowns DESC, rituals DESC) AS rank
+      FROM best b
+    )`;
+
+/** CTE yielding each user's row for the event ($1) with its rank on the board. */
 function rankedCte(board: EventBoard): string {
+  if (board === "crowns") return CROWNS_CTE;
   const { where, order } = BOARD_SQL[board];
   return `
     best AS (

@@ -1,6 +1,6 @@
 {
   "name": "crown-survivors",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "scripts": {
     "typecheck": "npm run typecheck --prefix api",
