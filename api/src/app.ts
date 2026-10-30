@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { auth, type Session } from "./auth.js";
-import { ALLOWED_ORIGINS, isAllowedReturnUrl } from "./origins.js";
+import { ALLOWED_ORIGINS, isAllowedReturnUrl, PUBLIC_URL } from "./origins.js";
 import { BOARDS, type Board, getLeaderboard, getMyRank, insertScore, validateScore, RATE_LIMIT_SECONDS } from "./scores.js";
 import { ipHash, recordTelemetry, TELEMETRY_MAX_BYTES, validateTelemetry } from "./telemetry.js";
 import { getAdminStats, isAdmin, MAX_RANGE_DAYS, parseRange } from "./admin.js";
@@ -47,7 +47,7 @@ app.get("/api/health", (c) => c.json({ ok: true, service: "crown-survivors-api" 
 app.get("/auth/x", async (c) => {
   const returnTo = c.req.query("returnTo");
   if (!isAllowedReturnUrl(returnTo)) return c.json({ error: "returnTo must be a game URL" }, 400);
-  const base = process.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
+  const base = PUBLIC_URL ?? new URL(c.req.url).origin;
   const callbackURL = `${base}/auth/handoff?returnTo=${encodeURIComponent(returnTo)}`;
   const res = await auth.api.signInSocial({
     body: { provider: "twitter", callbackURL, errorCallbackURL: callbackURL },

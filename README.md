@@ -19,7 +19,7 @@ Set these in the Vercel project (Production and Preview as needed). Do **not** c
 | --- | --- |
 | `DATABASE_URL` | Neon **pooled** connection string (`…-pooler…neon.tech/neondb?sslmode=require`) |
 | `BETTER_AUTH_SECRET` | 32+ random characters (`openssl rand -base64 32`) |
-| `BETTER_AUTH_URL` | `https://crown-survivors.vercel.app` (no trailing slash) |
+| `BETTER_AUTH_URL` | `https://crown-survivors.vercel.app` (no trailing slash). Previews ignore it and use their branch URL, so all variables can be shared between Production and Preview. |
 | `X_CLIENT_ID` | X app OAuth 2.0 Client ID |
 | `X_CLIENT_SECRET` | X app OAuth 2.0 Client Secret |
 | `EXTRA_ORIGINS` | Optional comma-separated extra CORS / trusted origins |

@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { bearer, magicLink } from "better-auth/plugins";
 import { pool } from "./db.js";
-import { ALLOWED_ORIGINS } from "./origins.js";
+import { ALLOWED_ORIGINS, PUBLIC_URL } from "./origins.js";
 import { isAdminEmail } from "./admin.js";
 import { sendEmail } from "./email.js";
 
@@ -16,10 +16,10 @@ export function mapXProfile(profile: { data: { name?: string; username?: string;
   };
 }
 
-const isLocalHttp = (process.env.BETTER_AUTH_URL ?? "").startsWith("http://");
+const isLocalHttp = (PUBLIC_URL ?? "").startsWith("http://");
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: PUBLIC_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: pool,
   trustedOrigins: ALLOWED_ORIGINS,

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isAdmin, isAdminEmail, parseRange } from "../src/admin.js";
 import { ipHash, validateTelemetry } from "../src/telemetry.js";
+import { publicUrl } from "../src/origins.js";
 
 function withAdmins(value: string | undefined, fn: () => void) {
   const prev = process.env.ADMIN_EMAILS;
@@ -110,4 +111,13 @@ test("R4 validateTelemetry lowercases ids", () => {
   const r = validateTelemetry(ping({ install_id: ID.toUpperCase().replace(/1/g, "A") }));
   assert.equal(r.ok, true);
   if (r.ok) assert.equal(r.value.install_id, ID.replace(/1/g, "a"));
+});
+
+test("publicUrl uses the branch URL on Vercel previews and BETTER_AUTH_URL elsewhere", () => {
+  const prod = "https://crown-survivors.vercel.app";
+  const branch = "crown-survivors-git-feature-x-team.vercel.app";
+  assert.equal(publicUrl({ VERCEL_ENV: "preview", VERCEL_BRANCH_URL: branch, BETTER_AUTH_URL: prod }), `https://${branch}`);
+  assert.equal(publicUrl({ VERCEL_ENV: "production", VERCEL_BRANCH_URL: branch, BETTER_AUTH_URL: prod }), prod);
+  assert.equal(publicUrl({ VERCEL_ENV: "preview", BETTER_AUTH_URL: prod }), prod);
+  assert.equal(publicUrl({ BETTER_AUTH_URL: "http://localhost:3000" }), "http://localhost:3000");
 });
