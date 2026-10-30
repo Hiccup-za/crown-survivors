@@ -59,7 +59,9 @@ Limit rows prune themselves (1% of requests delete rows older than 1 h / 2 days)
 ## Dashboard
 
 `/admin` (`public/admin.html`) charts everything above from `GET /api/admin/stats?from=YYYY-MM-DD&to=YYYY-MM-DD`
-(`api/_src/admin.ts`; `to` exclusive, days in SAST, at most 120). Only emails listed in `ADMIN_EMAILS` can read it:
+(`api/_src/admin.ts`; `to` exclusive, days in SAST, at most 120), or `?hours=N` for the last N hours (1 to 168,
+bucketed by hour, ending at the close of the current hour). `/api/admin/players` takes the same range parameters.
+The page offers the event, 24, 48 and 72 hours, and 7, 30 and 90 days. Only emails listed in `ADMIN_EMAILS` can read it:
 enter one on the page and Better Auth emails a single-use magic link (10 minutes, sent through Resend). Other
 addresses get the same "sent" reply but no email, so no account is created for them. Signing in with X no longer
 grants admin access. A badge in the header shows which deployment the page reads

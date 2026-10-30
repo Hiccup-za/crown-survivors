@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-import { isAdmin, isAdminEmail, parseRange } from "../_src/admin.js";
+import { isAdmin, isAdminEmail, parseHours, parseRange } from "../_src/admin.js";
 import { ipHash, validateTelemetry } from "../_src/telemetry.js";
 import { publicUrl } from "../_src/origins.js";
 import { targetError } from "../_scripts/db.js";
@@ -45,14 +45,22 @@ test("R1 isAdmin needs a verified email that is listed", () =>
   }));
 
 test("R4 parseRange accepts up to 120 days and rejects bad ranges", () => {
-  assert.deepEqual(parseRange("2026-01-01", "2026-05-01"), { from: "2026-01-01", to: "2026-05-01" }); // 120 days
+  assert.deepEqual(parseRange("2026-01-01", "2026-05-01"), { from: "2026-01-01", to: "2026-05-01", bucket: "day" }); // 120 days
   assert.equal(parseRange("2026-01-01", "2026-05-02"), null); // 121 days
-  assert.deepEqual(parseRange("2026-10-28", "2026-10-29"), { from: "2026-10-28", to: "2026-10-29" });
+  assert.deepEqual(parseRange("2026-10-28", "2026-10-29"), { from: "2026-10-28", to: "2026-10-29", bucket: "day" });
   assert.equal(parseRange("2026-10-28", "2026-10-28"), null);
   assert.equal(parseRange("2026-10-29", "2026-10-28"), null);
   assert.equal(parseRange("2026-10-28", undefined), null);
   assert.equal(parseRange("28-10-2026", "2026-11-01"), null);
   assert.equal(parseRange("2026-13-01", "2026-13-05"), null);
+});
+
+test("R4 parseHours ends at the close of the current hour and accepts 1 to 168 hours", () => {
+  const now = Date.parse("2026-10-30T14:25:10Z");
+  assert.deepEqual(parseHours("24", now), { from: "2026-10-29T15:00:00.000Z", to: "2026-10-30T15:00:00.000Z", bucket: "hour" });
+  assert.deepEqual(parseHours("72", now), { from: "2026-10-27T15:00:00.000Z", to: "2026-10-30T15:00:00.000Z", bucket: "hour" });
+  assert.equal(parseHours("168", now)?.from, "2026-10-23T15:00:00.000Z");
+  for (const bad of [undefined, "", "0", "169", "-1", "1.5", "24h", "abc"]) assert.equal(parseHours(bad, now), null, String(bad));
 });
 
 test("R4 ipHash is null without an IP and changes with the day", () => {
