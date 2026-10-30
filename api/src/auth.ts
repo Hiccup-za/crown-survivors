@@ -1,7 +1,9 @@
 import { betterAuth } from "better-auth";
-import { bearer } from "better-auth/plugins";
+import { bearer, magicLink } from "better-auth/plugins";
 import { pool } from "./db.js";
 import { ALLOWED_ORIGINS } from "./origins.js";
+import { isAdminEmail } from "./admin.js";
+import { sendEmail } from "./email.js";
 
 /** X profile -> our user fields. Exported for tests. */
 export function mapXProfile(profile: { data: { name?: string; username?: string; profile_image_url?: string } }) {
@@ -53,8 +55,24 @@ export const auth = betterAuth({
       ? { sameSite: "lax", secure: false }
       : { sameSite: "lax", secure: true },
   },
-  // Bearer fallback: token from /auth/handoff when cookies are unavailable.
-  plugins: [bearer()],
+  plugins: [
+    // Bearer fallback: token from /auth/handoff when cookies are unavailable.
+    bearer(),
+    // /admin sign-in. Links only go to ADMIN_EMAILS; anyone else gets the same "sent" reply and no email,
+    // so no other account can be created this way (the user row is made on verify).
+    magicLink({
+      expiresIn: 60 * 10,
+      storeToken: "hashed",
+      sendMagicLink: async ({ email, url }) => {
+        if (!isAdminEmail(email)) return;
+        await sendEmail({
+          to: email,
+          subject: "Sign in to Crown Survivors stats",
+          text: `Open this link to sign in to the Crown Survivors stats dashboard:\n\n${url}\n\nIt expires in 10 minutes and works once. If you did not ask for it, ignore this email.`,
+        });
+      },
+    }),
+  ],
 });
 
 export type Session = typeof auth.$Infer.Session;

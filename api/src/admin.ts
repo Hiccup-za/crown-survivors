@@ -8,10 +8,15 @@ const TZ = "Africa/Johannesburg";
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const MAX_RANGE_DAYS = 120;
 
-/** X handles (no @, any case) allowed to read admin stats. Empty = nobody. */
-export function isAdmin(handle: string | null | undefined): boolean {
-  const allowed = (process.env.ADMIN_HANDLES ?? "").split(",").map((h) => h.trim().replace(/^@/, "").toLowerCase()).filter(Boolean);
-  return !!handle && allowed.includes(handle.toLowerCase());
+/** Emails (any case) allowed to sign in by magic link and read admin stats. Empty = nobody. */
+export function isAdminEmail(email: string | null | undefined): boolean {
+  const allowed = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return !!email && allowed.includes(email.trim().toLowerCase());
+}
+
+/** Admin = verified email in ADMIN_EMAILS (set by the magic link; X sign-ins never verify an email). */
+export function isAdmin(user: { email?: string | null; emailVerified?: boolean | null }): boolean {
+  return !!user.emailVerified && isAdminEmail(user.email);
 }
 
 /** from inclusive, to exclusive, both YYYY-MM-DD in TZ. */

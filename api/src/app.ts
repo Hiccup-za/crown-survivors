@@ -22,7 +22,7 @@ app.use(
   }),
 );
 
-// Better Auth routes: /api/auth/sign-in/social, /api/auth/callback/twitter, /api/auth/get-session, /api/auth/sign-out ...
+// Better Auth routes: /api/auth/sign-in/social, /api/auth/sign-in/magic-link, /api/auth/magic-link/verify, /api/auth/callback/twitter, /api/auth/get-session, /api/auth/sign-out ...
 // Users must not edit name/handle/avatar themselves; they always come from X.
 app.all("/api/auth/update-user", (c) => c.json({ error: "not allowed" }, 403));
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
@@ -140,12 +140,12 @@ app.post("/api/t", async (c) => {
   return c.json({ ok: true, run: res.run });
 });
 
-// ---- Admin dashboard (public/admin.html). Only X handles in ADMIN_HANDLES. ----
+// ---- Admin dashboard (public/admin.html). Only ADMIN_EMAILS, signed in by magic link. ----
 
 app.get("/api/admin/stats", async (c) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "sign in required" }, 401);
-  if (!isAdmin((user as { handle?: string | null }).handle)) return c.json({ error: "not an admin" }, 403);
+  if (!isAdmin(user)) return c.json({ error: "not an admin" }, 403);
   const range = parseRange(c.req.query("from"), c.req.query("to"));
   if (!range) return c.json({ error: `from/to must be YYYY-MM-DD, to after from, at most ${MAX_RANGE_DAYS} days` }, 400);
   c.header("Cache-Control", "private, no-store");

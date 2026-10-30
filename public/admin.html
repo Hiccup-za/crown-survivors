@@ -103,6 +103,8 @@ th{font-weight:600;color:var(--ink-2)}
 .gate h2{font-size:18px;margin:0 0 8px}
 .gate p{color:var(--ink-2);margin:0 0 18px}
 .gate .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.gate input{border:1px solid var(--ring);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:6px 10px;border-radius:8px;min-width:220px}
+.gate .msg{margin:14px 0 0;font-size:13px}
 code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-2);padding:1px 5px;border-radius:4px}
 @media (max-width:900px){.top{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:480px){.hero .value{font-size:48px}.seg button{padding:6px 9px}}
@@ -153,15 +155,20 @@ const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(new Date()
 const addDays=(d,n)=>{const t=new Date(d+'T00:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
 function rangeDates(k){if(k==='event')return{from:EVENT.from,to:EVENT.to};const to=addDays(today(),1);return{from:addDays(to,-Number(k)),to}}
 
-// ===== auth: token from the X handoff (#lb_token), else the game's saved sign-in =====
-function token(){const m=location.hash.match(/lb_token=([^&]+)/);
-  if(m){store.set('cs_admin_tok',decodeURIComponent(m[1]));try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
-  const own=store.get('cs_admin_tok');if(own)return own;
-  try{return JSON.parse(store.get('crownsurv_classic_lb')||'{}').tok||null}catch(e){return null}}
-const TOK=token();
-async function api(path){const h={};if(TOK)h.Authorization='Bearer '+TOK;
-  try{const r=await fetch(API+path,{headers:h,credentials:'include'});let j=null;try{j=await r.json()}catch(e){}return{status:r.status,j}}catch(e){return{status:0,j:null}}}
-const signInUrl=()=>'/auth/x?returnTo='+encodeURIComponent(location.origin+location.pathname);
+// ===== auth: Better Auth magic link to an ADMIN_EMAILS address; the session is a first-party cookie =====
+async function api(path,body){const o={credentials:'include'};if(body)Object.assign(o,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  try{const r=await fetch(API+path,o);let j=null;try{j=await r.json()}catch(e){}return{status:r.status,j}}catch(e){return{status:0,j:null}}}
+// The verify link lands back here with ?error=... when it is expired or already used.
+const linkErr=qs.get('error');
+if(linkErr){const u=new URL(location.href);u.searchParams.delete('error');try{history.replaceState(null,'',u)}catch(e){}}
+async function sendLink(f){const email=f.email.value.trim(),msg=f.querySelector('.msg'),btn=f.querySelector('button');if(!email)return;
+  btn.disabled=true;msg.textContent='Sending…';
+  const back=location.origin+location.pathname;
+  const r=await api('/auth/sign-in/magic-link',{email,callbackURL:back,errorCallbackURL:back});
+  btn.disabled=false;
+  msg.textContent=r.status===200?'If '+email+' is an admin address, a sign-in link is on its way. It expires in 10 minutes.'
+    :r.status===429?'Too many tries. Wait a minute and try again.':'Could not send the link. Try again.'}
+async function signOut(){await api('/auth/sign-out',{});document.getElementById('who').innerHTML='';load()}
 
 // ===== mock data: same shape as GET /api/admin/stats (api/src/admin.ts) =====
 function rng(seed){let a=0;for(const c of seed)a=Math.imul(a^c.charCodeAt(0),2654435761)>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -274,7 +281,9 @@ function spark(id,values,color){const el=document.getElementById(id),W=el.client
 // ===== page =====
 const main=document.getElementById('main');
 function gate(title,body,actions){main.innerHTML=`<div class="gate card"><h2>${esc(title)}</h2><p>${body}</p><div class="row">${actions}</div></div>`;bindGate()}
-function bindGate(){main.querySelectorAll('[data-mock]').forEach(b=>b.onclick=()=>setMock(true));main.querySelectorAll('[data-retry]').forEach(b=>b.onclick=load)}
+function bindGate(){main.querySelectorAll('[data-mock]').forEach(b=>b.onclick=()=>setMock(true));main.querySelectorAll('[data-retry]').forEach(b=>b.onclick=load);
+  main.querySelectorAll('[data-signout]').forEach(b=>b.onclick=signOut);
+  const f=main.querySelector('form[data-link]');if(f)f.onsubmit=e=>{e.preventDefault();sendLink(f)}}
 const mockBtn='<button class="btn" data-mock>View mock data</button>';
 
 function layout(d){const k=d.kpis,p=d.progression,days=d.daily.map(r=>dayLbl(r.day)),C=css('--classic'),HW=css('--halloween'),hasRuns=k.runs>0,hasSnap=p.players>0;
@@ -345,14 +354,15 @@ async function load(){const {from,to}=rangeDates(st.range);document.getElementBy
   if(st.mock){st.data=mockStats(from,to);render();return}
   main.innerHTML='<div class="empty" style="height:240px">Loading stats…</div>';
   const r=await api('/admin/stats?from='+from+'&to='+to);
-  if(r.status===401)return gate('Sign in to view stats','This dashboard is for Crown Survivors admins. Sign in with the X account listed in <code>ADMIN_HANDLES</code>.',`<a class="btn primary" href="${signInUrl()}">Sign in with X</a>${mockBtn}`),stamp('');
-  if(r.status===403){const me=await api('/me'),h=me.j&&me.j.user&&me.j.user.handle;return gate('No admin access',(h?'@'+esc(h)+' is':'This account is')+' signed in but not in <code>ADMIN_HANDLES</code> on the API.',mockBtn),stamp('')}
+  if(r.status===401){gate('Sign in to view stats','This dashboard is for Crown Survivors admins. Enter your admin email and we will send you a sign-in link.',
+    `<form data-link style="width:100%"><div class="row"><input type="email" name="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email"><button class="btn primary" type="submit">Email me a link</button>${mockBtn}</div><p class="msg" role="status">${linkErr?'That link has expired or was already used. Request a new one.':''}</p></form>`);return stamp('')}
+  if(r.status===403)return gate('No admin access','This account is signed in but its email is not in <code>ADMIN_EMAILS</code> on the API.','<button class="btn primary" data-signout>Sign out</button>'+mockBtn),stamp('');
   if(r.status!==200||!r.j)return gate('Could not load stats',esc((r.j&&r.j.error)||'The API did not answer. Check your connection and try again.'),'<button class="btn primary" data-retry>Try again</button>'+mockBtn),stamp('');
   st.data=r.j;render()}
 function stamp(t){document.getElementById('stamp').textContent=t}
 function render(){redraw=layout(st.data);const d=st.data;stamp((st.mock?'Mock · ':'')+dayLbl(d.range.from)+' to '+dayLbl(addDays(d.range.to,-1))+' · updated '+new Date(d.generated_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}))}
-async function who(){if(!TOK&&st.mock)return;const r=await api('/me'),u=r.j&&r.j.user;const el=document.getElementById('who');
-  el.innerHTML=u?(u.avatar?`<img src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer">`:'')+esc(u.handle?'@'+u.handle:u.name):''}
+async function who(){const r=await api('/me'),u=r.j&&r.j.user;const el=document.getElementById('who');
+  el.innerHTML=u?`<button class="btn" id="signout">Sign out</button>`:'';if(u)document.getElementById('signout').onclick=signOut}
 
 // ===== controls =====
 const rg=document.getElementById('ranges');

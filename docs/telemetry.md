@@ -59,8 +59,10 @@ Limit rows prune themselves (1% of requests delete rows older than 1 h / 2 days)
 ## Dashboard
 
 `/admin` (`public/admin.html`) charts everything above from `GET /api/admin/stats?from=YYYY-MM-DD&to=YYYY-MM-DD`
-(`api/src/admin.ts`; `to` exclusive, days in SAST, at most 120). Only X handles listed in `ADMIN_HANDLES` can read it;
-sign in from the page or reuse the game's sign-in. The **Mock data** toggle (or `?mock=1`) renders generated data in
+(`api/src/admin.ts`; `to` exclusive, days in SAST, at most 120). Only emails listed in `ADMIN_EMAILS` can read it:
+enter one on the page and Better Auth emails a single-use magic link (10 minutes, sent through Resend). Other
+addresses get the same "sent" reply but no email, so no account is created for them. Signing in with X no longer
+grants admin access. The **Mock data** toggle (or `?mock=1`) renders generated data in
 the same shape without calling the API, for layout checks and before real data exists.
 
 ## Starter queries
