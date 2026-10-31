@@ -1,4 +1,5 @@
 import { type Context, Hono } from "hono";
+import { captureApiException } from "./sentry.js";
 import { cors } from "hono/cors";
 import { auth, type Session } from "./auth.js";
 import { ALLOWED_ORIGINS, isAllowedReturnUrl, PUBLIC_URL } from "./origins.js";
@@ -298,6 +299,7 @@ app.get("/api/events/:id/me/rank", async (c) => {
 });
 
 app.onError((err, c) => {
+  captureApiException(err);
   console.error(err);
   return c.json({ error: "internal error" }, 500);
 });
