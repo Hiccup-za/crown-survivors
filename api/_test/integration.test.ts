@@ -22,6 +22,8 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
   const realFetch = globalThis.fetch;
   let emails: { to: string[]; text: string }[] = [];
   let resendStatus = 200;
+  // X OAuth answers for the guest upgrade tests: the profile users/me returns.
+  let xProfile: { id: string; name: string; username: string; profile_image_url: string } | null = null;
 
   before(async () => {
     Object.assign(process.env, {
@@ -29,12 +31,19 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret",
       ADMIN_EMAILS: ADMIN,
       RESEND_API_KEY: "re_test",
+      X_CLIENT_ID: "x-client",
+      X_CLIENT_SECRET: "x-secret",
     });
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input instanceof Request ? input.url : input).startsWith("https://api.resend.com/")) {
         emails.push(JSON.parse(String(init?.body)));
         return new Response(JSON.stringify({ id: "x" }), { status: resendStatus });
       }
+      const url = String(input instanceof Request ? input.url : input);
+      if (url === "https://api.x.com/2/oauth2/token")
+        return Response.json({ access_token: "x-access", token_type: "bearer", expires_in: 7200, scope: "users.read tweet.read" });
+      if (url.startsWith("https://api.x.com/2/users/me"))
+        return url.includes("confirmed_email") ? Response.json({ data: {} }) : Response.json({ data: xProfile });
       return realFetch(input, init);
     }) as typeof fetch;
     ({ app } = await import("../_src/app.js"));
@@ -491,6 +500,126 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
         (await board("survival")).map((r) => [r.rank, r.handle, r.time_s, r.hero]),
         [[1, "playerone", 1500, "king-cube"], [2, "third", 900, "king-cube"], [3, "second", 600, "king-cube"]],
       );
+    });
+  });
+
+  describe("guests", () => {
+    const json = { "Content-Type": "application/json", Origin: BASE };
+    const DEV = "aaaaaaaa-0000-4000-8000-000000000001";
+    const save = (o: Record<string, unknown> = {}) => ({
+      gold: 0, pumpkin_crowns: 0, runs: 0, wins: 0, kills: 0, best_s: 0, max_curse: 0, meta: {}, chars: [0], wins_by: {},
+      pumpkin_by: {}, codex: { items: {}, enemies: {} }, char: 0, curse: 0, tut: false, muted: false, gore: false,
+      last_event: null, lb_best: { f: null, s: 0, k: 0 }, lb_ranks: {}, ...o,
+    });
+    const score = { hero: "king-cube", curse: 0, won: false, time_s: 300, kills: 400, bosses: 2 };
+    const signInGuest = async () => {
+      const res = await app.request(`${BASE}/api/auth/sign-in/anonymous`, { method: "POST", headers: json, body: "{}" });
+      assert.equal(res.status, 200);
+      const j = (await res.json()) as { token: string; user: { id: string; name: string } };
+      return { ...j, cookie: cookieFrom(res), auth: { Authorization: `Bearer ${j.token}` } };
+    };
+    const me = async (headers: Record<string, string>) =>
+      ((await (await app.request(`${BASE}/api/me`, { headers })).json()) as { user: { id: string; name: string; handle: string | null; guest: boolean; merged: string[] } | null }).user;
+    const post = (path: string, body: unknown, headers: Record<string, string>) =>
+      app.request(`${BASE}${path}`, { method: path === "/api/save" ? "PUT" : "POST", headers: { ...json, ...headers }, body: JSON.stringify(body) });
+    /** POST /auth/x as the guest, then X's redirect back to the callback. Returns the handoff response. */
+    const signInX = async (guest: { auth: Record<string, string> } | null, profile: NonNullable<typeof xProfile>) => {
+      xProfile = profile;
+      const start = await post("/auth/x", { returnTo: `${BASE}/` }, guest?.auth ?? {});
+      assert.equal(start.status, 200);
+      const { url } = (await start.json()) as { url: string };
+      const state = new URL(url).searchParams.get("state")!;
+      const cb = await app.request(`${BASE}/api/auth/callback/twitter?code=c1&state=${encodeURIComponent(state)}`, { headers: { Cookie: cookieFrom(start) } });
+      assert.equal(cb.status, 302, await cb.clone().text());
+      return app.request(cb.headers.get("location")!, { headers: { Cookie: cookieFrom(cb) } });
+    };
+    const xPerson = { id: "x-42", name: "X Person", username: "xperson", profile_image_url: "https://pbs.twimg.com/a_normal.jpg" };
+
+    test("a guest gets a generated name, a years-long session and a spot on the board", async () => {
+      const g = await signInGuest();
+      assert.match(g.user.name, /^[A-Z][a-z]+ [A-Z][a-z]+ \d{3}$/);
+      assert.deepEqual(await me(g.auth), { id: g.user.id, name: g.user.name, handle: null, avatar: null, guest: true, merged: [] });
+      const exp = (await pool.query(`SELECT "expiresAt" FROM session WHERE "userId" = $1`, [g.user.id])).rows[0].expiresAt as Date;
+      assert.ok(exp.getTime() > Date.now() + 4 * 365 * 864e5);
+      assert.equal((await post("/api/scores", score, g.auth)).status, 201);
+      const lb = (await (await app.request(`${BASE}/api/leaderboard?board=survival`)).json()) as { rows: { name: string; handle: string | null }[] };
+      assert.deepEqual(lb.rows.map((r) => [r.name, r.handle]), [[g.user.name, null]]);
+    });
+
+    test("the profile lists the account and its standing on every board", async () => {
+      const g = await signInGuest();
+      await post("/api/scores", score, g.auth);
+      assert.equal((await app.request(`${BASE}/api/me/profile`)).status, 401);
+      const p = (await (await app.request(`${BASE}/api/me/profile`, { headers: g.auth })).json()) as {
+        user: { name: string; guest: boolean }; boards: Record<string, { rank: number | null; total: number; row: { time_s: number } | null }>;
+        events: { id: string; boards: Record<string, { rank: number | null }> }[];
+      };
+      assert.equal(p.user.name, g.user.name);
+      assert.equal(p.user.guest, true);
+      assert.deepEqual([p.boards.fastest.rank, p.boards.survival.rank, p.boards.survival.total, p.boards.survival.row?.time_s], [null, 1, 1, 300]);
+      assert.deepEqual(Object.keys(p.events[0]?.boards ?? {}).sort(), ["crowns", "fastest", "kills", "survival"]);
+    });
+
+    test("signing in with X merges the guest's scores and save into the new account", async () => {
+      const g = await signInGuest();
+      await post("/api/scores", score, g.auth);
+      const pushed = (await (await post("/api/save", { install_id: DEV, save: save({ gold: 120, runs: 4 }), base: null, base_version: null }, g.auth)).json()) as { version: number };
+      const hand = await signInX(g, xPerson);
+      const token = decodeURIComponent(new URL(hand.headers.get("location")!).hash.match(/lb_token=([^&]+)/)![1]);
+      const x = await me({ Authorization: `Bearer ${token}` });
+      assert.deepEqual([x?.handle, x?.guest, x?.merged], ["xperson", false, [g.user.id]]);
+      assert.equal(await count(`SELECT count(*) AS n FROM "user" WHERE id = '${g.user.id}'`), 0);
+      const lb = (await (await app.request(`${BASE}/api/leaderboard?board=survival`)).json()) as { rows: { handle: string | null }[] };
+      assert.deepEqual(lb.rows.map((r) => r.handle), ["xperson"]);
+      const s = (await (await app.request(`${BASE}/api/save`, { headers: { Authorization: `Bearer ${token}` } })).json()) as { save: { gold: number; runs: number }; version: number };
+      assert.deepEqual([s.save.gold, s.save.runs], [120, 4]);
+      assert.ok(s.version > pushed.version);
+      // the guest device's next push, still based on its guest save, only adds what it played since
+      const r = (await (await post("/api/save", { install_id: DEV, save: save({ gold: 150, runs: 5 }), base: save({ gold: 120, runs: 4 }), base_version: pushed.version }, { Authorization: `Bearer ${token}` })).json()) as { save: { gold: number; runs: number } };
+      assert.deepEqual([r.save.gold, r.save.runs], [150, 5]);
+    });
+
+    test("signing in with X without a guest works as before", async () => {
+      const hand = await signInX(null, xPerson);
+      assert.match(hand.headers.get("location") ?? "", /#lb_token=/);
+      assert.equal(await count(`SELECT count(*) AS n FROM guest_merges`), 0);
+    });
+
+    test("merging into an existing account adds both sides and moves event runs", async () => {
+      const { mergeGuest } = await import("../_src/guests.js");
+      const { pushSave } = await import("../_src/save.js");
+      const g = await signInGuest();
+      await pool.query(`INSERT INTO "user" (id, name, email, handle) VALUES ('u1', 'Player One', 'u1@x.invalid', 'playerone')`);
+      await pushSave("u1", { install_id: "bbbbbbbb-0000-4000-8000-000000000002", save: save({ gold: 50, runs: 2, chars: [0, 1] }) as never, base: null, base_version: null });
+      await pushSave(g.user.id, { install_id: DEV, save: save({ gold: 100, runs: 3 }) as never, base: null, base_version: null });
+      await pool.query(`INSERT INTO event_scores (event_id, user_id, hero, time_s, kills, crowns, rituals, first_crown_s) VALUES ('harvest-2026', $1, 'king-cube', 600, 900, 1, 4, 300)`, [g.user.id]);
+      assert.equal(await mergeGuest(g.user.id, "u1"), true);
+      const row = (await pool.query(`SELECT gold, runs, chars FROM player_saves WHERE user_id = 'u1'`)).rows[0];
+      assert.deepEqual(row, { gold: 150, runs: 5, chars: [0, 1] });
+      assert.equal(await count(`SELECT count(*) AS n FROM event_scores WHERE user_id = 'u1'`), 1);
+      assert.equal(await count(`SELECT count(*) AS n FROM player_save_devices WHERE user_id = 'u1'`), 2);
+      assert.equal(await mergeGuest(g.user.id, "u1"), false, "a second merge finds no guest");
+      await assert.rejects(mergeGuest("u1", "u1"), /not a guest/);
+    });
+
+    test("an /admin magic link in a guest's browser leaves the guest alone", async () => {
+      const g = await signInGuest();
+      await requestLink(ADMIN);
+      const res = await app.request(linkFromEmail(), { headers: { Cookie: g.cookie } });
+      assert.equal(res.status, 302);
+      assert.equal(await count(`SELECT count(*) AS n FROM "user" WHERE id = '${g.user.id}'`), 1);
+      assert.equal(await count(`SELECT count(*) AS n FROM guest_merges`), 0);
+    });
+
+    test("sign-out through the game's path ends the session on the server", async () => {
+      const g = await signInGuest();
+      assert.equal((await post("/api/auth/sign-out", {}, g.auth)).status, 200);
+      assert.equal(await me(g.auth), null);
+    });
+
+    test("guests cannot rename themselves", async () => {
+      const g = await signInGuest();
+      assert.equal((await post("/api/auth/update-user", { name: "Admin" }, g.auth)).status, 403);
     });
   });
 });

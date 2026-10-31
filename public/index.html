@@ -174,7 +174,7 @@ addEventListener('pointermove',e=>{if(joy.on&&e.pointerId===joy.id){joy.x=e.clie
 const up=e=>{if(e.pointerId===joy.id)joy.on=false;if(e.pointerId===mt.id)mt.on=false};const mtOff=()=>{mt.on=false};addEventListener('blur',mtOff);document.documentElement.addEventListener('mouseleave',mtOff);addEventListener('pointerup',up);addEventListener('pointercancel',up);
 // mouse/trackpad device (not touch-only): show keyboard hints on the choice screen
 const FINE=matchMedia('(hover:hover) and (pointer:fine)');
-const keysOff=()=>{for(const k in keys)keys[k]=0};addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey){keysOff();return}keys[e.key.toLowerCase()]=1;if(e.key==='p'&&G&&scene==='play')G.paused=!G.paused;if(e.key==='Escape'&&!trans){if(scene==='codex')go(codex.back);else if(scene==='settings')go('title');else if(scene==='shop'||scene==='chars')go('title');else if(scene==='lb'){lb.rank=null;go(lb.back)}else if(scene==='events')go('title')}
+const keysOff=()=>{for(const k in keys)keys[k]=0};addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey){keysOff();return}keys[e.key.toLowerCase()]=1;if(e.key==='p'&&G&&scene==='play')G.paused=!G.paused;if(e.key==='Escape'&&!trans){if(scene==='codex')go(codex.back);else if(scene==='settings')go('title');else if(scene==='shop'||scene==='chars')go('title');else if(scene==='lb'){lb.rank=null;go(lb.back)}else if(scene==='events')go('title');else if(scene==='profile')go(prof.back)}
  // choice screen: 1-4 picks a card, R rerolls; same .35s guard as clicks so a held/mashed key can't insta-pick
  if(G&&scene==='play'&&G.choice&&!e.repeat){const c=G.choice,i=+e.key-1;if(c.t>.35){if(i>=0&&i<c.cards.length)choose(c.cards[i]);else if(e.key.toLowerCase()==='r'&&G.rerolls>0){sfx.click();vib(6);reroll()}}}});addEventListener('keyup',e=>{const k=e.key.toLowerCase();keys[k]=0;if(k==='meta'||k==='os'||k==='control'||k==='alt')keysOff()});addEventListener('blur',keysOff);document.addEventListener('visibilitychange',()=>{if(document.hidden)keysOff()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&scene==='play'&&G&&!G.over){G.paused=true;save()}});
@@ -898,7 +898,7 @@ function hwOver(){const g=G,o=g.over,h=g.hw,{px,pw}=panel(.1,.8);const hd=h.crow
  if(h.crowns)pcrown(px+pw-38*U-String(h.crowns).length*8*U,y-4*22*U+2*U,1.1*U);
  y+=8*U;const shown=Math.min(o.gold,Math.floor(o.gold*Math.min(1,o.t/1.2)));x.fillStyle=pal.gold;x.beginPath();x.arc(W/2-50*U,y,9*U,0,7);x.fill();txt('+'+shown+' gold',W/2+10*U,y,20,pal.gold);y+=30*U;
  let i=0;for(const k in g.w){icon('w',k,W/2-((Object.keys(g.w).length-1)*30*U)/2+i*30*U,y+10*U,11*U);i++}
- if(o.pend&&LB_API&&!lbIn())button('SIGN IN WITH X TO POST',W/2-UI.pri[0]*U/2,overY().badge,UI.pri[0]*U,30*U,()=>lbSignIn(o.pend),'#2a2a2a',11);
+ if(o.pend&&LB_API&&!lbIn()){const bw=(UI.pri[0]-UI.gap)/2*U,bx=W/2-UI.pri[0]*U/2,by=overY().badge;button('POST WITH X',bx,by,bw,30*U,()=>lbSignIn(o.pend),'#2a2a2a',11);button('POST AS GUEST',bx+bw+UI.gap*U,by,bw,30*U,()=>lbGuest(o.pend),'#5fae7a',11)}
  overButtons(()=>evLive()?go('play',startHw):go('title'),'#d0661a')}
 function drawOver(){const g=G,o=g.over;if(g.hw)return hwOver();const {px,pw}=panel(.1,.8),hs=o.win?32:28;head(o.win?'VICTORY!':'DEFEATED',H*.1,hs,o.win?pal.gold:'#e8473a',2.5);let y=H*.1+(UI.head+hs+UI.pad+8)*U;
  const mm=Math.floor(g.t/60),ss=Math.floor(g.t%60);[['Survived',mm+':'+(ss<10?'0':'')+ss],['Level',g.lvl],['Kills',g.kills],['Bosses beaten',g.bb||0],['Damage dealt',Math.round(g.dmgDealt)]].forEach(([a,b])=>{txt(a,px+24*U,y,14,pal.ink,'left',false);txt(''+b,px+pw-24*U,y,14,pal.ink,'right',false);y+=24*U});
@@ -1056,7 +1056,7 @@ function itemCard(ent,X,Y,w,h,rec){const seen=!!rec.seen,taken=rec.taken|0,[kl,k
  txt(seen?fitTxt(ent.n,rw,13):'???',rx,iy+27,13,seen?pal.paper:'#8b6a3a','left',false);
  txt(seen?fitTxt(ent.d||'',rw,9):'Not discovered yet',rx,iy+44,9,seen?'#e9d3a0':'#8b6a3a','left',false);
  if(seen)txt(fitTxt(cxItemNote(ent),rw,8),rx,iy+58,8,'#c9a66b','left',false)}
-function draw(){btns=[];if(scene==='play'&&G){SC=SC||st();drawWorld();drawHud()}else if(scene==='title')drawTitle();else if(scene==='chars')drawChars();else if(scene==='shop')drawShop();else if(scene==='codex')drawCodex();else if(scene==='lb')drawLB();else if(scene==='events')drawEvents();else if(scene==='sheet')drawSheet();else if(scene==='settings'){menuBg();settingsPanel(()=>go('title'))}
+function draw(){btns=[];if(scene==='play'&&G){SC=SC||st();drawWorld();drawHud()}else if(scene==='title')drawTitle();else if(scene==='chars')drawChars();else if(scene==='shop')drawShop();else if(scene==='codex')drawCodex();else if(scene==='lb')drawLB();else if(scene==='events')drawEvents();else if(scene==='profile')drawProfile();else if(scene==='sheet')drawSheet();else if(scene==='settings'){menuBg();settingsPanel(()=>go('title'))}
  for(const q of uiParts){x.globalAlpha=Math.min(1,q.l*2);x.fillStyle=q.c;x.fillRect(q.x,q.y,5*U,5*U)}x.globalAlpha=1;
  if(toast)txt(toast.t,W/2,H*.5,16,pal.paper);if(trans){const a=trans.t<.22?trans.t/.22:1-(trans.t-.22)/.22;x.fillStyle='rgba(30,20,10,'+Math.max(0,a)+')';x.fillRect(0,0,W,H)}}
 function loop(t){const dt=Math.max(0,Math.min(.05,(t-t0)/1000));t0=t;update(dt);draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
@@ -1081,8 +1081,20 @@ function avatar(cx,cy,r,url){x.beginPath();x.arc(cx,cy,r+2*U,0,7);x.fillStyle=LI
 function fitTxt(s,maxW,sz){x.font='bold '+Math.round(sz*U)+'px "Courier New",Courier,monospace';if(x.measureText(s).width<=maxW)return s;let a=Array.from(s);while(a.length>2&&x.measureText(a.join('')+'…').width>maxW)a.pop();return a.join('')+'…'}
 function uLbl(u){return u&&u.handle?'@'+u.handle:((u&&u.name)||'Player')}
 async function lbRefreshMe(){const r=await api('/me');if(r&&r.ok){if(r.j&&r.j.user){LBS.user=r.j.user}else{LBS.tok=null;LBS.user=null}lbSave()}}
-async function lbSignOut(){api('/api/auth/sign-out',{method:'POST',body:'{}'});LBS.tok=null;LBS.user=null;lb.me={};lbSave();toast={t:'Signed out',l:1.4}}
-function lbSignIn(sc){if(!navigator.onLine){toast={t:"You're offline",l:1.6};return}if(sc){LBS.pend=sc;lbSave()}try{sessionStorage.setItem('cs_sx','1')}catch(e){}location.href='/auth/x?returnTo='+encodeURIComponent(location.origin+location.pathname)}
+async function lbSignOut(){api('/auth/sign-out',{method:'POST',body:'{}'});LBS.tok=null;LBS.user=null;lb.me={};lbSave();toast={t:'Signed out',l:1.4}}
+// a guest starts X sign-in with its token (POST), so the X account absorbs the guest: scores, save and all (api/_src/guests.ts)
+function lbSignIn(sc){if(!navigator.onLine){toast={t:"You're offline",l:1.6};return}if(sc){LBS.pend=sc;lbSave()}try{sessionStorage.setItem('cs_sx','1')}catch(e){}const ret=location.origin+location.pathname;
+ if(lbIn()&&LBS.user.guest){fetch('/auth/x',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+LBS.tok},credentials:'include',body:JSON.stringify({returnTo:ret})}).then(r=>r.json()).then(j=>{if(!j||!j.url)throw 0;location.href=j.url}).catch(()=>{toast={t:"Couldn't start sign-in",l:1.6}});return}
+ location.href='/auth/x?returnTo='+encodeURIComponent(ret)}
+// guest: an account with a generated name ("Mossy Knight 372") that posts to every board, kept by this device's token.
+// A browser that still holds a guest session cookie (storage cleared) gets that guest back instead of a new one
+async function lbGuest(sc){if(!navigator.onLine){toast={t:"You're offline",l:1.6};return}if(lbGuest.busy||lbIn())return;lbGuest.busy=1;toast={t:'Finding you a name...',l:3};
+ try{let r=await api('/auth/sign-in/anonymous',{method:'POST',body:'{}'}),tok=r&&r.ok&&r.j&&r.j.token;
+  if(!tok&&r&&r.status===400){const g=await api('/auth/get-session');tok=g&&g.ok&&g.j&&g.j.session&&g.j.user&&g.j.user.isAnonymous&&g.j.session.token}
+  if(!tok){toast={t:r&&r.status===429?'Too many tries. Wait a bit':"Couldn't sign in",l:1.8};return}
+  LBS.tok=tok;lbSave();await lbRefreshMe()}finally{lbGuest.busy=0}
+ if(!lbIn())return;dbTrack('signin_guest',{});toast={t:'Welcome, '+LBS.user.name+'!',l:2};lbCard=null;sySync();setTimeout(evFlush,sc?31000:0);
+ if(sc){const res=await lbSubmit(sc,sc.board);if(res)lbShowRank(res);else openLB('title',sc.board,sc.ev)}}
 async function lbLoad(b){const ev=lb.ev,k=lbK(b,ev);lb.data[k]={st:'load'};const r=await api(lbP(ev)+'/leaderboard?board='+b+'&limit=50');lb.data[k]=r&&r.ok&&r.j?{st:'ok',rows:r.j.rows||[]}:{st:'err'};if(lb.board===b&&lb.ev===ev){lb.t0=clock;if(lb.want!=null){lb.scroll=lb.want;lb.want=null}}
  if(lbIn()){const m=await api(lbP(ev)+'/me/rank?board='+b);if(m&&m.ok&&m.j){lb.me[k]=m.j;if(m.j.rank){LBS.ranks[k]=m.j.rank;lbSave()}}}}
 function openLB(back,b,ev){dbTrack('leaderboard_open',{});ev=ev||null;if(lb.ev!==ev){lb.ev=ev;lb.board=ev?EVB[0][0]:'fastest'}lb.back=back;lb.board=b||lb.board;lb.scroll=0;lb.t0=clock;lb.rank=null;lbLoad(lb.board);go('lb')}
@@ -1159,14 +1171,15 @@ function lbRow(y,h,rank,r,me,b){let bg=rank%2?'#efdcae':'#e6cf9c',bd=null,lw=0;
  if(lb.ev)crownB(262,cy,r.crowns);else curseB(262,cy,r.curse);txt(lbVal(b,r),322,cy+1,b==='kills'&&r.kills>=10000?12:14,LINK,'center',false)}
 const TABS=[['fastest','FASTEST WIN'],['survival','LONGEST SURVIVAL'],['kills','MOST KILLS']],COLV={fastest:'WIN TIME',survival:'TIME',kills:'KILLS'},
  FOOT={fastest:'Wins only · highest curse first, then fastest',survival:'Longest run, win or lose',kills:'Most kills in a single run'};
-function lbChip(X,Y){const u=LBS.user;rr(X,Y,116,30,10,'rgba(30,20,10,.78)');avatar(X+15,Y+15,10,u.avatar);txt(fitTxt(uLbl(u),84,11),X+31,Y+15,11,pal.paper,'left',false);button('SIGN OUT',X+120,Y,66,30,lbSignOut,'#6a4a3a',9)}
+function lbChip(X,Y){const u=LBS.user;rr(X,Y,186,30,10,'rgba(30,20,10,.78)');avatar(X+15,Y+15,10,u.avatar);txt(fitTxt(uLbl(u),138,11),X+31,Y+15,11,pal.paper,'left',false);txt('›',X+176,Y+14,14,pal.paper,'center',false);
+ btns.push({x:X,y:Y,w:186,h:30,k:'chip',f:()=>openProfile(scene)})}
 function xButton(X,Y,w,h,f,sz=18){btns.push({x:X,y:Y,w,h,f,k:'xbtn'+Y});const pr=pressed&&pressed.k==='xbtn'+Y?3:0;rr(X,Y+5,w,h,12,'rgba(0,0,0,.35)');rr(X,Y+4,w,h,12,LINK);const gr=x.createLinearGradient(0,Y,0,Y+h);gr.addColorStop(0,'#3a3a3a');gr.addColorStop(.5,'#151515');gr.addColorStop(1,'#000');
  Y+=pr;rr(X,Y,w,h,12,gr,LINK);rr(X+5,Y+4,w-10,h*.28,6,'rgba(255,255,255,.14)');const s=h*.18,gy=Y+h/2+1;
  x.font='bold '+Math.round(sz*U)+'px "Courier New",Courier,monospace';const tw=x.measureText('Sign in with X').width,tot=s*2+12+tw,g0=X+(w-tot)/2+s;
  x.lineCap='butt';x.strokeStyle='#fff';x.lineWidth=s*.5;x.beginPath();x.moveTo(g0-s,gy-s);x.lineTo(g0+s,gy+s);x.stroke();x.lineWidth=s*.25;x.beginPath();x.moveTo(g0+s,gy-s);x.lineTo(g0-s,gy+s);x.stroke();
  txt('Sign in with X',g0+s+12,gy,sz,'#ffffff','left',false)}
 const LTOP=179,LH=401,RH=42;
-function drawLB(){menuBg();lbBegin();const b=lb.board,E=lb.ev&&evById(lb.ev),k=lbK(b,lb.ev),D=lb.data[k]||{st:'load'},rows=D.rows||[],meR=lb.me[k],myId=LBS.user&&LBS.user.handle;
+function drawLB(){menuBg();lbBegin();const b=lb.board,E=lb.ev&&evById(lb.ev),k=lbK(b,lb.ev),D=lb.data[k]||{st:'load'},rows=D.rows||[],meR=lb.me[k],u=lbIn()&&LBS.user,mr=meR&&meR.row;
  const tabs=E?EVB:TABS,colv=E?Object.fromEntries(EVB.map(t=>[t[0],t[2]])):COLV,foot=E?Object.fromEntries(EVB.map(t=>[t[0],t[3]])):FOOT;
  if(E){pix(E.n.toUpperCase(),195,40,20,'#ffb13d',2,'#e07820');const live=evState(E)==='live';rr(320,30,58,20,6,live?'#d0661a':'#8b6a3a',LINK,2);txt(live?'LIVE':'ARCHIVE',349,41,8,pal.paper,'center',false)}
  else pix('LEADERBOARD',195,40,20,pal.gold,2,'#e0a526');if(lbIn())lbChip(102,62);
@@ -1180,13 +1193,13 @@ function drawLB(){menuBg();lbBegin();const b=lb.board,E=lb.ev&&evById(lb.ev),k=l
  if(D.st!=='ok')txt(D.st==='load'?'Loading...':"Can't reach the leaderboard.",195,LTOP+120,12,'#8b6a3a','center',false),D.st==='err'&&txt('Check your connection and try again.',195,LTOP+146,10,'#8b6a3a','center',false);
  else if(!rows.length)txt(b==='fastest'?(E?'No crowns yet. Be the first!':'No wins yet. Be the first!'):'No scores yet. Be the first!',195,LTOP+120,12,'#8b6a3a','center',false);
  rows.forEach((r,i)=>{const y=LTOP+3+i*RH-lb.scroll;if(y>LTOP+LH||y+38<LTOP)return;const vi=Math.max(0,(y-LTOP)/RH),a=Math.max(0,Math.min(1,(clock-lb.t0-vi*.04)/.18));
-  const me=!!(myId&&r.handle===myId);if(me&&y>=LTOP&&y+38<=LTOP+LH-20)meVis=true;x.globalAlpha=a;lbRow(y+(1-a)*12,38,r.rank||i+1,r,me,b);x.globalAlpha=1});
+  const me=!!u&&(u.handle?r.handle===u.handle:!!mr&&!r.handle&&r.name===mr.name&&r.created_at===mr.created_at);if(me&&y>=LTOP&&y+38<=LTOP+LH-20)meVis=true;x.globalAlpha=a;lbRow(y+(1-a)*12,38,r.rank||i+1,r,me,b);x.globalAlpha=1});
  if(maxS>0){const fg=x.createLinearGradient(0,LTOP+LH-36,0,LTOP+LH);fg.addColorStop(0,'rgba(243,226,184,0)');fg.addColorStop(1,'rgba(243,226,184,1)');x.fillStyle=fg;x.fillRect(24,LTOP+LH-36,334,36)}if(lb.scroll>1){const tg=x.createLinearGradient(0,LTOP,0,LTOP+14);tg.addColorStop(0,'rgba(243,226,184,1)');tg.addColorStop(1,'rgba(243,226,184,0)');x.fillStyle=tg;x.fillRect(24,LTOP,334,14)}x.restore();
  if(maxS>0){const th=Math.max(30,396*LH/(LH+maxS));rr(359,182,5,396,2.5,'#d6c49a');rr(359,182+(396-th)*lb.scroll/maxS,5,th,2.5,'#a8875a');
   const st0='SCROLL FOR MORE  ·  TOP 50';txt(st0,203,594,10,'#8b6a3a','center',false);txt('▼',203-x.measureText(st0).width/2-12,594+Math.sin(clock*4)*2,10,'#8b6a3a','center',false)}
  else if(rows.length)txt('TOP 50',195,594,10,'#8b6a3a','center',false);
  x.fillStyle='#c9a66b';x.fillRect(28,610,326,2);
- if(!lbIn()){txt(foot[b],195,638,10,'#8b6a3a','center',false);txt('Sign in to post scores & see your rank',195,678,10,'#8b6a3a','center',false);xButton(133,704,230,46,()=>lbSignIn(null),15)}
+ if(!lbIn()){txt(foot[b],195,624,9,'#8b6a3a','center',false);txt('Sign in to post scores & see your rank',195,638,10,'#8b6a3a','center',false);xButton(133,652,230,42,()=>lbSignIn(null),14);button('PLAY AS GUEST',133,704,230,46,()=>lbGuest(null),'#5fae7a',13)}
  else if(meR&&meR.row){if(!meVis){txt(E&&b==='crowns'?'YOUR TOTAL':'YOUR BEST',195,624,9,'#8b6a3a','center',false);lbRow(636,46,meR.rank,meR.row,true,b)}}
  else if(D.st==='ok')txt(E?(evState(E)!=='live'?'This event has ended':b==='fastest'?'Earn a Pumpkin Crown to get on this board':'Finish a Halloween run to get on this board'):b==='fastest'?'Win a run to get on this board':'Finish a run to get on this board',195,654,11,'#8b6a3a','center',false);
  button('BACK',27,704,96,46,()=>{lb.rank=null;go(lb.back)},'#8b5a2b',14);
@@ -1219,10 +1232,11 @@ function drawCard(){const C=lbCard,sc=C.sc,e=Math.max(0,clock-C.t0);x.fillStyle=
  const P=C.prev,rk=LBS.ranks[C.b]?' · #'+LBS.ranks[C.b]:'';
  const pv=C.b==='fastest'?(P.f?'Previous best '+fmtT(P.f[1])+' · curse '+P.f[0]+rk:'Your first win!'):C.b==='survival'?(P.s?'Previous best '+fmtT(P.s)+rk:'Your first run on the board!'):(P.k?'Previous best '+fmtN(P.k)+' kills'+rk:'Your first run on the board!');
  txt(pv,195,376,10,'#5a4030','center',false);
- txt('Sign in with X to post your score',195,428,14,LINK,'center',false);txt('We only use your @handle and avatar.',195,452,11,'#5a4030','center',false);
+ txt('Post your score to the board',195,428,14,LINK,'center',false);txt('We only use your @handle and avatar.',195,452,11,'#5a4030','center',false);
  const pl=1+Math.sin(clock*5)*.03;x.save();x.translate(195,512);x.scale(pl,pl);x.translate(-195,-512);xButton(70,484,250,56,()=>lbSignIn(Object.assign({board:C.b},sc)),18);x.restore();
- button('SKIP',135,566,UI.back[0],UI.back[1],()=>{lbCard=null},'#8b5a2b',UI.back[2]);
- txt('Skip keeps this best on your device only',195,636,10,'#8b6a3a','center',false);lbEnd()}
+ button('PLAY AS GUEST',70,552,250,42,()=>lbGuest(Object.assign({board:C.b},sc)),'#5fae7a',15);txt('We make up a name for you. Sign in with X any time to keep it.',195,606,9,'#5a4030','center',false);
+ button('SKIP',135,624,UI.back[0],UI.back[1],()=>{lbCard=null},'#8b5a2b',UI.back[2]);
+ txt('Skip keeps this best on your device only',195,690,10,'#8b6a3a','center',false);lbEnd()}
 const _drawOver=drawOver;drawOver=function(){if(lbCard&&lbCard.o===G.over&&clock>=lbCard.t0)return drawCard();_drawOver();const L=G.over&&G.over.lb;
  if(L&&LB_API){const pl=1+Math.sin(clock*5)*.03,bx=W/2-UI.pri[0]*U/2,by=overY().badge;x.save();x.translate(W/2,by+15*U);x.scale(pl,pl);x.translate(-W/2,-(by+15*U));
   button('NEW RANK #'+L.n+'!  ▶',bx,by,UI.pri[0]*U,30*U,()=>{lbShowRank(L)},'#6a5acd',13);x.restore()}};
@@ -1231,8 +1245,9 @@ const _drawTitle=drawTitle;drawTitle=function(){_drawTitle();if(!LB_API)return;
  if(!evLive()){const y0=H*.64+148*U,lim=H-44*U-9*U,h=Math.max(24*U,Math.min(40*U,lim-y0-5*U));
   if(evEnded()){button('LEADERBOARD',W/2-105*U,y0,102*U,h,()=>openLB('title'),'#6a5acd',h<34*U?11:12);button('EVENTS',W/2+3*U,y0,102*U,h,openEvents,'#d0661a',h<34*U?11:12)}
   else button('LEADERBOARD',W/2-105*U,y0,210*U,h,()=>openLB('title'),'#6a5acd',h<34*U?12:15)}
- if(lbIn()){const u=LBS.user,X=154*U,Y=H-44*U,bw=56*U,cw=W-10*U-bw-4*U-X;if(cw>60*U){rr(X,Y,cw,30*U,10*U,'rgba(30,20,10,.78)');avatar(X+15*U,Y+15*U,10*U,u.avatar);
-  txt(fitTxt(uLbl(u),cw-36*U,10),X+30*U,Y+15*U,10,pal.paper,'left',false)}button('SIGN OUT',W-10*U-bw,Y,bw,30*U,lbSignOut,'#6a4a3a',8)}};
+  // name chip: opens the profile (scene 'profile'); signed out it offers sign in there
+ const X=154*U,Y=H-44*U,cw=W-10*U-X,u=lbIn()&&LBS.user;if(cw>60*U){rr(X,Y,cw,30*U,10*U,'rgba(30,20,10,.78)');avatar(X+15*U,Y+15*U,10*U,u?u.avatar:null);
+  txt(fitTxt(u?uLbl(u):'SIGN IN',cw-48*U,10),X+30*U,Y+15*U,10,u?pal.paper:pal.gold,'left',false);txt('›',X+cw-10*U,Y+14*U,14,pal.paper,'center',false);btns.push({x:X,y:Y,w:cw,h:30*U,k:'tchip',f:()=>openProfile('title')})}};
 // ===== events archive ===== every event that has started, newest first: dates, your Pumpkin Crowns, your ranks, read-only boards
 const evDates=e=>{const f=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'Africa/Johannesburg'}).toUpperCase();return f(Date.parse(e.startAt))+' – '+f(Date.parse(e.endAt)-1)+' '+e.endAt.slice(0,4)};
 function openEvents(){go('events');if(lbIn())for(const e of evPast())for(const [b] of EVB)api(lbP(e.id)+'/me/rank?board='+b).then(m=>{if(m&&m.ok&&m.j){LBS.ranks[lbK(b,e.id)]=m.j.rank||null;lbSave()}})}
@@ -1247,6 +1262,46 @@ function drawEvents(){menuBg();lbBegin();pix('EVENTS',195,40,22,pal.gold,2,'#e0a
   button(live?'VIEW BOARDS':'VIEW RANKINGS',105,y+146,180,34,()=>openLB('events',null,e.id),'#6a5acd',13)});
  if(L.length<3)txt('New events appear here when they start.',195,122+L.length*206+24,11,'#8b6a3a','center',false);
  button('BACK',135,782,UI.back[0],UI.back[1],()=>go('title'),'#8b5a2b',UI.back[2]);lbEnd()}
+// ===== profile ===== your account, your rank on every board (GET /api/me/profile) and lifetime stats from the save. Opened from the name chip
+// on the title, leaderboard and events screens. Signed out it shows this device's bests and offers Sign in with X or a guest name
+const prof={back:'title',d:null,st:null};
+function openProfile(back){prof.back=back||'title';if(prof.d&&!(lbIn()&&prof.d.user.id===LBS.user.id))prof.d=null;go('profile');if(!lbIn()){prof.st=null;return}prof.st='load';
+ api('/me/profile').then(r=>{if(r&&r.ok&&r.j&&r.j.user&&lbIn()&&r.j.user.id===LBS.user.id){prof.d=r.j;prof.st='ok';for(const [b,v] of Object.entries(r.j.boards))if(v.rank)LBS.ranks[b]=v.rank;lbSave()}else prof.st='err'})}
+// a board row opens that board; from the leaderboard it goes back to it rather than stacking another BACK
+function pfOpen(b,ev){openLB(prof.back==='lb'?lb.back:'profile',b,ev)}
+function pfSec(l,y,r){txt(l,30,y,9,'#8b6a3a','left',false);if(r)txt(r,360,y,9,'#8b6a3a','right',false);x.fillStyle='#c9a66b';x.fillRect(28,y+8,326,2)}
+function pfRow(y,l,v,S_,f,k){rr(28,y,326,28,7,'#e9d3a0',LINK,1.5);txt(l,38,y+14,10,LINK,'left',false);txt(v,250,y+14,11,'#5a4030','right',false);
+ const rk=S_&&S_.rank;rr(258,y+4,88,20,6,rk?'#6a5acd':'#a8875a');txt(rk?fitTxt('#'+rk+' of '+fmtN(S_.total),82,9):prof.st==='load'?'...':'—',302,y+14,9,pal.paper,'center',false);btns.push({x:28,y,w:326,h:28,k:'pf'+k,f})}
+function pfTile(X,y,l,v){rr(X,y,104,44,8,'#e9d3a0',LINK,2);txt(l,X+52,y+13,8,'#8b6a3a','center',false);txt(fitTxt(''+v,96,15),X+52,y+30,15,LINK,'center',false)}
+function pfCodex(){const it=codexItemCatalog().filter(e=>!e.hdr),en=[...codexEnemyCatalog(),...codexBossCatalog()].filter(e=>!e.hdr);return it.filter(e=>codexItemGet(e.kind,e.k).seen).length+en.filter(e=>codexEnemyGet(e.id).seen).length+'/'+(it.length+en.length)}
+function drawProfile(){menuBg();lbBegin();try{const inn=lbIn(),u=inn&&LBS.user,d=prof.d,B=LBS.best||{};pix('PROFILE',195,40,22,pal.gold,2,'#e0a526');
+ rr(13,76,364,690,16,'rgba(0,0,0,.35)');rr(13,70,364,690,16,'#f3e2b8',LINK,4);rr(21,78,348,674,10,null,'#c9a66b',2);
+ // who: avatar, name, @handle / GUEST, joined; the hero with the most wins on the right
+ avatar(66,124,30,u?u.avatar:null);txt(fitTxt(u?u.name:'Not signed in',196,17),108,108,17,LINK,'left',false);
+ if(u&&u.guest){rr(108,121,50,18,5,'#5fae7a',LINK,1.5);txt('GUEST',133,130,9,pal.paper,'center',false);txt('This device only',164,130,9,'#5a4030','left',false)}
+ else txt(u?(u.handle?'@'+u.handle:'Signed in with X'):'Progress is saved on this device',108,130,u?12:9,u?'#7d2618':'#5a4030','left',false);
+ if(d&&d.user.created_at)txt('Joined '+new Date(d.user.created_at).toLocaleDateString('en-GB',{month:'short',year:'numeric'}).toUpperCase(),108,150,9,'#8b6a3a','left',false);
+ let fav=S.char|0,fw=0;for(const k in S.winsBy)if(S.winsBy[k]>fw&&CH[k]){fw=S.winsBy[k];fav=+k}heroAt(330,118,fav,2.2,clock*8);txt(fw?'MOST WINS':'HERO',330,152,8,'#8b6a3a','center',false);
+ // classic boards: server standing when signed in, this device's bests when not
+ let y=176;pfSec('CLASSIC LEADERBOARD',y,prof.st==='err'?"CAN'T REACH THE BOARD":inn?'YOUR RANK':'SIGN IN TO RANK');y+=16;
+ TABS.forEach(([b,l])=>{const st=d&&d.boards[b],r=st&&st.row,f=inn?(r&&r.won?[r.curse,r.time_s]:null):B.f;
+  const v=b==='fastest'?(f?fmtT(f[1])+' · C'+f[0]:'No win yet'):b==='survival'?((inn?r&&r.time_s:B.s)?fmtT(inn?r.time_s:B.s):'—'):((inn?r&&r.kills:B.k)?fmtN(inn?r.kills:B.k):'—');
+  pfRow(y,l,v,st,()=>pfOpen(b),b);y+=32});
+ // the latest event that has started: its four boards
+ const E=evPast()[0];if(E){const de=d&&d.events.find(e=>e.id===E.id),eb=(LBS.evb||{})[E.id]||{};y+=10;pfSec(E.n.toUpperCase()+(evState(E)==='live'?' · LIVE':''),y);y+=16;
+  EVB.forEach(([b,l])=>{const st=de&&de.boards[b],r=st&&st.row;let v;
+   if(inn)v=!r?'—':b==='crowns'?r.crowns+' crown'+(r.crowns===1?'':'s'):b==='fastest'?fmtT(r.first_crown_s):b==='survival'?fmtT(r.time_s):fmtN(r.kills);
+   else v=b==='crowns'?(eb.c?'Best run '+eb.c[0]:'—'):b==='fastest'?(eb.f!=null?fmtT(eb.f):'—'):b==='survival'?(eb.s?fmtT(eb.s):'—'):(eb.k?fmtN(eb.k):'—');
+   pfRow(y,l,v,st,()=>pfOpen(b,E.id),E.id+b);y+=32})}
+ // lifetime, from the save (cloud save keeps it the same on every device)
+ y+=10;pfSec('LIFETIME',y);y+=16;
+ [['RUNS',fmtN(S.runs|0)],['WINS',fmtN(S.wins|0)],['KILLS',fmtN(Math.round(S.kills))],['BEST TIME',fmtT(S.best|0)],['MAX CURSE',S.maxCurse|0],['GOLD',fmtN(Math.round(S.gold))],
+  ['HEROES',S.chars.length+'/'+CH.length],['CODEX',pfCodex()],['PUMPKIN CROWNS',S.pumpkinCrowns|0]].forEach(([l,v],i)=>pfTile(28+(i%3)*111,y+Math.floor(i/3)*51,l,v));
+ // account actions
+ if(!inn){txt('Sign in to post scores & see your rank',195,640,10,'#8b6a3a','center',false);xButton(70,654,250,44,()=>lbSignIn(null),15);button('PLAY AS GUEST',70,706,250,40,()=>lbGuest(null),'#5fae7a',14)}
+ else if(u.guest){txt('Sign in with X to use your @handle and avatar',195,646,10,'#8b6a3a','center',false);txt('and keep this progress on every device.',195,660,10,'#8b6a3a','center',false);xButton(70,682,250,46,()=>lbSignIn(null),16)}
+ else{txt('Your progress syncs to every device.',195,664,10,'#8b6a3a','center',false);button('SIGN OUT',135,684,120,40,()=>{lbSignOut();prof.d=null;prof.st=null},'#6a4a3a',13)}
+ button('BACK',135,776,UI.back[0],UI.back[1],()=>go(prof.back),'#8b5a2b',UI.back[2])}catch(e){console.error(e)}finally{lbEnd()}}
 const hitBtn=(e)=>btns.some(b=>e.clientX>b.x&&e.clientX<b.x+b.w&&e.clientY>b.y&&e.clientY<b.y+b.h);
 cv.addEventListener('pointerdown',e=>{if(scene==='lb'&&!lb.rank&&!trans&&!hitBtn(e))lb.drag={y:e.clientY,s:lb.scroll};if(scene==='codex'&&!trans&&!hitBtn(e))codex.drag={y:e.clientY,s:codex.scroll}});
 addEventListener('pointermove',e=>{if(lb.drag)lb.scroll=lb.drag.s-(e.clientY-lb.drag.y)/lbT.k;if(codex.drag){const k=codex._k||lbT.k||1;codex.scroll=Math.max(0,Math.min(codex._maxS||0,codex.drag.s-(e.clientY-codex.drag.y)/k))}});addEventListener('pointerup',()=>{lb.drag=null;codex.drag=null});addEventListener('pointercancel',()=>{lb.drag=null;codex.drag=null;chs.drag=null});
@@ -1286,6 +1341,8 @@ function sySoon(){if(!lbIn())return;clearTimeout(syT);syT=setTimeout(sySync,2000
 // keep: also send if the page is closing. Failures keep the changes for the next try (next save, back online, next visit)
 async function sySync(keep){clearTimeout(syT);if(!lbIn()||NOSAVE)return;if(syBusy){syAgain=true;return}syBusy=true;
  try{const u=LBS.user.id;
+  // a guest this account absorbed (/api/me merged) is the same player: keep its base, so the push adds only what the server has not seen
+  if(SY.owner&&SY.owner!==u&&(LBS.user.merged||[]).includes(SY.owner)){SY.owner=u;sySave()}
   if(SY.owner!==u){// local save belongs to another account: set its unsynced progress aside, then load this account's
    if(SY.owner){const cur=toCloud();if(!SY.base||syKey(cur)!==syKey(SY.base))SY.stash[SY.owner]={save:cur,base:SY.base,ver:SY.ver};
     const st=SY.stash[u];delete SY.stash[u];if(st)applyCloud(st.save);else{S=JSON.parse(JSON.stringify(DEF));LBS.best={};LBS.ranks={};rawSave();lbSave()}

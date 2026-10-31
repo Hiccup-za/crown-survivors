@@ -10,6 +10,7 @@ Everything needed to configure, run, test and deploy Crown Survivors Classic and
 - [Workshop](#workshop)
 - [Deploy (Vercel)](#deploy-vercel)
 - [API routes](#api-routes-summary)
+- [Profiles and guest accounts](#profiles-and-guest-accounts)
 - [Seasonal events](#seasonal-events)
 
 ## Environment variables (Vercel + local)
@@ -119,9 +120,12 @@ Build command (optional): `npm run typecheck`. Output: static files from `public
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/auth/x?returnTo=<url>` | Start Sign in with X; returns to game with `#lb_token=…` |
+| POST | `/auth/x` `{returnTo}` | The same for a guest (Bearer token): answers `{url}` to open, and the X account absorbs the guest |
+| POST | `/api/auth/sign-in/anonymous` | Guest account with a generated name; answers `{token, user}` |
 | GET | `/auth/handoff` | Internal OAuth return (token hand-off) |
 | * | `/api/auth/*` | Better Auth (session, sign-out, X callback, …) |
-| GET | `/api/me` | Current user or `{ user: null }` |
+| GET | `/api/me` | Current user (`guest`, and `merged`: guest ids this account absorbed) or `{ user: null }` |
+| GET | `/api/me/profile` | Your account plus rank and best row on every Classic and event board (authenticated) |
 | POST | `/api/scores` | Submit score (authenticated) |
 | GET | `/api/leaderboard?board=fastest\|survival\|kills` | Public leaderboard |
 | GET | `/api/me/rank?board=…` | Your rank (authenticated) |
@@ -129,6 +133,14 @@ Build command (optional): `npm run typecheck`. Output: static files from `public
 | GET | `/api/events/:id/leaderboard?board=crowns\|fastest\|kills` | Event leaderboard (stays readable after the event as its archive) |
 | GET | `/api/events/:id/me/rank?board=…` | Your rank on an event board (authenticated) |
 | GET | `/api/health` | Health check JSON |
+
+## Profiles and guest accounts
+
+Tapping the name chip at the bottom of the title (or the chip on the leaderboard and events screens) opens the **profile** (scene `profile` in `public/index.html`): avatar, name, @handle or a GUEST badge, join date, rank and best on every Classic board and on the latest event's boards (tap a row to open that board), and lifetime stats from the save. Sign out lives here now. Signed out, the profile shows this device's bests and offers **Sign in with X** or **Play as guest**; the leaderboard, the new best card and the Halloween game over offer both too.
+
+**Guests** are Better Auth anonymous users (`isAnonymous` on `"user"`, migration `006_guests.sql`) named by `guestName()` in `api/_src/guests.ts`, like "Mossy Knight 372". They post to every board and keep a cloud save like anyone signed in. A guest lives only in the device's token, so guest sessions last five years instead of 30 days, and guests cannot rename themselves (`/api/auth/update-user` stays blocked). Production rate limits guest creation to 10 per IP per hour per instance.
+
+**Upgrading**: a guest's Sign in with X goes through `POST /auth/x` with its Bearer token, which records the guest in Better Auth's OAuth state. On the X callback, `mergeGuest()` moves the guest's scores, event scores, telemetry and cloud save into the X account (new or existing) in one transaction, records it in `guest_merges`, and deletes the guest. The cloud save merges as if the guest's save came from a new device; the account's version jumps past both, and the guest device's push record moves over, so the game's next push adds only what it played since its last sync. The game hands its local save to the X account only when `/api/me` lists the guest in `merged`; otherwise it falls back to the normal account switch (the guest's progress is stashed on the device, never dropped). An `/admin` magic link in a guest's browser never absorbs the guest.
 
 ## Seasonal events
 
