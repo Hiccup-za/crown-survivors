@@ -17,12 +17,15 @@ which are unchanged.
 
 ```jsonc
 {
-  "v": 1,
+  "v": 2,                 // 1 from pages before stable hero ids: still accepted, upgraded on the server
   "install_id": "uuid",   // random, kept in localStorage `crownsurv_tid`
   "session_id": "uuid",   // new on every page load
   "touch": false,         // (pointer: coarse)
-  "snap": { "gold", "pumpkin_crowns", "runs", "wins", "kills", "best_s", "max_curse",
-            "meta", "chars", "wins_by", "pumpkin_by", "codex" },
+  "snap": { "gold", "runs", "wins", "kills", "best_s", "max_curse", "meta",
+            "chars",    // hero ids, e.g. ["king-cube", "pumpkin-prince"] (v1: CH indexes)
+            "wins_by",  // {hero id: Classic wins}
+            "events",   // {event id: {"currency", "by": {hero id: n}}} (v1: pumpkin_crowns / pumpkin_by)
+            "codex" },
   "run":  { "mode": "classic|halloween", "event_id", "hero", "result": "win|death|quit",
             "time_s", "kills", "level", "gold_earned",
             "curse", "bosses",                                  // classic
@@ -34,6 +37,10 @@ which are unchanged.
 No PII: no IP, user agent or email is stored. When the player is signed in, the Bearer token links rows to
 their `user.id`. Nested maps from old saves are cleaned (bad entries dropped) rather than rejecting the ping.
 A second run from the same install inside 5 s is dropped.
+
+`player_snapshots` stores heroes and event progress in `heroes`, `hero_wins` and `events` (migration 006). The v1
+columns (`chars`, `wins_by`, `pumpkin_crowns`, `pumpkin_by`) are still written with the same numbers for the
+heroes and event that existed before, so existing queries and the admin views keep working.
 
 ## Rate limits (`api/migrations/004_telemetry_limits.sql`)
 
@@ -96,9 +103,9 @@ WHERE mode = 'halloween' AND result = 'death' GROUP BY 1 ORDER BY 2 DESC;
 SELECT width_bucket(gold, 0, 20000, 10) AS bucket, min(gold), max(gold), count(*)
 FROM player_snapshots GROUP BY 1 ORDER BY 1;
 
--- Total Pumpkin Crowns held, and players with at least one
-SELECT sum(pumpkin_crowns) AS crowns, count(*) FILTER (WHERE pumpkin_crowns > 0) AS crowned_players
-FROM player_snapshots;
+-- Currency held per event (Harvest Moon: Pumpkin Crowns), and players with at least one
+SELECT e.key AS event_id, sum((e.value->>'currency')::int) AS held, count(*) FILTER (WHERE (e.value->>'currency')::int > 0) AS players
+FROM player_snapshots, jsonb_each(events) e GROUP BY 1;
 
 -- Shop upgrade adoption: players at each level of each upgrade
 SELECT m.key AS upgrade, m.value::int AS level, count(*)

@@ -1,6 +1,7 @@
 /**
- * Seasonal events. Data only, so the next event is one more row.
- * Keep id / startAt / endAt in sync with EVENTS in public/index.html.
+ * Seasonal events. Data only, so the next event is one more row. Saves keep each event's progress under its id
+ * (Snapshot.events), so a new event needs no migration. EVENTS in public/index.html must match id / name / startAt /
+ * endAt / theme; _test/sync.test.ts fails when they drift.
  * Times are SAST (Africa/Johannesburg); endAt is exclusive.
  */
 export interface GameEvent {

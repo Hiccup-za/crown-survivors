@@ -91,7 +91,7 @@ test("R4 validateTelemetry accepts a valid ping and a ping with no snap or run",
 test("R4 validateTelemetry rejects bad envelopes", () => {
   assert.equal(ok(null), false);
   assert.equal(ok([]), false);
-  assert.equal(ok(ping({ v: 2 })), false);
+  assert.equal(ok(ping({ v: 3 })), false);
   assert.equal(ok(ping({ install_id: "not-a-uuid" })), false);
   assert.equal(ok(ping({ session_id: 7 })), false);
 });

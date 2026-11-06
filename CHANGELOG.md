@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0] - 2026-11-07
+
+### Changed
+- Heroes are saved by a permanent id instead of their place in the hero list, so heroes can be reordered or renamed without touching anyone's unlocks, wins or crowns.
+- Event progress (Harvest Moon's Pumpkin Crowns) is saved per event, so future events keep their own currency and need no save or database changes.
+- Existing saves upgrade on their own the first time the game loads, with nothing lost, and the original is kept on the device as a backup.
+- Cloud save and progress telemetry use the new format, and still accept the old one from a game left open in another tab, which keeps syncing until it reloads.
+
+### Added
+- The API tests fail if the game's heroes, prices, events or shop prices stop matching the server's.
+
 ## [0.8.0] - 2026-10-31
 
 ### Added

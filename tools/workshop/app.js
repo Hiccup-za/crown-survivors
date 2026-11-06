@@ -25,7 +25,7 @@ const BRIDGE = `
 ;(()=>{let on=0,cfg=null,boss=null,pon=0,pc=null,slots=[],pb=null,pq=0;const _hs=hwSpawn,_hr=hwRitual;hwSpawn=dt=>{if(!on&&!pq)_hs(dt)};hwRitual=dt=>{if(!on&&!pq)_hr(dt)};
  const hpf=p=>p===3?.2:p===2?.5:.95;
  window.__CS.sim={
-  start(c){cfg=c;on=1;pon=pq=0;S.char=c.hero|0;S.tut=true;S.muted=true;startRun(c.hw?1:0);const g=G;
+  start(c){cfg=c;on=1;pon=pq=0;S.char=CH[c.hero|0].id;S.tut=true;S.muted=true;startRun(c.hw?1:0);const g=G;
    g.tut=null;g.god=true;g.won=!c.hw;g.banner=null;g.w={};g.evo={};g.phase=c.phase|0;g.en=[];g.eliteT=1e9;
    if(c.weapon){g.w[c.weapon]=c.lvl||1;if(c.evo)g.evo[c.weapon]=1}
    SC=st();
@@ -47,7 +47,7 @@ const BRIDGE = `
  const lay=(n,k)=>Array.from({length:n},(_,i)=>{const a=i*2.39996,r=9*Math.sqrt(i),R=Math.max(70,n*7);return k==='line'?[50+i*22,0]:k==='pack'?[110+r*Math.cos(a),r*Math.sin(a)]:[Math.cos(i*6.2832/n)*R,Math.sin(i*6.2832/n)*R]});
  const put=s=>{const g=G,T=pc.target,e=spawnEnemy(T.type,!!T.elite);e.x=s.x+(T.pin?0:g.p.x);e.y=s.y+(T.pin?0:g.p.y);if(T.pin){e.home=[s.x,s.y];e.spd=0}if(T.hp!=='real')e.hp=e.mhp=1e9;s.e=e;s.t0=g.t;s.wait=0};
  window.__CS.pg={
-  start(c){on=0;pc=c;pon=1;pq=!c.spawn;const hw=c.mode==='halloween';S.char=c.hero|0;S.curse=hw?0:c.curse|0;S.tut=true;S.muted=true;startRun(hw?1:0);const g=G;
+  start(c){on=0;pc=c;pon=1;pq=!c.spawn;const hw=c.mode==='halloween';S.char=CH[c.hero|0].id;S.curse=hw?0:c.curse|0;S.tut=true;S.muted=true;startRun(hw?1:0);const g=G;
    g.tut=null;g.banner=null;g.god=!!c.god;g.t=+c.t||0;g.phase=c.phase|0;g.w={};g.evo={};g.ps={};
    for(const k in c.w||{}){const v=c.w[k];if(v==='evo'){g.w[k]=5;g.evo[k]=1}else if(v>0)g.w[k]=v}
    for(const k in c.ps||{})if(c.ps[k]>0)g.ps[k]=c.ps[k];if(g.ps.heart){g.p.mhp+=20*g.ps.heart;g.p.hp=g.p.mhp}

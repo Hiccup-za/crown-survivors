@@ -6,7 +6,7 @@ import { BOARDS, type Board, getLeaderboard, getMyRank, insertScore, validateSco
 import { ipHash, recordTelemetry, TELEMETRY_MAX_BYTES, validateTelemetry } from "./telemetry.js";
 import { getAdminStats, isAdmin, MAX_RANGE_DAYS, MAX_RANGE_HOURS, parseHours, parseRange } from "./admin.js";
 import { getProfile, isInstallId, isUserId, listPlayers } from "./players.js";
-import { getSave, pushSave, SAVE_MAX_BYTES, validatePush } from "./save.js";
+import { getSave, pushSave, SAVE_MAX_BYTES, toWire, validatePush } from "./save.js";
 import { acceptsScores, eventState, findEvent } from "./events.js";
 import {
   EVENT_BOARDS,
@@ -153,13 +153,14 @@ app.post("/api/t", async (c) => {
 });
 
 // ---- Cloud save (docs/remaining-tasks.md, section 1). One merged save per X account. ----
+// Pages that key heroes by id ask for v2 (?v=2 here, "v": 2 in the PUT body); older pages get the v1 shape they know.
 
 app.get("/api/save", async (c) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "sign in required" }, 401);
   const s = await getSave(user.id);
   c.header("Cache-Control", "private, no-store");
-  return c.json({ save: s?.save ?? null, version: s?.version ?? null });
+  return c.json({ save: s ? toWire(s.save, c.req.query("v") === "2" ? 2 : 1) : null, version: s?.version ?? null });
 });
 
 /** Merges the device's save into the account's (three-way, against base) and answers with the result. */
@@ -182,7 +183,7 @@ app.put("/api/save", async (c) => {
     return c.json({ error: res.limited }, 429);
   }
   c.header("Cache-Control", "private, no-store");
-  return c.json(res);
+  return c.json({ save: toWire(res.save, v.value.v), version: res.version });
 });
 
 // ---- Admin dashboard (public/admin.html). Only ADMIN_EMAILS, signed in by magic link. ----

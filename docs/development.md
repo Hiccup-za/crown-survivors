@@ -11,6 +11,7 @@ Everything needed to configure, run, test and deploy Crown Survivors Classic and
 - [Deploy (Vercel)](#deploy-vercel)
 - [API routes](#api-routes-summary)
 - [Seasonal events](#seasonal-events)
+- [Heroes](#heroes)
 
 ## Environment variables (Vercel + local)
 
@@ -133,8 +134,10 @@ Build command (optional): `npm run typecheck`. Output: static files from `public
 ## Seasonal events
 
 Events are data. The first is `harvest-2026` (Harvest Moon: the Pumpkin Prince hero and Halloween Endless). Each event is one entry in `EVENTS` in
-`public/index.html` and one in `api/_src/events.ts`, and the two must match: id, `startAt`/`endAt` (SAST,
-end exclusive), theme. While an event is live, the title wears its skin and offers its mode. After it ends,
+`public/index.html` and one in `api/_src/events.ts`, and the two must match: id, name, `startAt`/`endAt` (SAST,
+end exclusive), theme. `api/_test/sync.test.ts` fails when they drift. A player's progress in an event (its currency
+and how much each hero earned) is saved under the event id (`S.eventBy` in the game, `events` on the server), so a
+new event needs no migration and no new save fields. While an event is live, the title wears its skin and offers its mode. After it ends,
 the mode is hidden and the title's **EVENTS** button opens the archive.
 
 Event scores live in `event_scores` (migration `002_event_scores.sql`) and never touch the Classic boards.
@@ -144,3 +147,17 @@ QA on localhost or a preview deployment (ignored on `crown-survivors.vercel.app`
 `?event=harvest-2026` forces the event live, and `?event=ended` shows the post-event title and archive.
 The API still enforces the real window for submissions. `?sheet=halloween` opens the enemy review sheet: every event enemy, all
 frames, tells and silhouettes, drawn by the live code. The art rules are in [sprite-kit.md](sprite-kit.md).
+
+## Heroes
+
+Every hero has a stable id (`CH[].id`, for example `pumpkin-prince`). Saves, cloud saves, telemetry, the boards and hero-only
+items (`only: 'pumpkin-prince'`) all use it, never the hero's position in `CH`, so heroes can be reordered or renamed freely.
+Runs still use the index (`G.char`) and look it up from the id when they start.
+
+To add a hero: add it to `CH` with a new id, and its gold price to `HERO_PRICE` in `api/_src/heroes.ts` (`npm test` fails
+until the two match). Never change an existing id: it is the key for that hero's unlocks, wins, crowns and board rows.
+
+Saves from before ids keyed heroes by index and kept Harvest Moon's crowns as `pumpkinCrowns`. The game upgrades such a save
+once on load (`upS`, keeping the untouched original under `crownsurv_classic_v1_pre_ids`), and the API accepts and answers in
+that old shape for pages that are still open (`v` 1). Both use the same frozen index order (`HERO_LEGACY` in the game,
+`LEGACY_HEROES` in `api/_src/heroes.ts`): never reorder or extend it.

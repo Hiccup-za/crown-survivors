@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type pg from "pg";
 import { pool } from "./db.js";
+import { byHero, fromPumpkin, heroIds, maxEvents, toLegacy } from "./heroes.js";
 
 // First-party telemetry (docs/telemetry.md). One POST carries the session ping, the latest save
 // snapshot and, at run end, the finished run. Data only for our dashboards; never feeds leaderboards.
@@ -21,18 +22,29 @@ export function ipHash(ip: string | null | undefined, now = new Date()): string 
   return createHash("sha256").update(`${process.env.BETTER_AUTH_SECRET ?? ""}|${day}|${ip}`).digest("hex").slice(0, 32);
 }
 
+export type Counts = Record<string, number>;
+/** One event's progress: its currency (Harvest Moon: Pumpkin Crowns) and how much of it each hero earned. */
+export interface EventProgress {
+  currency: number;
+  by: Counts;
+}
+/** Progress per event id (EVENTS in events.ts). */
+export type Events = Record<string, EventProgress>;
+
+/** A save snapshot, heroes keyed by id. v1 snapshots (hero indexes, pumpkin_crowns / pumpkin_by) are upgraded on validation. */
 export interface Snapshot {
   gold: number;
-  pumpkin_crowns: number;
   runs: number;
   wins: number;
   kills: number;
   best_s: number;
   max_curse: number;
-  meta: Record<string, number>;
-  chars: number[];
-  wins_by: Record<string, number>;
-  pumpkin_by: Record<string, number>;
+  meta: Counts;
+  /** Unlocked hero ids. */
+  chars: string[];
+  /** Classic wins per hero id. */
+  wins_by: Counts;
+  events: Events;
   codex: { items: Record<string, { seen: number; taken: number }>; enemies: Record<string, { seen: number; kills: number }> };
 }
 
@@ -71,6 +83,7 @@ const EVENT_RE = /^[a-z0-9-]{1,40}$/;
 const KEY_RE = /^[a-z0-9:_-]{1,48}$/i;
 const CAUSE_RE = /^[a-z_]{1,24}$/;
 const MAX_KEYS = 600;
+const MAX_EVENTS = 64;
 
 const isInt = (v: unknown, min: number, max: number): v is number =>
   typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
@@ -85,6 +98,19 @@ function intMap(v: unknown, max: number): Record<string, number> | null {
   if (!isObj(v)) return null;
   const out: Record<string, number> = {};
   for (const k of Object.keys(v).slice(0, MAX_KEYS)) if (KEY_RE.test(k) && isInt(v[k], 0, max)) out[k] = v[k] as number;
+  return out;
+}
+
+/** Event progress {event_id: {currency, by: {hero: n}}}; bad entries are dropped. */
+function eventMap(v: unknown): Events | null {
+  if (v == null) return {};
+  if (!isObj(v)) return null;
+  const out: Events = {};
+  for (const k of Object.keys(v).slice(0, MAX_EVENTS)) {
+    const e = v[k];
+    if (!EVENT_RE.test(k) || !isObj(e) || !isInt(e.currency, 0, 1_000_000)) continue;
+    out[k] = { currency: e.currency, by: byHero(intMap(e.by, 1_000_000) ?? {}) };
+  }
   return out;
 }
 
@@ -106,23 +132,28 @@ function codexMap<C extends string>(v: unknown, count: C): Record<string, { seen
 export function validateSnapshot(s: unknown): V<Snapshot> {
   if (!isObj(s)) return { ok: false, error: "snap must be an object" };
   if (!isInt(s.gold, 0, 2_000_000_000)) return { ok: false, error: "snap.gold out of range" };
-  if (!isInt(s.pumpkin_crowns, 0, 1_000_000)) return { ok: false, error: "snap.pumpkin_crowns out of range" };
+  // v1 only: one event's currency, folded into events below
+  if (s.pumpkin_crowns != null && !isInt(s.pumpkin_crowns, 0, 1_000_000)) return { ok: false, error: "snap.pumpkin_crowns out of range" };
   if (!isInt(s.runs, 0, 10_000_000) || !isInt(s.wins, 0, 10_000_000)) return { ok: false, error: "snap.runs/wins out of range" };
   if (!isInt(s.kills, 0, 1e12)) return { ok: false, error: "snap.kills out of range" };
   if (!isInt(s.best_s, 0, 86400)) return { ok: false, error: "snap.best_s out of range" };
   if (!isInt(s.max_curse, 0, 5)) return { ok: false, error: "snap.max_curse out of range" };
   const meta = intMap(s.meta, 999), wins_by = intMap(s.wins_by, 10_000_000), pumpkin_by = intMap(s.pumpkin_by, 1_000_000);
   if (!meta || !wins_by || !pumpkin_by) return { ok: false, error: "snap.meta/wins_by/pumpkin_by must be {key: int}" };
-  if (!Array.isArray(s.chars) || s.chars.length > 64 || !s.chars.every((c) => isInt(c, 0, 63)))
-    return { ok: false, error: "snap.chars must be hero indexes" };
+  // hero ids, or v1 hero indexes
+  if (!Array.isArray(s.chars) || s.chars.length > 64 || !s.chars.every((c) => isInt(c, 0, 63) || (typeof c === "string" && HERO_RE.test(c))))
+    return { ok: false, error: "snap.chars must be hero ids" };
+  const events = eventMap(s.events);
+  if (!events) return { ok: false, error: "snap.events is malformed" };
   const cx = isObj(s.codex) ? s.codex : {};
   const items = codexMap(cx.items, "taken"), enemies = codexMap(cx.enemies, "kills");
   if (!items || !enemies) return { ok: false, error: "snap.codex is malformed" };
   return {
     ok: true,
     value: {
-      gold: s.gold, pumpkin_crowns: s.pumpkin_crowns, runs: s.runs, wins: s.wins, kills: s.kills, best_s: s.best_s,
-      max_curse: s.max_curse, meta, chars: s.chars as number[], wins_by, pumpkin_by, codex: { items, enemies },
+      gold: s.gold, runs: s.runs, wins: s.wins, kills: s.kills, best_s: s.best_s, max_curse: s.max_curse, meta,
+      chars: heroIds(s.chars), wins_by: byHero(wins_by), events: maxEvents(events, fromPumpkin(s.pumpkin_crowns ?? 0, pumpkin_by)),
+      codex: { items, enemies },
     },
   };
 }
@@ -158,7 +189,8 @@ function validateRun(r: unknown): V<Run> {
 
 export function validateTelemetry(body: unknown): V<TelemetryInput> {
   if (!isObj(body)) return { ok: false, error: "body must be a JSON object" };
-  if (body.v !== 1) return { ok: false, error: "v must be 1" };
+  // 2: snapshots key heroes by id. 1 (pages from before) is still accepted; validateSnapshot reads both
+  if (body.v !== 1 && body.v !== 2) return { ok: false, error: "v must be 1 or 2" };
   if (typeof body.install_id !== "string" || !UUID_RE.test(body.install_id)) return { ok: false, error: "install_id must be a UUID" };
   if (typeof body.session_id !== "string" || !UUID_RE.test(body.session_id)) return { ok: false, error: "session_id must be a UUID" };
   let snap: Snapshot | null = null, run: Run | null = null;
@@ -255,19 +287,22 @@ export async function recordTelemetry(
       const s = t.snap;
       const codexItems = Object.values(s.codex.items).filter((r) => r.seen).length;
       const codexEnemies = Object.values(s.codex.enemies).filter((r) => r.seen).length;
+      // heroes / hero_wins / events are the source of truth; the v1 columns stay written for the admin views until they move over
+      const v1 = toLegacy(s);
       await c.query(
         `INSERT INTO player_snapshots (install_id, user_id, gold, pumpkin_crowns, runs, wins, kills, best_s, max_curse,
-           codex_items, codex_enemies, meta, chars, wins_by, pumpkin_by, codex)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+           codex_items, codex_enemies, meta, chars, wins_by, pumpkin_by, codex, heroes, hero_wins, events)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
          ON CONFLICT (install_id) DO UPDATE SET
            user_id = COALESCE(EXCLUDED.user_id, player_snapshots.user_id),
            gold = EXCLUDED.gold, pumpkin_crowns = EXCLUDED.pumpkin_crowns, runs = EXCLUDED.runs, wins = EXCLUDED.wins,
            kills = EXCLUDED.kills, best_s = EXCLUDED.best_s, max_curse = EXCLUDED.max_curse,
            codex_items = EXCLUDED.codex_items, codex_enemies = EXCLUDED.codex_enemies, meta = EXCLUDED.meta,
            chars = EXCLUDED.chars, wins_by = EXCLUDED.wins_by, pumpkin_by = EXCLUDED.pumpkin_by, codex = EXCLUDED.codex,
-           last_seen = now()`,
-        [t.install_id, userId, s.gold, s.pumpkin_crowns, s.runs, s.wins, s.kills, s.best_s, s.max_curse, codexItems, codexEnemies,
-          JSON.stringify(s.meta), JSON.stringify(s.chars), JSON.stringify(s.wins_by), JSON.stringify(s.pumpkin_by), JSON.stringify(s.codex)],
+           heroes = EXCLUDED.heroes, hero_wins = EXCLUDED.hero_wins, events = EXCLUDED.events, last_seen = now()`,
+        [t.install_id, userId, s.gold, v1.pumpkin_crowns, s.runs, s.wins, s.kills, s.best_s, s.max_curse, codexItems, codexEnemies,
+          JSON.stringify(s.meta), JSON.stringify(v1.chars), JSON.stringify(v1.wins_by), JSON.stringify(v1.pumpkin_by), JSON.stringify(s.codex),
+          JSON.stringify(s.chars), JSON.stringify(s.wins_by), JSON.stringify(s.events)],
       );
     }
     await c.query("COMMIT");

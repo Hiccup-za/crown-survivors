@@ -424,6 +424,77 @@ describe("integration", { skip: !DB && "DATABASE_URL is not set" }, () => {
       assert.equal(await count(`SELECT count(*) AS n FROM player_saves`), 0);
       assert.equal(await count(`SELECT count(*) AS n FROM player_save_devices`), 0);
     });
+
+    describe("hero ids and event progress (v2)", () => {
+      const PP = "pumpkin-prince";
+      const save2 = (o: Record<string, unknown> = {}) => {
+        const { pumpkin_crowns: _c, pumpkin_by: _b, ...rest } = save({ chars: ["king-cube"], char: "king-cube", events: {} });
+        return { ...rest, ...o };
+      };
+      const push2 = async (install_id: string, s: unknown, base: unknown = null, base_version: number | null = null) => {
+        const res = await put({ v: 2, install_id, save: s, base, base_version });
+        assert.equal(res.status, 200);
+        return (await res.json()) as { save: Record<string, unknown>; version: number };
+      };
+      const get2 = async () => (await (await app.request(`${BASE}/api/save?v=2`, { headers: auth })).json()) as { save: Record<string, unknown> };
+
+      test("a v2 page gets ids back, and the v1 columns hold the same progress", async () => {
+        const s = save2({ chars: ["king-cube", PP], char: PP, wins_by: { "king-cube": 2 }, events: { "harvest-2026": { currency: 3, by: { [PP]: 3 } } } });
+        assert.deepEqual((await push2(DEV_A, s)).save, s);
+        assert.deepEqual((await get2()).save, s);
+        const row = (await pool.query(`SELECT heroes, hero, hero_wins, events, chars, char, wins_by, pumpkin_crowns, pumpkin_by FROM player_saves`)).rows[0];
+        assert.deepEqual(row, {
+          heroes: ["king-cube", PP], hero: PP, hero_wins: { "king-cube": 2 }, events: { "harvest-2026": { currency: 3, by: { [PP]: 3 } } },
+          chars: [0, 4], char: 4, wins_by: { "0": 2 }, pumpkin_crowns: 3, pumpkin_by: { "4": 3 },
+        });
+      });
+
+      test("an old page and a new one on the same account each keep their crowns", async () => {
+        const a = await push(DEV_A, save({ chars: [0, 4], pumpkin_crowns: 2, pumpkin_by: { "4": 2 } })); // old page
+        const b = await push2(DEV_B, save2()); // new page links and receives ids
+        assert.deepEqual(b.save.events, { "harvest-2026": { currency: 2, by: { [PP]: 2 } } });
+        await push2(DEV_B, { ...b.save, events: { "harvest-2026": { currency: 3, by: { [PP]: 3 } } } }, b.save, b.version);
+        const r = await push(DEV_A, save({ chars: [0, 4], pumpkin_crowns: 4, pumpkin_by: { "4": 4 } }), a.save, a.version);
+        assert.equal(r.save.pumpkin_crowns, 5);
+        assert.deepEqual(r.save.chars, [0, 4]);
+        assert.deepEqual((await get2()).save.events, { "harvest-2026": { currency: 5, by: { [PP]: 5 } } });
+      });
+
+      test("progress an older API version wrote to the v1 columns after the migration is read too", async () => {
+        await push2(DEV_A, save2({ chars: ["king-cube", PP], char: PP, events: { "harvest-2026": { currency: 3, by: { [PP]: 3 } } } }));
+        // the API from before only knows the v1 columns: it adds a crown and a hero, and selects Ruby Knight
+        await pool.query(`UPDATE player_saves SET pumpkin_crowns = 4, pumpkin_by = '{"4":4}', chars = '[0,1,4]', char = 1, wins_by = '{"1":1}'`);
+        const s = (await get2()).save;
+        assert.deepEqual(s.events, { "harvest-2026": { currency: 4, by: { [PP]: 4 } } });
+        assert.deepEqual(s.chars, ["king-cube", PP, "ruby-knight"]);
+        assert.equal(s.char, "ruby-knight");
+        assert.deepEqual(s.wins_by, { "ruby-knight": 1 });
+      });
+
+      test("a device whose stored last push is v1 is merged against it, not counted twice", async () => {
+        const v1 = await push(DEV_A, save({ runs: 10 }));
+        await push(DEV_A, save({ runs: 12 }), v1.save, v1.version); // stored as sent; response lost
+        await pool.query(`UPDATE player_save_devices SET sent = $1`, [JSON.stringify(save({ runs: 12 }))]); // as the API from before stored it
+        const r = await push2(DEV_A, save2({ runs: 13 }), v1.save, v1.version);
+        assert.equal(r.save.runs, 13);
+      });
+
+      test("telemetry snapshots in either shape land as ids, with the v1 columns kept", async () => {
+        const ping = (v: number, snap: unknown) =>
+          app.request(`${BASE}/api/t`, { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ v, install_id: DEV_A, session_id: DEV_B, touch: false, snap, run: null }) });
+        const { char: _c, curse: _u, tut: _t, muted: _m, gore: _g, last_event: _l, lb_best: _lb, lb_ranks: _r, ...snap1 } =
+          save({ chars: [0, 4], wins_by: { "4": 1 }, pumpkin_crowns: 2, pumpkin_by: { "4": 2 } });
+        assert.equal((await ping(1, snap1)).status, 200);
+        const cols = `SELECT heroes, hero_wins, events, chars, wins_by, pumpkin_crowns, pumpkin_by FROM player_snapshots`;
+        const want = { heroes: ["king-cube", PP], hero_wins: { [PP]: 1 }, events: { "harvest-2026": { currency: 2, by: { [PP]: 2 } } },
+          chars: [0, 4], wins_by: { "4": 1 }, pumpkin_crowns: 2, pumpkin_by: { "4": 2 } };
+        assert.deepEqual((await pool.query(cols)).rows[0], want);
+        const { pumpkin_crowns: _pc, pumpkin_by: _pb, ...snap2 } = { ...snap1, chars: ["king-cube", PP], wins_by: { [PP]: 1 }, events: want.events };
+        assert.equal((await ping(2, snap2)).status, 200);
+        assert.deepEqual((await pool.query(cols)).rows[0], want);
+      });
+    });
   });
 
   describe("event boards", () => {
