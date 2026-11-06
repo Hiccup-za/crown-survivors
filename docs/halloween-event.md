@@ -12,7 +12,7 @@ ships until he signs off.
 
 | Field | Value | Where |
 | --- | --- | --- |
-| id | `harvest-2026` | `EVENTS.harvest` in `public/index.html` and `api/_src/events.ts` (keep in sync) |
+| id | `harvest-2026` | `EVENTS.harvest` in `public/index.html` and `api/_src/events.ts` (checked by `api/_test/sync.test.ts`) |
 | name | `Harvest Moon` (shared with the Pumpkin Prince event hero, unlocked by completing Night 1 in Halloween Endless) | |
 | startAt | `2026-10-31T00:00:00+02:00` (SAST: midnight going into 31 Oct) | |
 | endAt | `2026-11-08T00:00:00+02:00` (SAST, exclusive: last day is 7 Nov) | |

@@ -53,7 +53,8 @@ const pgDefault = () => ({ mode: 'classic', hero: 0, curse: 0, t: 0, phase: 0, w
   target: { type: 'blob', n: 12, layout: 'ring', elite: false, pin: true, hp: 'immortal' }, spawn: false, god: true, move: false, boss: null });
 const pg = { cfg: pgDefault(), live: false, playing: true, speed: 1, zoom: 1.6, acc: 0, samples: [], updMs: 0, drawMs: 0, s: null, err: null, uiT: 0 };
 const pgView = $('pgview'), pgX = pgView.getContext('2d'), pgVp = $('pgvp');
-const okFor = (o, hero) => o.only == null || o.only === hero;
+// hero is a CH index (presets keep it that way); only is a hero id
+const okFor = (o, hero) => o.only == null || o.only === (R.CH[hero] || {}).id;
 
 function pgEnter() {
   if (!CS) return;
